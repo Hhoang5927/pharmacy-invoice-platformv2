@@ -1,0 +1,61 @@
+# Logging configuration skeleton.
+# Real handler/formatter wiring is completed in Prompt 05
+# (infrastructure/logging/logger_factory.py), which reads this file.
+#
+# Categories match Technical Design Document Section 11.1 / FR-10 exactly:
+#   pharmacy_automation.ocr
+#   pharmacy_automation.gemini_api
+#   pharmacy_automation.automation
+#   pharmacy_automation.database
+#   pharmacy_automation.error
+#   pharmacy_automation.retry
+
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  default:
+    format: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: default
+    level: INFO
+  file:
+    class: logging.handlers.TimedRotatingFileHandler
+    formatter: default
+    level: INFO
+    filename: "./logs/pharmacy_automation.log"
+    when: midnight
+    backupCount: 14
+
+loggers:
+  pharmacy_automation.ocr:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  pharmacy_automation.gemini_api:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  pharmacy_automation.automation:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  pharmacy_automation.database:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  pharmacy_automation.error:
+    level: WARNING
+    handlers: [console, file]
+    propagate: false
+  pharmacy_automation.retry:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+
+root:
+  level: WARNING
+  handlers: [console]

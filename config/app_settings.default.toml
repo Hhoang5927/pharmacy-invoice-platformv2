@@ -1,0 +1,31 @@
+# Application settings — non-secret defaults only.
+# Secrets (Gemini API key, website username/password) are NEVER stored here.
+# They are stored via infrastructure/config/secrets_manager.py (OS keyring,
+# with an encrypted-file fallback). See Technical Design Document Section 15.
+#
+# Layering order (lowest to highest priority), per Technical Design
+# Document Section 10.1:
+#   built-in defaults -> this file -> environment variables -> UI Settings Tab
+
+[ocr]
+gemini_model = "placeholder-model-id"     # pinned in Prompt 05
+concurrency_limit = 5
+retry_count = 3
+timeout_seconds = 30
+
+[automation]
+headless = true
+timeout_seconds = 30
+retry_count = 3
+navigation_timeout_seconds = 30
+
+[price_lookup]
+cache_ttl_hours = 24
+
+[logging]
+level = "INFO"
+retention_days = 14
+
+[paths]
+default_working_folder = ""
+database_path = "./data/project.sqlite3"

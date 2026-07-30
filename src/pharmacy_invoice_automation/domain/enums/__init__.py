@@ -1,0 +1,1 @@
+"""Enums: InvoiceStatus, MedicineGroup, UnitType."""

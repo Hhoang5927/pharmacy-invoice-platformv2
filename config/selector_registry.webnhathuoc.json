@@ -1,0 +1,6 @@
+{
+  "site": "webnhathuoc.com",
+  "version": 1,
+  "description": "PLACEHOLDER selector registry. Populated in Prompt 05 (Infrastructure) per Technical Design Document Section 8.2 and Workflow Specifications (Login, Open Import Invoice, Create Supplier, Create Medicine). No selector is ever hardcoded in automation code -- every locator lives here.",
+  "selectors": {}
+}

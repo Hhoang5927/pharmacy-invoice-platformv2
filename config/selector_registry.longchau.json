@@ -1,0 +1,6 @@
+{
+  "site": "nhathuoclongchau.com.vn",
+  "version": 1,
+  "description": "PLACEHOLDER selector registry for Long Chau retail price lookup. Populated in Prompt 05 (Infrastructure) per Technical Design Document Section 8.2 (FR-09).",
+  "selectors": {}
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "invoice_extraction_schema_v1",
+  "title": "InvoiceExtractionSchemaV1",
+  "description": "PLACEHOLDER. The real structured-output schema (matching Technical Design Document Section 7.4) is authored in Prompt 05.",
+  "type": "object",
+  "properties": {}
+}

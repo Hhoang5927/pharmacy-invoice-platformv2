@@ -1,0 +1,16 @@
+/*
+ * Dark theme stylesheet skeleton.
+ *
+ * Populated in Prompt 07 (UI Layer) per Implementation Specification
+ * Section 3 (Folder Specification) and Section 6 (Module Contracts,
+ * presentation/theme).
+ *
+ * No real styling rules are defined here yet -- this file exists so the
+ * project structure and theme_loader.py have something to load without
+ * erroring, and so the QSS file's presence in version control is
+ * established from the start.
+ */
+
+QWidget {
+    /* base palette to be defined in Prompt 07 */
+}

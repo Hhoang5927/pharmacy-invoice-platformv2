@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-type-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Type check (mypy)
+        run: mypy
+
+      - name: Unit + application tests
+        run: pytest -m "unit" --cov=src/pharmacy_invoice_automation
+
+      # Integration, golden-file, and automation/e2e suites are wired in
+      # once Prompts 05-08 exist; this workflow intentionally runs only
+      # the fast, always-available unit tier for now (Implementation
+      # Blueprint Section 9, Testing Strategy).

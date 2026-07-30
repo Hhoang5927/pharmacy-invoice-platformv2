@@ -1,0 +1,8 @@
+# Top-level environment selector.
+#
+# This file only selects which environment the app runs in; the actual
+# typed, validated settings live in config/app_settings.default.toml and
+# are loaded through infrastructure/config/settings_manager.py
+# (Technical Design Document Section 10.1).
+
+environment: development   # development | staging | production
