@@ -1,0 +1,275 @@
+# SA-001_APPLICATION_ARCHITECTURE
+
+> Document ID: SA-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the application architecture of the Pharmacy Invoice Automation System.
+
+The objective is to provide a clean, modular and maintainable software structure that separates business logic from implementation details.
+
+---
+
+# 2. Architecture Overview
+
+The application is a desktop-based system.
+
+Its responsibilities include:
+
+- Invoice Management
+- OCR Processing
+- AI Extraction
+- Business Validation
+- Human Review
+- Excel Generation
+- Browser Automation
+- Logging
+- Configuration Management
+
+---
+
+# 3. Technology Stack
+
+Desktop Framework
+
+- Electron
+
+Frontend
+
+- React
+- TypeScript
+
+Backend
+
+- Node.js
+- TypeScript
+
+Browser Automation
+
+- Playwright
+
+OCR
+
+- Pluggable OCR Provider
+
+AI
+
+- Pluggable AI Provider
+
+Storage
+
+- Local Files
+- SQLite (optional)
+- JSON Configuration
+
+---
+
+# 4. Application Layers
+
+The application is divided into independent layers.
+
+```
+Presentation Layer
+
+↓
+
+Application Layer
+
+↓
+
+Business Layer
+
+↓
+
+Infrastructure Layer
+
+↓
+
+Storage Layer
+```
+
+Each layer has a single responsibility.
+
+---
+
+# 5. Presentation Layer
+
+Responsibilities
+
+- Dashboard
+- Invoice Queue
+- Human Review
+- Settings
+- Logs
+- Progress Display
+
+Presentation Layer shall never contain business rules.
+
+---
+
+# 6. Application Layer
+
+Responsibilities
+
+- Workflow Control
+- Task Scheduling
+- Module Coordination
+- Processing Pipeline
+
+Application Layer orchestrates the complete invoice lifecycle.
+
+---
+
+# 7. Business Layer
+
+Responsibilities
+
+- Business Rules
+- Validation
+- Rule Engine
+- Approval Logic
+
+Business Layer contains no UI code.
+
+Business Layer contains no browser automation.
+
+---
+
+# 8. Infrastructure Layer
+
+Responsibilities
+
+- OCR
+- AI
+- Browser Automation
+- File System
+- Excel Export
+- Logging
+
+Infrastructure modules may be replaced independently.
+
+---
+
+# 9. Storage Layer
+
+Responsibilities
+
+- Invoice Files
+- OCR Results
+- AI Results
+- Approved Dataset
+- Logs
+- Configuration
+- Cache
+
+Storage Layer shall expose repositories instead of direct file access.
+
+---
+
+# 10. Dependency Rules
+
+Presentation Layer
+
+↓
+
+Application Layer
+
+↓
+
+Business Layer
+
+↓
+
+Infrastructure Layer
+
+↓
+
+Storage Layer
+
+Reverse dependencies are prohibited.
+
+---
+
+# 11. Communication Rules
+
+Modules communicate through interfaces.
+
+Modules shall not directly access internal implementation of other modules.
+
+Communication shall use typed data models.
+
+---
+
+# 12. Error Handling
+
+Errors remain inside the originating layer.
+
+Errors are propagated upward through standardized error objects.
+
+No module shall terminate the application unexpectedly.
+
+---
+
+# 13. Configuration
+
+Configuration shall be centralized.
+
+Modules read configuration through Configuration Service.
+
+Modules shall not read configuration files directly.
+
+---
+
+# 14. Logging
+
+Every layer may write logs.
+
+Logging format shall be standardized.
+
+Logs shall include:
+
+- Timestamp
+- Module
+- Level
+- Message
+- Context
+
+---
+
+# 15. Scalability
+
+The architecture supports future additions including:
+
+- Multiple OCR engines
+- Multiple AI providers
+- Multiple pharmacy systems
+- Additional export formats
+- Additional validation modules
+
+without changing existing business logic.
+
+---
+
+# 16. Success Criteria
+
+Application Architecture is successful when:
+
+- Layers are independent.
+- Responsibilities are clear.
+- Modules are replaceable.
+- Business logic is reusable.
+- Infrastructure can evolve independently.
+
+---
+
+# End of Document

@@ -1,0 +1,412 @@
+# DATA EXCHANGE SPECIFICATION
+
+> Document ID: TS-006
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Architect
+
+---
+
+# 1. Overview
+
+## Purpose
+
+This document defines the data exchange standards used by every module in the Pharmacy Invoice Automation Platform.
+
+The objective is to ensure that all modules communicate through standardized, versioned and deterministic data contracts.
+
+No module shall access another module's internal implementation.
+
+---
+
+# 2. Exchange Principles
+
+The platform exchanges data only through structured objects.
+
+The exchange format shall be:
+
+- Deterministic
+- Serializable
+- Versioned
+- Strongly Typed
+- Immutable after approval
+
+Modules communicate only through contracts.
+
+---
+
+# 3. Processing Flow
+
+Invoice File
+
+↓
+
+OCR Result
+
+↓
+
+Structured Invoice
+
+↓
+
+Validation Report
+
+↓
+
+Approved Dataset
+
+↓
+
+Automation Request
+
+↓
+
+Execution Report
+
+---
+
+# 4. Data Contracts
+
+The platform defines six primary contracts.
+
+OCR Result
+
+↓
+
+Structured Invoice
+
+↓
+
+Validation Report
+
+↓
+
+Approved Dataset
+
+↓
+
+Automation Request
+
+↓
+
+Execution Report
+
+Each contract is immutable after creation.
+
+---
+
+# 5. OCR Result Contract
+
+Produced By
+
+OCR Module
+
+Consumed By
+
+AI Extraction Module
+
+Contains
+
+- Raw Text
+- Confidence
+- Page Count
+- Processing Time
+- OCR Metadata
+- Source File
+
+---
+
+# 6. Structured Invoice Contract
+
+Produced By
+
+AI Extraction Module
+
+Consumed By
+
+Validation Module
+
+Contains
+
+Invoice
+
+Supplier
+
+Purchase Items
+
+Medicine
+
+Batch
+
+Totals
+
+Confidence
+
+Warnings
+
+---
+
+# 7. Validation Report Contract
+
+Produced By
+
+Validation Module
+
+Consumed By
+
+Review Module
+
+Contains
+
+Validation Status
+
+Executed Rules
+
+Errors
+
+Warnings
+
+Critical Errors
+
+Review Recommendation
+
+Execution Metadata
+
+---
+
+# 8. Approved Dataset Contract
+
+Produced By
+
+Review Module
+
+Consumed By
+
+Automation Module
+
+Contains
+
+Approved Invoice
+
+Approved Purchase Items
+
+Approved Totals
+
+Approval Metadata
+
+Reviewer
+
+Approval Time
+
+Version
+
+Approved Dataset shall never be modified.
+
+---
+
+# 9. Automation Request Contract
+
+Produced By
+
+Review Module
+
+Consumed By
+
+Automation Module
+
+Contains
+
+Approved Dataset
+
+Execution Configuration
+
+Environment
+
+Retry Policy
+
+Execution Identifier
+
+---
+
+# 10. Execution Report Contract
+
+Produced By
+
+Automation Module
+
+Consumed By
+
+Reporting Module
+
+Contains
+
+Execution Status
+
+Execution Duration
+
+Retry Count
+
+Screenshots
+
+Logs
+
+Verification Result
+
+Error Information
+
+---
+
+# 11. Serialization
+
+Supported formats
+
+JSON
+
+UTF-8
+
+Objects shall be serialized consistently.
+
+Date format
+
+ISO-8601
+
+Numeric values
+
+Decimal
+
+Currency
+
+Fixed precision
+
+---
+
+# 12. Versioning
+
+Every exchanged object shall contain
+
+Contract Version
+
+Schema Version
+
+Generated Timestamp
+
+Correlation ID
+
+Future versions shall remain backward compatible whenever possible.
+
+---
+
+# 13. Validation
+
+Before accepting exchanged data the receiving module shall validate
+
+Schema
+
+Required Fields
+
+Types
+
+Version
+
+Business Context
+
+Invalid contracts shall be rejected.
+
+---
+
+# 14. Error Exchange
+
+Errors shall contain
+
+Error Code
+
+Module
+
+Severity
+
+Timestamp
+
+Correlation ID
+
+Message
+
+Recoverable Flag
+
+Stack Trace (optional)
+
+---
+
+# 15. Security
+
+Sensitive information shall never be exchanged unless required.
+
+Credentials shall never appear in any exchanged object.
+
+Personally identifiable information shall be minimized.
+
+---
+
+# 16. Logging
+
+Every contract exchange shall generate
+
+Producer
+
+Consumer
+
+Timestamp
+
+Contract Version
+
+Execution ID
+
+Duration
+
+Success
+
+Failure
+
+---
+
+# 17. Performance
+
+Serialization
+
+< 100 ms
+
+Validation
+
+< 100 ms
+
+Deserialization
+
+< 100 ms
+
+Large invoice support shall remain configurable.
+
+---
+
+# 18. Acceptance Criteria
+
+The Data Exchange layer is accepted when
+
+✓ Every module communicates through contracts.
+
+✓ Serialization is deterministic.
+
+✓ Versioning is supported.
+
+✓ Invalid contracts are rejected.
+
+✓ Execution is fully traceable.
+
+✓ Data integrity is preserved.
+
+---
+
+# End of Document

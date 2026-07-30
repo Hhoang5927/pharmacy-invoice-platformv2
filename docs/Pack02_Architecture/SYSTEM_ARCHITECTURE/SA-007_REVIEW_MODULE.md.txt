@@ -1,0 +1,361 @@
+# SA-007_REVIEW_MODULE
+
+> Document ID: SA-007
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the architecture of the Human Review Module.
+
+The Human Review Module provides an interface for reviewing, correcting and approving extracted invoice data before browser automation begins.
+
+The Human Review Module is the only module allowed to modify extracted business data after AI processing.
+
+---
+
+# 2. Responsibilities
+
+The Human Review Module shall:
+
+- Display extracted invoice
+- Display validation results
+- Highlight validation errors
+- Allow business corrections
+- Approve invoices
+- Reject invoices
+- Generate Approved Dataset
+
+---
+
+# 3. Design Principles
+
+Human decisions override AI decisions.
+
+Every modification shall be audited.
+
+Approved data becomes immutable.
+
+Automation shall only use approved data.
+
+---
+
+# 4. Internal Architecture
+
+```
+Validation Result
+        │
+        ▼
+Review Queue
+        │
+        ▼
+Review Workspace
+        │
+        ▼
+Business Editor
+        │
+        ▼
+Approval Engine
+        │
+        ▼
+Approved Dataset
+```
+
+---
+
+# 5. Components
+
+## Review Queue
+
+Responsibilities
+
+- Store invoices waiting for review
+- Prioritize review tasks
+- Track review status
+
+Possible Status
+
+Pending
+
+In Progress
+
+Approved
+
+Rejected
+
+---
+
+## Review Workspace
+
+Responsibilities
+
+Display:
+
+- Invoice Image
+- OCR Text
+- AI Result
+- Validation Report
+
+Allow side-by-side comparison.
+
+---
+
+## Business Editor
+
+Responsibilities
+
+Allow editing of:
+
+Supplier
+
+Invoice Number
+
+Invoice Date
+
+Medicine
+
+Quantity
+
+Unit
+
+Batch
+
+Expiry
+
+Purchase Price
+
+VAT
+
+Notes
+
+---
+
+## Approval Engine
+
+Responsibilities
+
+Validate modified data.
+
+Generate Approved Dataset.
+
+Update Invoice Status.
+
+---
+
+# 6. Review Workflow
+
+Validation Result
+
+↓
+
+Review Queue
+
+↓
+
+Reviewer Opens Invoice
+
+↓
+
+Review Data
+
+↓
+
+Correct Data
+
+↓
+
+Validation
+
+↓
+
+Approve
+
+↓
+
+Approved Dataset
+
+---
+
+# 7. Editable Fields
+
+Editable
+
+Supplier
+
+Invoice Number
+
+Invoice Date
+
+Medicine
+
+Quantity
+
+Unit
+
+Batch Number
+
+Expiry Date
+
+Purchase Price
+
+VAT
+
+Notes
+
+---
+
+# 8. Non-Editable Fields
+
+Generated IDs
+
+Audit IDs
+
+Internal References
+
+System Metadata
+
+Processing History
+
+Automation Logs
+
+---
+
+# 9. Approval Rules
+
+Approval requires:
+
+Validation Passed
+
+Required Fields Complete
+
+Reviewer Confirmation
+
+Successful Revalidation
+
+---
+
+# 10. Review Decisions
+
+Possible Decisions
+
+Approve
+
+Reject
+
+Return for Correction
+
+Skip
+
+---
+
+# 11. Audit
+
+Every modification records:
+
+Reviewer
+
+Timestamp
+
+Field
+
+Previous Value
+
+New Value
+
+Reason
+
+---
+
+# 12. User Interface Requirements
+
+The review interface shall display:
+
+Invoice Image
+
+OCR Result
+
+AI Result
+
+Validation Errors
+
+Editable Form
+
+Review History
+
+Approval Controls
+
+---
+
+# 13. Error Handling
+
+Possible Errors
+
+Concurrent Modification
+
+Validation Failure
+
+Save Failure
+
+Approval Failure
+
+Unexpected Exception
+
+---
+
+# 14. Dependencies
+
+Depends On
+
+Validation Engine
+
+Business Rules
+
+Configuration Service
+
+Logging Service
+
+Does Not Depend On
+
+OCR Engine
+
+Browser Automation
+
+---
+
+# 15. Public Interface
+
+Input
+
+Validation Result
+
+Output
+
+Approved Dataset
+
+Review Decision
+
+Audit Events
+
+---
+
+# 16. Success Criteria
+
+The Human Review Module is successful when:
+
+- Review completed.
+- Required corrections applied.
+- Validation passes.
+- Approved Dataset generated.
+- Audit history recorded.
+
+---
+
+# End of Document

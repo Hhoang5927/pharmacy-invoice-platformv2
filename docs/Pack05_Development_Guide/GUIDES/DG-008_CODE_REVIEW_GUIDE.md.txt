@@ -1,0 +1,347 @@
+# CODE REVIEW GUIDE
+
+> Document ID: DG-008
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Lead
+
+---
+
+# 1. Purpose
+
+This document defines the code review process for the Pharmacy Invoice Automation Platform.
+
+The objective is to ensure that every code change meets the project's quality, architecture and business requirements before being merged.
+
+These review standards apply equally to human-written code and AI-generated code.
+
+---
+
+# 2. Review Principles
+
+Every review shall verify
+
+- Correctness
+- Readability
+- Maintainability
+- Testability
+- Security
+- Performance
+- Compliance with project standards
+
+The objective of review is improving software quality, not criticizing developers.
+
+---
+
+# 3. Review Scope
+
+Every Pull Request shall be reviewed.
+
+Review includes
+
+Business Logic
+
+Architecture
+
+Domain Model
+
+API
+
+Database
+
+Automation
+
+Frontend
+
+Backend
+
+Configuration
+
+Documentation
+
+Tests
+
+---
+
+# 4. Business Rule Verification
+
+The reviewer shall verify
+
+Implementation follows Pack 01.
+
+No business rule is bypassed.
+
+Business terminology remains consistent.
+
+No hidden business logic exists.
+
+Business behavior matches documentation.
+
+---
+
+# 5. Architecture Verification
+
+The reviewer shall verify
+
+Layer boundaries are respected.
+
+Dependencies point inward.
+
+No circular dependencies exist.
+
+Module responsibilities remain clear.
+
+Implementation follows Pack 02.
+
+---
+
+# 6. Domain Verification
+
+The reviewer shall verify
+
+Domain objects remain consistent.
+
+Entities preserve invariants.
+
+DTOs are not used as domain models.
+
+Business terminology follows Pack 03.
+
+---
+
+# 7. Technical Verification
+
+The reviewer shall verify
+
+Technical implementation follows Pack 04.
+
+External integrations follow specifications.
+
+Contracts remain unchanged.
+
+Configuration is respected.
+
+---
+
+# 8. Coding Standards Verification
+
+The reviewer shall verify
+
+Naming conventions.
+
+Code organization.
+
+Function size.
+
+Class responsibility.
+
+Dependency injection.
+
+Exception handling.
+
+Logging.
+
+Configuration usage.
+
+Implementation shall follow Pack 05.
+
+---
+
+# 9. Security Review
+
+The reviewer shall verify
+
+No credentials are committed.
+
+No secrets are exposed.
+
+Authorization is respected.
+
+Sensitive information is protected.
+
+Input validation exists where required.
+
+---
+
+# 10. Performance Review
+
+The reviewer shall verify
+
+No unnecessary database queries.
+
+No unnecessary API calls.
+
+No excessive memory usage.
+
+No blocking operations.
+
+Performance-critical code remains efficient.
+
+---
+
+# 11. Testing Review
+
+The reviewer shall verify
+
+Relevant unit tests exist.
+
+Integration tests are updated.
+
+Existing tests still pass.
+
+Business-critical scenarios remain covered.
+
+---
+
+# 12. Documentation Review
+
+Documentation shall be updated when
+
+Business behavior changes.
+
+API changes.
+
+Configuration changes.
+
+Architecture changes.
+
+Documentation shall remain synchronized with implementation.
+
+---
+
+# 13. AI Code Review
+
+AI-generated code shall receive the same review process as human-written code.
+
+Additional verification includes
+
+Consistency with existing implementation.
+
+No duplicated logic.
+
+No unnecessary abstraction.
+
+No speculative features.
+
+No generated placeholder code.
+
+No unused files or modules.
+
+---
+
+# 14. Review Checklist
+
+The reviewer shall confirm
+
+✓ Business Rules respected.
+
+✓ Architecture respected.
+
+✓ Domain Model respected.
+
+✓ Technical Specification respected.
+
+✓ Coding Standards followed.
+
+✓ Naming Convention followed.
+
+✓ Tests pass.
+
+✓ Documentation updated.
+
+✓ Security verified.
+
+✓ Performance acceptable.
+
+---
+
+# 15. Review Outcome
+
+Possible outcomes
+
+Approved
+
+Approved with Comments
+
+Changes Requested
+
+Rejected
+
+Requested changes shall be addressed before merging.
+
+---
+
+# 16. Merge Readiness
+
+Code is ready for merge only when
+
+All required reviews are completed.
+
+Continuous Integration passes.
+
+Required discussions are resolved.
+
+Documentation is updated.
+
+No blocking issues remain.
+
+---
+
+# 17. Continuous Improvement
+
+Review findings shall be used to
+
+Improve coding standards.
+
+Improve documentation.
+
+Improve architecture.
+
+Reduce recurring issues.
+
+Strengthen AI prompts and implementation guidance.
+
+---
+
+# 18. Prohibited Practices
+
+The following are prohibited
+
+Approving without review.
+
+Ignoring failed tests.
+
+Ignoring security issues.
+
+Approving code that violates architecture.
+
+Merging undocumented breaking changes.
+
+Skipping review for AI-generated code.
+
+---
+
+# 19. Acceptance Criteria
+
+The code review process is accepted when
+
+✓ Every change is reviewed.
+
+✓ Business Rules remain protected.
+
+✓ Architecture remains consistent.
+
+✓ Security is verified.
+
+✓ Documentation stays synchronized.
+
+✓ AI-generated code meets the same quality standards as human-written code.
+
+---
+
+# End of Document

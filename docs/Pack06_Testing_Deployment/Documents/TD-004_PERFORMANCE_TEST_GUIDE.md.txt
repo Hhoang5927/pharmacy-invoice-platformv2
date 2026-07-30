@@ -1,0 +1,297 @@
+# PERFORMANCE TEST GUIDE
+
+> Document ID: TD-004
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: QA Lead
+
+---
+
+# 1. Purpose
+
+This document defines the performance testing strategy for the Pharmacy Invoice Automation Platform.
+
+The objective is to verify that the platform performs reliably under expected and peak workloads while maintaining acceptable response times and resource utilization.
+
+---
+
+# 2. Scope
+
+Performance testing applies to
+
+Frontend
+
+Backend
+
+OCR Integration
+
+AI Integration
+
+Database
+
+Automation Engine
+
+API
+
+Background Jobs
+
+---
+
+# 3. Objectives
+
+Performance testing shall verify
+
+Response Time
+
+Throughput
+
+Concurrency
+
+Scalability
+
+Resource Utilization
+
+System Stability
+
+---
+
+# 4. Performance Test Types
+
+The following test types shall be supported
+
+Load Testing
+
+Stress Testing
+
+Spike Testing
+
+Endurance Testing
+
+Scalability Testing
+
+Recovery Testing
+
+---
+
+# 5. Load Testing
+
+Load testing verifies expected production workload.
+
+Tests shall measure
+
+Average Response Time
+
+Maximum Response Time
+
+Request Throughput
+
+CPU Usage
+
+Memory Usage
+
+Error Rate
+
+---
+
+# 6. Stress Testing
+
+Stress testing verifies system behavior beyond expected capacity.
+
+Tests shall identify
+
+Breaking Point
+
+Graceful Degradation
+
+Recovery Capability
+
+Resource Exhaustion
+
+---
+
+# 7. Spike Testing
+
+Spike testing verifies sudden workload increases.
+
+Examples
+
+Large invoice upload bursts
+
+Multiple concurrent OCR requests
+
+Multiple AI extraction requests
+
+Simultaneous automation executions
+
+---
+
+# 8. Endurance Testing
+
+Endurance testing verifies long-running stability.
+
+Recommended duration
+
+4–24 hours
+
+Monitor
+
+Memory leaks
+
+Resource leaks
+
+Performance degradation
+
+Background task stability
+
+---
+
+# 9. Scalability Testing
+
+Verify system behavior as workload increases.
+
+Measure
+
+Linear scalability
+
+Queue growth
+
+Database performance
+
+API latency
+
+Automation throughput
+
+---
+
+# 10. Response Time Targets
+
+Critical API requests should remain within defined service targets.
+
+Examples include
+
+Invoice Upload
+
+OCR Request
+
+AI Extraction
+
+Validation
+
+Review Submission
+
+Automation Execution
+
+Actual thresholds shall be configurable according to deployment requirements.
+
+---
+
+# 11. Resource Monitoring
+
+Monitor
+
+CPU
+
+Memory
+
+Disk I/O
+
+Network
+
+Database Connections
+
+Browser Instances
+
+Queue Length
+
+---
+
+# 12. OCR Performance
+
+Measure
+
+OCR execution time
+
+Queue wait time
+
+Retry frequency
+
+Failure rate
+
+Provider latency
+
+---
+
+# 13. AI Performance
+
+Measure
+
+Prompt generation time
+
+Provider response time
+
+Parsing duration
+
+Retry frequency
+
+Timeout rate
+
+---
+
+# 14. Automation Performance
+
+Measure
+
+Login duration
+
+Navigation duration
+
+Form completion time
+
+Submission duration
+
+Screenshot generation
+
+Overall execution duration
+
+---
+
+# 15. Database Performance
+
+Verify
+
+Query latency
+
+Transaction duration
+
+Connection pool utilization
+
+Index effectiveness
+
+Lock contention
+
+---
+
+# 16. Acceptance Criteria
+
+Performance testing is accepted when
+
+✓ Response times remain within defined targets.
+
+✓ Resource utilization remains stable.
+
+✓ No significant memory leaks are detected.
+
+✓ System recovers after stress conditions.
+
+✓ Critical business workflows remain operational.
+
+✓ Performance results are repeatable.
+
+---
+
+# End of Document

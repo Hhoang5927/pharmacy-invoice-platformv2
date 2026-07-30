@@ -1,0 +1,246 @@
+# BR-004_BATCH_RULES
+
+> Document ID: BR-BAT-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: High
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines all business rules related to medicine batch management.
+
+Batch information is critical for inventory traceability, expiry management, product recall and regulatory compliance.
+
+---
+
+# 2. Scope
+
+Applies to:
+
+- OCR
+- AI Extraction
+- Business Validation
+- Human Review
+- Excel Dataset
+- Browser Automation
+
+---
+
+# 3. Business Objective
+
+The system shall:
+
+- correctly capture batch numbers
+- correctly capture expiry dates
+- preserve original supplier information
+- prevent invalid batch data
+- allow manual correction when necessary
+
+---
+
+# 4. Batch Data Model
+
+Batch Information
+
+Required
+
+- Batch Number (when available on invoice)
+- Medicine Name
+
+Optional
+
+- Expiry Date
+- Manufacturing Date
+
+---
+
+# 5. Business Principles
+
+Batch information shall be preserved exactly as shown on the supplier invoice.
+
+The system shall never generate or modify batch numbers.
+
+If a batch number cannot be confidently extracted, human review is required.
+
+---
+
+# 6. Validation Rules
+
+## BR-BAT-001
+
+If Batch Number exists on the invoice
+
+↓
+
+Batch Number shall be extracted.
+
+---
+
+## BR-BAT-002
+
+Batch Number shall preserve:
+
+- letters
+- numbers
+- symbols
+
+No formatting changes are allowed.
+
+---
+
+## BR-BAT-003
+
+Whitespace before and after Batch Number shall be removed.
+
+Internal characters shall remain unchanged.
+
+Example
+
+```
+ AB1234
+
+↓
+
+AB1234
+```
+
+---
+
+## BR-BAT-004
+
+If multiple medicines share the same batch number
+
+↓
+
+Allow.
+
+Batch numbers are not required to be unique within an invoice.
+
+---
+
+## BR-BAT-005
+
+Expiry Date is optional.
+
+Missing expiry date shall not prevent processing.
+
+---
+
+## BR-BAT-006
+
+If Expiry Date exists
+
+↓
+
+Validate date format.
+
+---
+
+## BR-BAT-007
+
+Invalid calendar dates
+
+↓
+
+Validation Failed.
+
+Examples
+
+31/02/2026
+
+↓
+
+Fail
+
+---
+
+## BR-BAT-008
+
+If OCR confidence for Batch Number is below configured threshold
+
+↓
+
+Pending Human Review.
+
+---
+
+## BR-BAT-009
+
+Human approved batch information becomes the source of truth.
+
+---
+
+# 7. Human Review
+
+Review required when:
+
+- unreadable batch number
+- conflicting OCR result
+- invalid expiry date
+- low OCR confidence
+
+Operator may:
+
+- Approve
+- Correct
+- Reject
+
+---
+
+# 8. Excel Dataset
+
+Approved dataset shall contain:
+
+- Medicine Name
+- Batch Number
+- Expiry Date
+
+No transformation is allowed.
+
+---
+
+# 9. Browser Automation
+
+Automation shall:
+
+- enter approved Batch Number
+- enter approved Expiry Date
+- leave optional fields blank if unavailable
+
+Automation shall never:
+
+- invent batch numbers
+- modify approved values
+
+---
+
+# 10. Error Conditions
+
+| Code | Description |
+|--------|-------------|
+| BAT-001 | Missing Batch Number (Expected) |
+| BAT-002 | Invalid Expiry Date |
+| BAT-003 | OCR Confidence Too Low |
+| BAT-004 | Batch Validation Failed |
+
+---
+
+# 11. Success Criteria
+
+Batch processing is successful when:
+
+- batch information validated
+- expiry date validated
+- human review completed (if required)
+- browser automation completed
+
+---
+
+# End of Document

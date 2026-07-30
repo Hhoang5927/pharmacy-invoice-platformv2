@@ -1,0 +1,500 @@
+# AI EXTRACTION SPECIFICATION
+
+> Document ID: TS-002
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: AI Architect
+
+---
+
+# 1. Overview
+
+## Purpose
+
+The AI Extraction Module transforms OCR text into a structured business object.
+
+The module converts unstructured text into the Core Domain defined in Pack 03.
+
+This module does not perform business validation.
+
+It only performs semantic extraction.
+
+---
+
+## Responsibilities
+
+The module shall:
+
+- Parse OCR output
+- Identify invoice fields
+- Extract supplier information
+- Extract medicine information
+- Extract purchase items
+- Extract batch information
+- Extract invoice totals
+- Calculate confidence score
+- Return structured data
+
+---
+
+# 2. Scope
+
+Included
+
+- Invoice extraction
+- Header extraction
+- Table extraction
+- Supplier extraction
+- Medicine extraction
+- Batch extraction
+- Confidence estimation
+
+Excluded
+
+- OCR
+- Business validation
+- Human review
+- Browser automation
+
+---
+
+# 3. Functional Requirements
+
+### FR-001
+
+The module shall accept OCR text.
+
+---
+
+### FR-002
+
+The module shall identify invoice headers.
+
+---
+
+### FR-003
+
+The module shall identify supplier information.
+
+---
+
+### FR-004
+
+The module shall identify invoice line items.
+
+---
+
+### FR-005
+
+The module shall identify medicine information.
+
+---
+
+### FR-006
+
+The module shall identify batch information.
+
+---
+
+### FR-007
+
+The module shall identify quantity.
+
+---
+
+### FR-008
+
+The module shall identify unit price.
+
+---
+
+### FR-009
+
+The module shall identify VAT.
+
+---
+
+### FR-010
+
+The module shall identify totals.
+
+---
+
+### FR-011
+
+The module shall return confidence score.
+
+---
+
+# 4. Non-functional Requirements
+
+Maximum processing time
+
+30 seconds
+
+Average processing time
+
+<10 seconds
+
+Maximum memory
+
+Configurable
+
+Scalability
+
+Multiple invoices sequentially
+
+Availability
+
+99%
+
+---
+
+# 5. Processing Pipeline
+
+```
+OCR Result
+
+↓
+
+Pre-processing
+
+↓
+
+Prompt Construction
+
+↓
+
+LLM Request
+
+↓
+
+LLM Response
+
+↓
+
+Response Validation
+
+↓
+
+Domain Mapping
+
+↓
+
+Structured Invoice
+
+↓
+
+Confidence Calculation
+```
+
+---
+
+# 6. Input Contract
+
+Input Object
+
+OCR Result
+
+Contains
+
+Raw Text
+
+Pages
+
+Metadata
+
+Language
+
+Confidence
+
+Source File
+
+---
+
+Validation
+
+OCR must be completed.
+
+Text cannot be empty.
+
+Language shall be supported.
+
+---
+
+# 7. Output Contract
+
+Output
+
+Structured Invoice
+
+Contains
+
+Invoice
+
+Supplier
+
+Purchase Items
+
+Medicine
+
+Batch
+
+Totals
+
+Confidence
+
+Warnings
+
+---
+
+Output Format
+
+JSON
+
+---
+
+# 8. Prompt Strategy
+
+Prompt shall:
+
+Describe task clearly.
+
+Provide extraction rules.
+
+Provide expected JSON structure.
+
+Define mandatory fields.
+
+Define optional fields.
+
+Instruct model to avoid hallucination.
+
+---
+
+# 9. Extraction Rules
+
+Invoice Number
+
+Extract exactly as written.
+
+Invoice Date
+
+Normalize to ISO format.
+
+Supplier
+
+Preserve original spelling.
+
+Medicine Name
+
+Preserve original spelling.
+
+Batch
+
+Preserve original format.
+
+Quantity
+
+Normalize numeric format.
+
+Unit Price
+
+Normalize decimal format.
+
+VAT
+
+Normalize percentage.
+
+Totals
+
+Extract without recalculation.
+
+---
+
+# 10. Confidence Rules
+
+Confidence shall be calculated for
+
+Invoice
+
+Supplier
+
+Medicine
+
+Batch
+
+Totals
+
+Overall Invoice
+
+Confidence range
+
+0.00
+
+↓
+
+1.00
+
+---
+
+# 11. Validation
+
+AI validation includes
+
+JSON validity
+
+Missing required fields
+
+Duplicate fields
+
+Unexpected values
+
+Type validation
+
+Business validation is not included.
+
+---
+
+# 12. Exception Handling
+
+Possible exceptions
+
+Provider Timeout
+
+Malformed Response
+
+Invalid JSON
+
+Missing Fields
+
+Provider Unavailable
+
+Rate Limit
+
+Token Limit
+
+---
+
+Recovery
+
+Retry
+
+Fallback Provider
+
+Manual Review
+
+---
+
+# 13. Performance
+
+Target
+
+Average response
+
+<10 seconds
+
+Maximum response
+
+30 seconds
+
+Maximum retries
+
+3
+
+Concurrent execution
+
+Configurable
+
+---
+
+# 14. Configuration
+
+Configurable values
+
+AI Provider
+
+Model
+
+Temperature
+
+Max Tokens
+
+Retry Count
+
+Retry Delay
+
+Timeout
+
+Prompt Version
+
+Confidence Threshold
+
+---
+
+# 15. Logging
+
+Log
+
+Prompt Version
+
+Provider
+
+Model
+
+Latency
+
+Token Usage
+
+Confidence
+
+Errors
+
+Warnings
+
+Correlation ID
+
+---
+
+# 16. Security
+
+Prompt shall not contain
+
+Credentials
+
+Passwords
+
+Secrets
+
+Internal configuration
+
+Personally identifiable information not required for extraction.
+
+---
+
+# 17. Acceptance Criteria
+
+The module is accepted when
+
+✓ OCR text is converted into Structured Invoice.
+
+✓ Required fields are extracted.
+
+✓ JSON format is valid.
+
+✓ Confidence score is generated.
+
+✓ Processing time meets target.
+
+✓ Errors are logged.
+
+✓ Configuration is externalized.
+
+---
+
+# End of Document

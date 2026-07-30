@@ -1,0 +1,322 @@
+# BR-003_INVOICE_RULES
+
+> Document ID: BR-INV-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines all business rules related to purchase invoice processing.
+
+Every purchase invoice must pass these rules before being approved for browser automation.
+
+---
+
+# 2. Scope
+
+Applies to:
+
+- OCR
+- AI Extraction
+- Business Validation
+- Human Review
+- Excel Dataset
+- Browser Automation
+
+---
+
+# 3. Business Objective
+
+The system shall:
+
+- correctly identify invoices
+- preserve invoice information
+- prevent duplicate invoices
+- validate required information
+- generate one approved invoice dataset
+
+---
+
+# 4. Invoice Data Model
+
+Invoice Header
+
+Required
+
+- Invoice Number
+- Invoice Date
+- Supplier
+- Purchase Items
+
+Optional
+
+- Notes
+
+---
+
+Purchase Item
+
+Required
+
+- Medicine Name
+- Quantity
+- Unit
+- Unit Price
+- VAT
+
+Optional
+
+- Batch Number
+- Expiry Date
+
+---
+
+# 5. Invoice Lifecycle
+
+```
+
+Invoice Received
+
+↓
+
+OCR
+
+↓
+
+AI Extraction
+
+↓
+
+Business Validation
+
+↓
+
+Human Review
+
+↓
+
+Approved Dataset
+
+↓
+
+Browser Automation
+
+↓
+
+Verification
+
+↓
+
+Completed
+
+```
+
+---
+
+# 6. Business Principles
+
+Every invoice represents one purchase transaction.
+
+Invoice information shall never be invented.
+
+OCR output is not the source of truth.
+
+AI output is not the source of truth.
+
+Approved dataset is the only source of truth.
+
+---
+
+# 7. Required Invoice Fields
+
+| Field | Required |
+|---------|----------|
+| Invoice Number | Yes |
+| Invoice Date | Yes |
+| Supplier | Yes |
+| Purchase Items | Yes |
+
+---
+
+# 8. Validation Rules
+
+## BR-INV-001
+
+Invoice Number is mandatory.
+
+Missing
+
+↓
+
+Validation Failed.
+
+---
+
+## BR-INV-002
+
+Invoice Number must be unique.
+
+Duplicate
+
+↓
+
+Human Review.
+
+---
+
+## BR-INV-003
+
+Invoice Date is mandatory.
+
+Missing
+
+↓
+
+Validation Failed.
+
+---
+
+## BR-INV-004
+
+Supplier is mandatory.
+
+Missing
+
+↓
+
+Validation Failed.
+
+---
+
+## BR-INV-005
+
+Invoice must contain at least one purchase item.
+
+Zero items
+
+↓
+
+Validation Failed.
+
+---
+
+## BR-INV-006
+
+Each purchase item must satisfy BR-002.
+
+---
+
+## BR-INV-007
+
+Invoice cannot be approved while validation errors exist.
+
+---
+
+## BR-INV-008
+
+Human approval overrides AI extraction.
+
+---
+
+## BR-INV-009
+
+Approved invoices become immutable.
+
+---
+
+## BR-INV-010
+
+Browser Automation shall use only approved invoices.
+
+---
+
+# 9. Human Review
+
+Human Review is required when:
+
+- Duplicate Invoice Number
+- Unknown Supplier
+- Missing Invoice Date
+- Missing Purchase Items
+- Validation Failure
+
+Operator actions:
+
+- Approve
+- Modify
+- Reject
+
+---
+
+# 10. Excel Dataset
+
+One approved invoice produces one Excel record.
+
+Purchase items are stored as invoice details.
+
+Excel must preserve:
+
+- Invoice Number
+- Invoice Date
+- Supplier
+- Purchase Items
+
+---
+
+# 11. Browser Automation
+
+Automation shall:
+
+- Open Purchase Invoice screen.
+- Select Supplier.
+- Enter Invoice Number.
+- Enter Invoice Date.
+- Add Purchase Items.
+- Save Invoice.
+
+Automation shall never:
+
+- modify approved invoice data
+- skip required fields
+- create business decisions
+
+---
+
+# 12. Error Conditions
+
+| Code | Description |
+|--------|-------------|
+| INV-001 | Missing Invoice Number |
+| INV-002 | Duplicate Invoice Number |
+| INV-003 | Missing Invoice Date |
+| INV-004 | Missing Supplier |
+| INV-005 | Empty Purchase Items |
+| INV-006 | Validation Failed |
+
+---
+
+# 13. Success Criteria
+
+Invoice processing is successful when:
+
+- Invoice passes validation.
+- Human review completed (if required).
+- Excel dataset generated.
+- Browser automation completed.
+- Verification completed.
+
+Invoice Status
+
+Completed.
+
+---
+
+# End of Document

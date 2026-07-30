@@ -1,0 +1,413 @@
+# GIT WORKFLOW
+
+> Document ID: DG-007
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Lead
+
+---
+
+# 1. Purpose
+
+This document defines the Git workflow for the Pharmacy Invoice Automation Platform.
+
+The objective is to ensure consistent source control practices, reliable collaboration and traceable software delivery.
+
+All contributors shall follow this workflow.
+
+---
+
+# 2. Workflow Principles
+
+Development shall follow
+
+- Small commits
+- Clear commit messages
+- Feature isolation
+- Pull Request reviews
+- Protected main branch
+- Traceable history
+
+Direct commits to the production branch are prohibited.
+
+---
+
+# 3. Branch Strategy
+
+Permanent branches
+
+main
+
+develop
+
+Temporary branches
+
+feature/*
+
+bugfix/*
+
+hotfix/*
+
+release/*
+
+chore/*
+
+docs/*
+
+---
+
+# 4. Branch Naming
+
+Feature
+
+feature/invoice-review
+
+feature/ocr-engine
+
+feature/automation-login
+
+Bug Fix
+
+bugfix/validation-error
+
+bugfix/login-timeout
+
+Hot Fix
+
+hotfix/critical-login
+
+Documentation
+
+docs/business-rules
+
+docs/architecture
+
+---
+
+# 5. Development Flow
+
+Issue
+
+↓
+
+Create Branch
+
+↓
+
+Development
+
+↓
+
+Local Testing
+
+↓
+
+Commit
+
+↓
+
+Push
+
+↓
+
+Pull Request
+
+↓
+
+Code Review
+
+↓
+
+Merge
+
+↓
+
+Delete Branch
+
+---
+
+# 6. Commit Standards
+
+Every commit shall
+
+- Be atomic
+- Have one purpose
+- Pass local tests
+- Build successfully
+
+Avoid mixing unrelated changes.
+
+---
+
+# 7. Commit Message Format
+
+Recommended format
+
+type(scope): summary
+
+Examples
+
+feat(review): add invoice approval
+
+fix(validation): handle empty supplier
+
+refactor(automation): simplify login flow
+
+docs(pack05): update coding standards
+
+test(ai): add extraction tests
+
+chore(config): update environment template
+
+---
+
+# 8. Commit Types
+
+Supported types
+
+feat
+
+fix
+
+refactor
+
+docs
+
+style
+
+test
+
+build
+
+ci
+
+perf
+
+chore
+
+revert
+
+---
+
+# 9. Pull Request Requirements
+
+Every Pull Request shall include
+
+Purpose
+
+Summary
+
+Related Issue
+
+Testing Evidence
+
+Screenshots (if UI changes)
+
+Checklist
+
+---
+
+# 10. Merge Policy
+
+Merge is allowed only when
+
+✓ Build succeeds
+
+✓ Tests pass
+
+✓ Code review approved
+
+✓ No merge conflicts
+
+✓ Documentation updated if required
+
+---
+
+# 11. Protected Branches
+
+Protected branches
+
+main
+
+develop
+
+Restrictions
+
+No force push
+
+No direct commits
+
+Require Pull Request
+
+Require successful CI
+
+Require approval
+
+---
+
+# 12. Conflict Resolution
+
+Merge conflicts shall
+
+Be resolved by the branch owner.
+
+Preserve business rules.
+
+Avoid overwriting reviewed changes.
+
+Retest after resolution.
+
+---
+
+# 13. Versioning
+
+Versioning shall follow Semantic Versioning.
+
+MAJOR.MINOR.PATCH
+
+Examples
+
+1.0.0
+
+1.1.0
+
+1.1.2
+
+2.0.0
+
+---
+
+# 14. Release Workflow
+
+Development
+
+↓
+
+Testing
+
+↓
+
+Release Branch
+
+↓
+
+Final Verification
+
+↓
+
+Merge to main
+
+↓
+
+Tag Release
+
+↓
+
+Deployment
+
+---
+
+# 15. Tagging
+
+Release tags
+
+v1.0.0
+
+v1.1.0
+
+v2.0.0
+
+Tags shall reference released code only.
+
+---
+
+# 16. Rollback
+
+Rollback shall
+
+Reference a tagged release.
+
+Preserve audit history.
+
+Avoid force rewriting repository history.
+
+---
+
+# 17. Documentation Updates
+
+Documentation shall be updated when
+
+Business Rules change.
+
+Architecture changes.
+
+API changes.
+
+Configuration changes.
+
+Development standards change.
+
+Documentation and implementation shall remain synchronized.
+
+---
+
+# 18. AI Development Workflow
+
+AI-generated code shall
+
+Be committed to feature branches.
+
+Be reviewed by a developer.
+
+Pass automated testing.
+
+Follow Pack 05 standards.
+
+AI-generated code shall never be merged directly into protected branches.
+
+---
+
+# 19. Prohibited Practices
+
+The following are prohibited
+
+Direct commits to main
+
+Force pushing protected branches
+
+Large unrelated commits
+
+Skipping code review
+
+Skipping tests
+
+Committing secrets
+
+Committing generated build artifacts
+
+---
+
+# 20. Acceptance Criteria
+
+The Git workflow is accepted when
+
+✓ Branch strategy is followed.
+
+✓ Commit messages are standardized.
+
+✓ Pull Requests are reviewed.
+
+✓ Releases are traceable.
+
+✓ Repository history remains clean.
+
+✓ AI-generated code follows the same workflow.
+
+---
+
+# End of Document

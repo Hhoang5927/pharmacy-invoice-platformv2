@@ -1,0 +1,200 @@
+# TECHNICAL OVERVIEW
+
+> Document ID: TS-000
+>
+> Version: 1.0.0
+>
+> Status: Approved
+
+---
+
+# 1. Purpose
+
+This document provides the technical overview of the Pharmacy Invoice Automation Platform.
+
+It explains how data moves between technical modules from invoice import to browser automation.
+
+---
+
+# 2. Technical Pipeline
+
+```
+Invoice Image
+
+↓
+
+Image Processing
+
+↓
+
+OCR
+
+↓
+
+OCR Result
+
+↓
+
+AI Extraction
+
+↓
+
+Structured Invoice
+
+↓
+
+Business Validation
+
+↓
+
+Human Review
+
+↓
+
+Approved Dataset
+
+↓
+
+Browser Automation
+
+↓
+
+Execution Report
+```
+
+---
+
+# 3. Technical Layers
+
+The platform consists of six technical layers.
+
+Layer 1
+
+Input Processing
+
+Responsibilities
+
+- Import invoices
+- Image normalization
+- File validation
+
+---
+
+Layer 2
+
+OCR Processing
+
+Responsibilities
+
+- Image recognition
+- Text extraction
+- Confidence scoring
+
+---
+
+Layer 3
+
+AI Extraction
+
+Responsibilities
+
+- Parse OCR text
+- Extract business fields
+- Produce structured invoice
+
+---
+
+Layer 4
+
+Validation
+
+Responsibilities
+
+- Execute business rules
+- Detect inconsistencies
+- Produce validation report
+
+---
+
+Layer 5
+
+Human Review
+
+Responsibilities
+
+- Display extracted data
+- Apply corrections
+- Approve invoice
+
+---
+
+Layer 6
+
+Automation
+
+Responsibilities
+
+- Login
+- Navigate
+- Fill forms
+- Verify results
+
+---
+
+# 4. Integration Principles
+
+Modules communicate through contracts.
+
+No module shall directly manipulate another module's internal data.
+
+Every module receives a defined input and produces a defined output.
+
+---
+
+# 5. Error Strategy
+
+Errors are classified as:
+
+Recoverable
+
+Non-Recoverable
+
+Business
+
+Technical
+
+Every error shall produce a standardized error object.
+
+---
+
+# 6. Retry Strategy
+
+Retry is permitted only for technical failures.
+
+Business validation failures shall never be retried automatically.
+
+---
+
+# 7. Observability
+
+Every module shall expose:
+
+- Execution Status
+- Execution Duration
+- Error Information
+- Processing Metrics
+
+---
+
+# 8. Success Criteria
+
+The technical architecture is successful when:
+
+- Modules remain independent.
+- Contracts are respected.
+- Processing is deterministic.
+- Errors are observable.
+
+---
+
+# End of Document

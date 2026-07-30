@@ -1,0 +1,321 @@
+# SYSTEM ARCHITECTURE
+
+> Document ID: SA-000
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines the overall architecture of the Pharmacy Invoice Automation System.
+
+The objective is to separate business logic, AI processing, browser automation and user interaction into independent modules.
+
+This architecture is designed for maintainability, scalability and long-term evolution.
+
+---
+
+# 2. System Overview
+
+The application receives supplier invoices, extracts structured information using OCR and AI, validates the extracted data, allows human review when necessary, and automatically enters approved purchase invoices into the pharmacy management system.
+
+The system is desktop-based and executes browser automation locally.
+
+---
+
+# 3. Architecture Style
+
+The system follows a modular layered architecture.
+
+Business logic shall remain independent from UI.
+
+Automation shall remain independent from AI.
+
+Each module owns its own responsibility.
+
+---
+
+# 4. High-Level Architecture
+
+```
+                User
+
+                  │
+
+                  ▼
+
+        Desktop Application
+
+                  │
+
+ ┌────────────────────────────────┐
+ │                                │
+ │        Application Core         │
+ │                                │
+ └────────────────────────────────┘
+
+      │       │       │
+
+      ▼       ▼       ▼
+
+ OCR Engine   AI Engine   Validation Engine
+
+                  │
+
+                  ▼
+
+         Human Review Module
+
+                  │
+
+                  ▼
+
+        Approved Dataset Manager
+
+                  │
+
+                  ▼
+
+      Browser Automation Engine
+
+                  │
+
+                  ▼
+
+          Verification Engine
+
+                  │
+
+                  ▼
+
+             Audit & Logging
+```
+
+---
+
+# 5. Architectural Layers
+
+Presentation Layer
+
+Responsible for:
+
+- User Interface
+- Progress Display
+- Human Review
+- Settings
+
+---
+
+Application Layer
+
+Responsible for:
+
+- Workflow orchestration
+- Business process execution
+- Module coordination
+
+---
+
+Business Layer
+
+Responsible for:
+
+- Business Rules
+- Validation
+- Decision making
+
+---
+
+Infrastructure Layer
+
+Responsible for:
+
+- OCR
+- AI
+- Browser Automation
+- File Storage
+- Logging
+
+---
+
+# 6. Core Components
+
+The application consists of the following major components.
+
+## Invoice Manager
+
+Responsibilities:
+
+- Load invoices
+- Organize files
+- Track processing status
+
+---
+
+## OCR Engine
+
+Responsibilities:
+
+- Image preprocessing
+- OCR execution
+- Raw text generation
+
+---
+
+## AI Extraction Engine
+
+Responsibilities:
+
+- Parse OCR text
+- Extract business entities
+- Produce structured invoice
+
+---
+
+## Validation Engine
+
+Responsibilities:
+
+- Execute Business Rules
+- Generate validation results
+- Produce review tasks
+
+---
+
+## Human Review Module
+
+Responsibilities:
+
+- Display extracted data
+- Allow corrections
+- Approve invoices
+
+---
+
+## Dataset Manager
+
+Responsibilities:
+
+- Generate Approved Dataset
+- Export Excel
+- Preserve immutable records
+
+---
+
+## Browser Automation Engine
+
+Responsibilities:
+
+- Login
+- Navigate website
+- Enter invoice
+- Save invoice
+- Verify result
+
+---
+
+## Audit Manager
+
+Responsibilities:
+
+- Record all business actions
+- Record automation events
+- Record user operations
+
+---
+
+# 7. Design Principles
+
+Every module shall have one primary responsibility.
+
+Modules communicate only through defined interfaces.
+
+Business logic shall never exist inside UI components.
+
+Automation shall never contain business rules.
+
+Configuration shall never be hardcoded.
+
+---
+
+# 8. Processing Flow
+
+Invoice
+
+↓
+
+OCR
+
+↓
+
+AI Extraction
+
+↓
+
+Validation
+
+↓
+
+Human Review
+
+↓
+
+Approved Dataset
+
+↓
+
+Browser Automation
+
+↓
+
+Verification
+
+↓
+
+Completed
+
+---
+
+# 9. Error Isolation
+
+Errors shall remain inside their originating module.
+
+A module failure shall not corrupt completed work.
+
+Processing may resume after recovery whenever possible.
+
+---
+
+# 10. Future Scalability
+
+The architecture shall support:
+
+- Multiple OCR providers
+- Multiple AI providers
+- Multiple pharmacy websites
+- Multiple export formats
+- Additional validation rules
+
+without redesigning the system.
+
+---
+
+# 11. Success Criteria
+
+The architecture is considered successful when:
+
+- Modules remain independent.
+- Business logic is reusable.
+- Browser automation is replaceable.
+- AI provider can be changed.
+- OCR provider can be changed.
+- New modules can be added with minimal impact.
+
+---
+
+# End of Document

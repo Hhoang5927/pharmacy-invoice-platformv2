@@ -1,0 +1,436 @@
+# SUPPORTING MODELS
+
+> Document ID: DM-002
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: High
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the supporting domain models used throughout the Pharmacy Invoice Automation Platform.
+
+Supporting models provide common value types, enumerations and shared business concepts used by the Core Domain.
+
+Supporting models are not standalone business entities.
+
+They exist only to support business entities.
+
+---
+
+# 2. Design Principles
+
+Supporting models shall be:
+
+- Immutable
+- Reusable
+- Strongly typed
+- Technology independent
+- Serializable
+
+Supporting models shall never contain business workflow logic.
+
+---
+
+# 3. Value Objects
+
+## Overview
+
+Value Objects describe business values.
+
+They do not have identity.
+
+Two Value Objects are equal when all contained values are equal.
+
+---
+
+## Money
+
+Represents a monetary amount.
+
+Properties
+
+- amount
+- currency
+
+Rules
+
+Amount ≥ 0
+
+Currency shall follow ISO 4217.
+
+Used by
+
+Invoice
+
+Purchase Item
+
+Approved Dataset
+
+---
+
+## Quantity
+
+Represents medicine quantity.
+
+Properties
+
+- value
+- unit
+
+Rules
+
+Value > 0
+
+Unit is required.
+
+---
+
+## Percentage
+
+Represents percentage values.
+
+Used for
+
+VAT
+
+Discount
+
+Rules
+
+0 ≤ Percentage ≤ 100
+
+---
+
+## Batch Number
+
+Represents manufacturer batch number.
+
+Rules
+
+Cannot be empty.
+
+Maximum length configurable.
+
+Must remain unchanged after approval.
+
+---
+
+## Expiry Date
+
+Represents medicine expiry date.
+
+Rules
+
+Must be later than manufacture date.
+
+Must be later than invoice date.
+
+---
+
+## Invoice Number
+
+Represents supplier invoice number.
+
+Rules
+
+Required.
+
+Cannot be empty.
+
+Should be unique within the same supplier.
+
+---
+
+## Tax Code
+
+Represents supplier tax identifier.
+
+Rules
+
+Format validation depends on local regulations.
+
+Optional for suppliers without tax registration.
+
+---
+
+# 4. Enumerations
+
+---
+
+## Invoice Status
+
+Possible values
+
+DRAFT
+
+IMPORTED
+
+OCR_COMPLETED
+
+AI_COMPLETED
+
+VALIDATED
+
+UNDER_REVIEW
+
+APPROVED
+
+AUTOMATED
+
+COMPLETED
+
+FAILED
+
+---
+
+## Validation Status
+
+Possible values
+
+NOT_VALIDATED
+
+PASSED
+
+WARNING
+
+FAILED
+
+---
+
+## Review Status
+
+Possible values
+
+NOT_REQUIRED
+
+PENDING
+
+IN_PROGRESS
+
+APPROVED
+
+REJECTED
+
+---
+
+## Automation Status
+
+Possible values
+
+NOT_STARTED
+
+RUNNING
+
+SUCCESS
+
+FAILED
+
+CANCELLED
+
+---
+
+## OCR Status
+
+Possible values
+
+NOT_STARTED
+
+PROCESSING
+
+COMPLETED
+
+FAILED
+
+---
+
+## AI Extraction Status
+
+Possible values
+
+NOT_STARTED
+
+PROCESSING
+
+COMPLETED
+
+FAILED
+
+LOW_CONFIDENCE
+
+---
+
+# 5. Shared Business Results
+
+## Validation Result
+
+Represents validation outcome.
+
+Contains
+
+- status
+- messages
+- failedRules
+- warnings
+
+---
+
+## Review Decision
+
+Represents reviewer action.
+
+Possible values
+
+Approve
+
+Reject
+
+Return for Correction
+
+---
+
+## Automation Result
+
+Represents browser automation outcome.
+
+Contains
+
+- execution status
+- duration
+- retry count
+- error message
+- screenshot reference
+
+---
+
+# 6. Time Models
+
+The system shall use:
+
+Date
+
+Time
+
+DateTime
+
+UTC shall be used internally.
+
+User interface may display local timezone.
+
+---
+
+# 7. Identifier Rules
+
+Every Entity Identifier shall:
+
+- be globally unique
+- never change
+- never be reused
+
+Supporting models shall not generate identifiers.
+
+---
+
+# 8. Immutability
+
+The following Value Objects are immutable:
+
+Money
+
+Quantity
+
+Percentage
+
+Batch Number
+
+Expiry Date
+
+Invoice Number
+
+Tax Code
+
+Supporting models shall never expose mutable state.
+
+---
+
+# 9. Validation Rules
+
+Every supporting model shall validate itself.
+
+Examples
+
+Money
+
+Amount cannot be negative.
+
+Quantity
+
+Cannot be zero.
+
+Percentage
+
+Cannot exceed 100.
+
+Expiry Date
+
+Cannot be invalid.
+
+---
+
+# 10. Serialization
+
+Supporting models shall support:
+
+- JSON
+- Internal Object Mapping
+- Persistent Storage
+
+Serialization shall preserve values exactly.
+
+---
+
+# 11. Usage Rules
+
+Supporting models may be reused across multiple entities.
+
+Example
+
+Money
+
+Invoice
+
+Purchase Item
+
+Approved Dataset
+
+Quantity
+
+Purchase Item
+
+Percentage
+
+Purchase Item
+
+Invoice
+
+---
+
+# 12. Success Criteria
+
+Supporting Models are successful when:
+
+- Shared business concepts are standardized.
+- Value Objects are immutable.
+- Enumerations prevent invalid states.
+- Business entities use common value types.
+- Validation rules are reusable.
+
+---
+
+# End of Document

@@ -1,0 +1,304 @@
+# CODING STANDARDS
+
+> Document ID: DG-002
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Lead
+
+---
+
+# 1. Purpose
+
+This document defines the coding standards for the Pharmacy Invoice Automation Platform.
+
+Its objective is to ensure that all source code is consistent, maintainable, testable and production-ready.
+
+These standards apply equally to human developers and AI coding assistants.
+
+---
+
+# 2. General Principles
+
+Every implementation shall follow:
+
+- Clean Architecture
+- SOLID Principles
+- DRY (Don't Repeat Yourself)
+- KISS (Keep It Simple)
+- YAGNI (You Aren't Gonna Need It)
+
+Business logic shall always take precedence over technical convenience.
+
+---
+
+# 3. Readability
+
+Source code shall prioritize readability over cleverness.
+
+Code should be understandable without additional explanation.
+
+Avoid unnecessary complexity.
+
+Avoid deeply nested logic.
+
+Prefer explicit code over implicit behavior.
+
+---
+
+# 4. File Size
+
+Recommended limits
+
+Component
+
+≤ 300 lines
+
+Service
+
+≤ 300 lines
+
+Controller
+
+≤ 200 lines
+
+Repository
+
+≤ 200 lines
+
+Utility
+
+≤ 150 lines
+
+Files exceeding these limits should be reviewed for refactoring.
+
+---
+
+# 5. Function Size
+
+Recommended limits
+
+Maximum
+
+50 lines
+
+Preferred
+
+20–30 lines
+
+Each function shall perform one clearly defined responsibility.
+
+---
+
+# 6. Function Design
+
+Functions shall
+
+- Have descriptive names.
+- Accept the minimum required parameters.
+- Return predictable results.
+- Avoid hidden side effects.
+- Avoid unnecessary mutation.
+
+---
+
+# 7. Class Design
+
+Classes shall follow the Single Responsibility Principle.
+
+Classes should avoid managing unrelated concerns.
+
+Prefer composition over inheritance.
+
+Avoid inheritance deeper than two levels.
+
+---
+
+# 8. Dependency Injection
+
+Dependencies shall be injected.
+
+Avoid creating dependencies directly inside business logic.
+
+Services shall depend on abstractions whenever practical.
+
+---
+
+# 9. Error Handling
+
+Errors shall never be silently ignored.
+
+Every exception shall either
+
+- Be handled
+- Be logged
+- Be propagated intentionally
+
+Empty catch blocks are prohibited.
+
+---
+
+# 10. Async Programming
+
+Use async/await consistently.
+
+Avoid nested Promise chains.
+
+Avoid blocking operations.
+
+Long-running operations shall support cancellation where applicable.
+
+---
+
+# 11. Immutability
+
+Prefer immutable objects.
+
+Avoid modifying shared state.
+
+Business objects should remain immutable whenever possible.
+
+---
+
+# 12. Validation
+
+Validate input at system boundaries.
+
+Business validation belongs in the Application Layer.
+
+Domain invariants belong in the Domain Layer.
+
+UI validation shall never replace backend validation.
+
+---
+
+# 13. Comments
+
+Comments shall explain
+
+- Why
+
+Not
+
+- What
+
+Do not comment obvious code.
+
+Remove obsolete comments immediately.
+
+---
+
+# 14. Magic Values
+
+Magic numbers are prohibited.
+
+Magic strings are prohibited.
+
+Use constants or enumerations instead.
+
+---
+
+# 15. Logging
+
+Business logic shall not contain excessive logging.
+
+Log only meaningful events.
+
+Never log
+
+- Passwords
+- API Keys
+- Access Tokens
+- Sensitive personal information
+
+---
+
+# 16. Code Duplication
+
+Duplicate logic shall be extracted into reusable modules.
+
+Copy-paste programming is prohibited.
+
+---
+
+# 17. Testing
+
+Every business-critical module shall support unit testing.
+
+Code shall be designed for testability.
+
+Avoid tightly coupled implementations.
+
+---
+
+# 18. Refactoring
+
+Refactoring shall preserve observable behavior.
+
+Every refactoring should improve one or more of
+
+- Readability
+- Simplicity
+- Maintainability
+- Testability
+
+---
+
+# 19. AI Development Rules
+
+When generating code, AI shall
+
+- Follow existing architecture.
+- Respect Business Rules.
+- Respect Domain Models.
+- Reuse existing components.
+- Avoid introducing unnecessary libraries.
+- Avoid speculative abstractions.
+- Generate deterministic implementations.
+
+AI shall never rewrite stable modules without explicit instruction.
+
+---
+
+# 20. Prohibited Practices
+
+The following are prohibited
+
+- Circular dependencies
+- God classes
+- God functions
+- Global mutable state
+- Silent exception handling
+- Hardcoded configuration
+- Hardcoded credentials
+- Duplicate business logic
+- Dead code
+- Commented-out code
+
+---
+
+# 21. Acceptance Criteria
+
+Coding standards are accepted when
+
+✓ Source code is readable.
+
+✓ Modules remain cohesive.
+
+✓ Functions have single responsibility.
+
+✓ Dependencies are manageable.
+
+✓ Code is testable.
+
+✓ Architecture is respected.
+
+✓ AI-generated code follows the same standards as human-written code.
+
+---
+
+# End of Document

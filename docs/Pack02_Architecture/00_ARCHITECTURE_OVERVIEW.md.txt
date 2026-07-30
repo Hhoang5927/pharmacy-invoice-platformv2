@@ -1,0 +1,173 @@
+# ARCHITECTURE OVERVIEW
+
+> Document ID: ARC-000
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document provides a high-level overview of the Pharmacy Invoice Automation System architecture.
+
+It explains how the system is organized, how components interact, and how data flows from invoice input to completed browser automation.
+
+Implementation details are defined in subsequent architecture documents.
+
+---
+
+# 2. Architecture Goals
+
+The architecture shall:
+
+- Be modular.
+- Be maintainable.
+- Be testable.
+- Be scalable.
+- Be fault tolerant.
+- Be easy to extend.
+- Support future integrations.
+
+---
+
+# 3. Core Principles
+
+The system follows these principles:
+
+- Separation of Concerns
+- Single Responsibility
+- Modular Design
+- Configuration over Hardcoding
+- Human-in-the-Loop
+- Auditability
+- Recoverability
+
+---
+
+# 4. High-Level Architecture
+
+```
+Invoice
+
+↓
+
+OCR Module
+
+↓
+
+AI Extraction Module
+
+↓
+
+Validation Engine
+
+↓
+
+Human Review
+
+↓
+
+Approved Dataset
+
+↓
+
+Browser Automation
+
+↓
+
+Verification
+
+↓
+
+Completed
+```
+
+---
+
+# 5. Major Components
+
+The system consists of the following major components:
+
+- OCR Engine
+- AI Extraction Engine
+- Validation Engine
+- Human Review Module
+- Browser Automation Engine
+- Configuration Manager
+- Logging System
+- Audit System
+
+---
+
+# 6. Data Ownership
+
+Each module has a clearly defined responsibility.
+
+OCR
+
+↓
+
+Raw Text
+
+AI
+
+↓
+
+Structured Data
+
+Validation
+
+↓
+
+Validated Data
+
+Human Review
+
+↓
+
+Approved Data
+
+Automation
+
+↓
+
+Executed Transaction
+
+---
+
+# 7. Error Isolation
+
+Errors shall remain inside the module where they occur.
+
+A module failure shall not corrupt previous processing results.
+
+---
+
+# 8. Design Philosophy
+
+Business Rules remain independent from implementation.
+
+Architecture remains independent from UI.
+
+Automation remains independent from AI.
+
+Every module communicates through well-defined data structures.
+
+---
+
+# 9. Success Criteria
+
+The architecture is considered successful when:
+
+- Modules are independent.
+- Responsibilities are clear.
+- Data flow is predictable.
+- Components can evolve independently.
+
+---
+
+# End of Document

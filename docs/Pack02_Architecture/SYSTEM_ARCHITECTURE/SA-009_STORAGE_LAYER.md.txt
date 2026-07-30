@@ -1,0 +1,285 @@
+# SA-009_STORAGE_LAYER
+
+> Document ID: SA-009
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: High
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the Storage Layer architecture of the Pharmacy Invoice Automation Platform.
+
+The Storage Layer is responsible for persisting application data, configuration files, execution artifacts, logs and generated outputs.
+
+The Storage Layer shall not contain business logic.
+
+---
+
+# 2. Responsibilities
+
+The Storage Layer shall:
+
+- Store invoice files
+- Store OCR results
+- Store AI results
+- Store approved datasets
+- Store Excel exports
+- Store logs
+- Store screenshots
+- Store configuration
+- Manage temporary files
+
+---
+
+# 3. Storage Principles
+
+Storage shall be:
+
+- Organized
+- Predictable
+- Recoverable
+- Versionable
+- Auditable
+
+Application modules shall never access storage directly.
+
+All storage access shall occur through Repository interfaces.
+
+---
+
+# 4. Directory Structure
+
+```
+storage/
+
+├── invoices/
+│   ├── original/
+│   ├── processing/
+│   ├── completed/
+│   └── archive/
+│
+├── ocr/
+│
+├── ai/
+│
+├── approved/
+│
+├── excel/
+│
+├── screenshots/
+│
+│   ├── errors/
+│   └── verification/
+│
+├── logs/
+│
+├── temp/
+│
+├── cache/
+│
+└── config/
+```
+
+---
+
+# 5. Invoice Storage
+
+Original invoices are stored immediately after import.
+
+Processing files remain immutable.
+
+Completed invoices may be archived according to retention policy.
+
+---
+
+# 6. OCR Storage
+
+Each OCR execution generates:
+
+- OCR Result
+- OCR Metadata
+- Confidence Score
+
+OCR data shall be retained for troubleshooting.
+
+---
+
+# 7. AI Storage
+
+Each AI execution generates:
+
+- Prompt Version
+- Structured Invoice
+- Confidence
+- Provider Metadata
+
+AI responses shall remain read-only.
+
+---
+
+# 8. Approved Dataset Storage
+
+Approved Dataset contains:
+
+- Final Invoice
+- Final Supplier
+- Final Medicine List
+- Final Batch
+- Final Prices
+
+Approved datasets are immutable.
+
+---
+
+# 9. Excel Storage
+
+Generated Excel files are stored separately.
+
+Naming convention:
+
+```
+YYYYMMDD_InvoiceNumber.xlsx
+```
+
+Previous exports shall remain available.
+
+---
+
+# 10. Screenshot Storage
+
+Screenshots shall be captured for:
+
+- Login Failure
+- Browser Error
+- Verification Failure
+- Unexpected Exception
+
+Verification screenshots shall be optional.
+
+---
+
+# 11. Log Storage
+
+Separate log categories:
+
+Application
+
+Automation
+
+OCR
+
+AI
+
+Validation
+
+Review
+
+System
+
+---
+
+# 12. Temporary Storage
+
+Temporary files include:
+
+OCR Cache
+
+Image Cache
+
+Download Cache
+
+Browser Cache
+
+Temporary files may be removed automatically.
+
+---
+
+# 13. Configuration Storage
+
+Configuration files include:
+
+Application Settings
+
+Automation Settings
+
+OCR Settings
+
+AI Settings
+
+Logging Settings
+
+Configuration files shall be backed up.
+
+---
+
+# 14. Repository Layer
+
+Storage shall be accessed through repositories.
+
+Example:
+
+Invoice Repository
+
+OCR Repository
+
+AI Repository
+
+Configuration Repository
+
+Log Repository
+
+Modules shall never manipulate files directly.
+
+---
+
+# 15. Backup Strategy
+
+The system shall support:
+
+- Manual Backup
+- Scheduled Backup
+- Restore
+- Archive
+
+Backup shall include:
+
+Approved Dataset
+
+Configuration
+
+Logs
+
+Audit History
+
+---
+
+# 16. Security
+
+Sensitive files shall be protected.
+
+Configuration may be encrypted.
+
+Access permissions shall be enforced.
+
+---
+
+# 17. Success Criteria
+
+The Storage Layer is successful when:
+
+- Files are organized.
+- Data is recoverable.
+- Storage remains consistent.
+- Backup succeeds.
+- No data corruption occurs.
+
+---
+
+# End of Document

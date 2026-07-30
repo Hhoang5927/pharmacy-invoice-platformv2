@@ -1,0 +1,265 @@
+# UNIT TEST GUIDE
+
+> Document ID: TD-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: QA Lead
+
+---
+
+# 1. Purpose
+
+This document defines the unit testing standards for the Pharmacy Invoice Automation Platform.
+
+The objective is to verify individual units of software in complete isolation.
+
+Unit tests shall provide fast, deterministic and repeatable verification of business logic.
+
+---
+
+# 2. Scope
+
+Unit testing applies to
+
+Application Services
+
+Domain Services
+
+Validation Rules
+
+Utility Functions
+
+Business Calculations
+
+Shared Libraries
+
+Unit tests shall not depend on external systems.
+
+---
+
+# 3. Objectives
+
+Unit tests shall verify
+
+Correct outputs
+
+Boundary conditions
+
+Exception handling
+
+Business rules
+
+Edge cases
+
+Regression prevention
+
+---
+
+# 4. Isolation
+
+Each unit test shall execute independently.
+
+Dependencies shall be
+
+Mocked
+
+Stubbed
+
+Faked
+
+External resources shall never be required.
+
+Examples
+
+Database
+
+Network
+
+OCR Provider
+
+AI Provider
+
+Browser Automation
+
+---
+
+# 5. Test Structure
+
+Every unit test shall follow
+
+Arrange
+
+↓
+
+Act
+
+↓
+
+Assert
+
+Each test shall verify one behavior.
+
+---
+
+# 6. Naming Convention
+
+Test names shall describe expected behavior.
+
+Examples
+
+shouldValidateInvoice()
+
+shouldRejectExpiredMedicine()
+
+shouldCalculateInvoiceTotal()
+
+shouldReturnValidationErrors()
+
+---
+
+# 7. Test Data
+
+Test data shall
+
+Be deterministic.
+
+Be minimal.
+
+Be readable.
+
+Avoid production data.
+
+Fixtures shall be reusable.
+
+---
+
+# 8. Assertions
+
+Assertions shall verify
+
+Expected values
+
+Expected exceptions
+
+Expected state
+
+Expected interactions
+
+Avoid unnecessary assertions.
+
+---
+
+# 9. Mocking
+
+Mock only external dependencies.
+
+Avoid mocking business logic.
+
+Mocks shall verify interactions only when required.
+
+---
+
+# 10. Coverage
+
+Business-critical modules shall maintain high unit test coverage.
+
+Priority modules include
+
+OCR Processing
+
+AI Extraction
+
+Validation
+
+Invoice Processing
+
+Automation Logic
+
+Configuration
+
+---
+
+# 11. Error Scenarios
+
+Unit tests shall include
+
+Invalid input
+
+Null values
+
+Empty collections
+
+Unexpected exceptions
+
+Timeout handling (where applicable)
+
+---
+
+# 12. Performance
+
+Unit tests shall execute quickly.
+
+Individual tests should complete within milliseconds.
+
+Long-running operations belong to Integration or E2E tests.
+
+---
+
+# 13. Maintenance
+
+Tests shall
+
+Remain readable.
+
+Avoid duplication.
+
+Be updated alongside implementation changes.
+
+Failing tests shall be investigated immediately.
+
+---
+
+# 14. Prohibited Practices
+
+The following are prohibited
+
+Shared mutable test state
+
+Real database connections
+
+Real HTTP requests
+
+Real OCR calls
+
+Real AI requests
+
+Sleep-based synchronization
+
+Order-dependent tests
+
+---
+
+# 15. Acceptance Criteria
+
+Unit testing is accepted when
+
+✓ Tests are isolated.
+
+✓ Tests are deterministic.
+
+✓ Business logic is verified.
+
+✓ External dependencies are mocked.
+
+✓ Critical modules maintain appropriate coverage.
+
+✓ Tests execute consistently in CI.
+
+---
+
+# End of Document

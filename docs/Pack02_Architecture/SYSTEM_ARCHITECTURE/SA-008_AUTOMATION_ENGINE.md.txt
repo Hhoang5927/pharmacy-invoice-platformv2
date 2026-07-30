@@ -1,0 +1,349 @@
+# SA-008_AUTOMATION_ENGINE
+
+> Document ID: SA-008
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the architecture of the Browser Automation Engine.
+
+The Automation Engine is responsible for executing browser interactions using the Approved Dataset.
+
+Automation is an execution layer only.
+
+It never performs business validation or business decisions.
+
+---
+
+# 2. Responsibilities
+
+The Automation Engine shall:
+
+- Launch browser
+- Authenticate user session
+- Navigate the pharmacy website
+- Enter invoice information
+- Enter purchase items
+- Save invoice
+- Verify saved data
+- Generate execution report
+
+---
+
+# 3. Design Principles
+
+Automation shall:
+
+- Use only Approved Dataset
+- Execute deterministic actions
+- Stop on critical failures
+- Record every action
+- Support retry for recoverable failures
+
+Automation shall never:
+
+- Modify business data
+- Skip validation
+- Ignore errors
+- Continue after critical failures
+
+---
+
+# 4. Internal Architecture
+
+```
+Approved Dataset
+        │
+        ▼
+Execution Manager
+        │
+        ▼
+Browser Manager
+        │
+        ▼
+Session Manager
+        │
+        ▼
+Navigation Engine
+        │
+        ▼
+Form Engine
+        │
+        ▼
+Verification Engine
+        │
+        ▼
+Execution Report
+```
+
+---
+
+# 5. Components
+
+## Execution Manager
+
+Responsibilities
+
+- Manage execution lifecycle
+- Control execution order
+- Coordinate internal components
+
+---
+
+## Browser Manager
+
+Responsibilities
+
+- Launch browser
+- Close browser
+- Manage browser instance
+- Manage browser context
+
+---
+
+## Session Manager
+
+Responsibilities
+
+- User login
+- Session validation
+- Session recovery
+- Session expiration detection
+
+---
+
+## Navigation Engine
+
+Responsibilities
+
+- Navigate menus
+- Open purchase invoice screen
+- Wait for page readiness
+- Handle page transitions
+
+---
+
+## Form Engine
+
+Responsibilities
+
+Enter:
+
+- Supplier
+- Invoice Information
+- Purchase Items
+- Batch
+- Expiry
+- Purchase Price
+- VAT
+
+One completed row before processing the next.
+
+---
+
+## Verification Engine
+
+Responsibilities
+
+Verify:
+
+- Supplier
+- Invoice Number
+- Invoice Date
+- Purchase Item Count
+- Saved Status
+
+Verification occurs immediately after saving.
+
+---
+
+# 6. Execution Workflow
+
+Approved Dataset
+
+↓
+
+Launch Browser
+
+↓
+
+Login
+
+↓
+
+Open Purchase Invoice Screen
+
+↓
+
+Enter Header Information
+
+↓
+
+Enter Purchase Items
+
+↓
+
+Save Invoice
+
+↓
+
+Verify Saved Data
+
+↓
+
+Execution Report
+
+---
+
+# 7. Retry Strategy
+
+Retry permitted for:
+
+- Network interruption
+- Page timeout
+- Temporary browser failure
+
+Retry prohibited for:
+
+- Business validation failures
+- Missing required fields
+- Verification mismatch
+
+Retry count shall be configurable.
+
+---
+
+# 8. Error Recovery
+
+Recoverable Errors
+
+- Slow page loading
+- Temporary network issue
+- Browser crash
+
+Non-Recoverable Errors
+
+- Invalid Approved Dataset
+- Authentication failure
+- Missing UI element
+- Verification failure
+
+---
+
+# 9. Execution Report
+
+Every execution generates:
+
+Execution ID
+
+Invoice ID
+
+Start Time
+
+End Time
+
+Duration
+
+Current Step
+
+Retry Count
+
+Result
+
+Error (if any)
+
+---
+
+# 10. Logging
+
+The Automation Engine shall log:
+
+- Browser startup
+- Login
+- Navigation
+- Data entry
+- Save operation
+- Verification
+- Completion
+- Errors
+
+---
+
+# 11. Performance Requirements
+
+Target performance:
+
+Browser startup
+
+≤ 5 seconds
+
+Single invoice
+
+≤ 60 seconds
+
+Average medicine row
+
+≤ 2 seconds
+
+Verification
+
+≤ 5 seconds
+
+---
+
+# 12. Dependencies
+
+Depends On
+
+- Approved Dataset
+- Configuration Service
+- Logging Service
+
+Does Not Depend On
+
+- OCR Module
+- AI Module
+- Validation Engine
+- Human Review Module
+
+---
+
+# 13. Public Interface
+
+Input
+
+Approved Dataset
+
+Output
+
+Execution Result
+
+Execution Report
+
+Automation Logs
+
+---
+
+# 14. Success Criteria
+
+The Automation Engine is successful when:
+
+- Browser launches successfully.
+- User session is valid.
+- Invoice is entered correctly.
+- Verification passes.
+- Execution Report is generated.
+- Audit Log is completed.
+
+---
+
+# End of Document

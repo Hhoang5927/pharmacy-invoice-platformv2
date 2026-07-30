@@ -1,0 +1,349 @@
+# SA-006_VALIDATION_ENGINE
+
+> Document ID: SA-006
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the architecture of the Validation Engine.
+
+The Validation Engine evaluates extracted invoice data against Business Rules and determines whether the invoice is eligible for approval.
+
+The Validation Engine performs evaluation only.
+
+It never modifies business data.
+
+---
+
+# 2. Responsibilities
+
+The Validation Engine shall:
+
+- Load Business Rules
+- Execute validation pipeline
+- Evaluate invoice quality
+- Generate validation report
+- Create review tasks
+- Produce final validation decision
+
+---
+
+# 3. Design Principles
+
+Validation shall be deterministic.
+
+Given identical input, the Validation Engine shall always produce identical output.
+
+Business Rules are data-driven and independent from implementation.
+
+---
+
+# 4. Internal Architecture
+
+```
+Structured Invoice
+        │
+        ▼
+Validation Context
+        │
+        ▼
+Rule Registry
+        │
+        ▼
+Rule Executor
+        │
+        ▼
+Validation Report
+        │
+        ▼
+Decision Engine
+        │
+        ▼
+PASS / REVIEW / FAIL
+```
+
+---
+
+# 5. Components
+
+## Validation Context
+
+Responsibilities
+
+- Store current invoice
+- Store configuration
+- Store execution metadata
+
+Output
+
+Validation Context
+
+---
+
+## Rule Registry
+
+Responsibilities
+
+- Register business rules
+- Load enabled rules
+- Manage execution order
+
+Business Rules include:
+
+- Supplier Rules
+- Medicine Rules
+- Invoice Rules
+- Batch Rules
+- Price Rules
+- Validation Rules
+
+---
+
+## Rule Executor
+
+Responsibilities
+
+- Execute each rule
+- Capture result
+- Measure execution time
+- Stop on Critical Failure when configured
+
+Output
+
+Rule Result
+
+---
+
+## Validation Report
+
+Responsibilities
+
+Collect
+
+- Passed Rules
+- Failed Rules
+- Warnings
+- Review Items
+
+Output
+
+Validation Report
+
+---
+
+## Decision Engine
+
+Responsibilities
+
+Determine final status.
+
+Possible Results
+
+PASS
+
+WARNING
+
+REVIEW
+
+FAIL
+
+---
+
+# 6. Validation Pipeline
+
+Step 1
+
+Required Field Validation
+
+↓
+
+Step 2
+
+Format Validation
+
+↓
+
+Step 3
+
+Business Rule Validation
+
+↓
+
+Step 4
+
+Cross Validation
+
+↓
+
+Step 5
+
+Decision Engine
+
+---
+
+# 7. Rule Execution
+
+Each rule contains:
+
+- Rule ID
+- Rule Name
+- Severity
+- Description
+- Execution Logic
+- Error Code
+
+Execution Order
+
+Lowest dependency first.
+
+---
+
+# 8. Severity Levels
+
+Critical
+
+Stop processing immediately.
+
+High
+
+Human Review required.
+
+Medium
+
+Continue with warning.
+
+Low
+
+Information only.
+
+---
+
+# 9. Validation Result
+
+Every execution produces:
+
+Validation ID
+
+Invoice ID
+
+Execution Time
+
+Passed Rules
+
+Failed Rules
+
+Warnings
+
+Review Tasks
+
+Decision
+
+---
+
+# 10. Review Task Generator
+
+When review is required:
+
+Generate Review Task containing:
+
+- Invoice ID
+- Review Reason
+- Failed Rule
+- Suggested Action
+- Priority
+
+---
+
+# 11. Rule Configuration
+
+Administrators may configure:
+
+- Enable / Disable Rules
+- Severity
+- Execution Order
+- Threshold Values
+
+No Business Rule shall be hardcoded.
+
+---
+
+# 12. Error Handling
+
+Possible Errors
+
+- Rule Load Failure
+- Rule Execution Failure
+- Invalid Configuration
+- Unexpected Exception
+
+Errors shall never corrupt invoice data.
+
+---
+
+# 13. Logging
+
+Log:
+
+- Rule ID
+- Execution Time
+- Result
+- Severity
+- Invoice ID
+- Validation ID
+
+---
+
+# 14. Dependencies
+
+Depends On
+
+- Business Rules
+- Configuration Service
+- Logging Service
+
+Does Not Depend On
+
+- Browser Automation
+- Human Review UI
+- OCR Provider
+
+---
+
+# 15. Public Interface
+
+Input
+
+Structured Invoice
+
+Output
+
+Validation Result
+
+Review Tasks
+
+Validation Report
+
+---
+
+# 16. Success Criteria
+
+The Validation Engine is successful when:
+
+- All enabled rules execute.
+- Results are deterministic.
+- Review tasks are generated correctly.
+- Validation report is complete.
+- Final decision is accurate.
+
+---
+
+# End of Document

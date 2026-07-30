@@ -1,0 +1,302 @@
+# BR-007_HUMAN_REVIEW_RULES
+
+> Document ID: BR-REV-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines the Human Review process.
+
+Human Review is the final business verification step before browser automation.
+
+Its purpose is to ensure that only verified and approved data is entered into the pharmacy management system.
+
+---
+
+# 2. Scope
+
+Applies to:
+
+- Supplier
+- Invoice
+- Medicine
+- Batch
+- Price
+- Validation
+- Browser Automation
+
+---
+
+# 3. Business Objective
+
+Human Review shall:
+
+- verify AI extraction
+- correct incorrect information
+- approve business data
+- reject invalid data
+- minimize manual work
+- maximize business accuracy
+
+---
+
+# 4. Review Principles
+
+Human Review has higher authority than AI.
+
+Approved human decisions become the source of truth.
+
+Browser Automation shall only consume approved data.
+
+---
+
+# 5. Review Triggers
+
+Human Review is required when:
+
+- Unknown Supplier
+- Unknown Medicine
+- Missing Required Field
+- OCR Confidence below threshold
+- AI Confidence below threshold
+- Validation Failure
+- Duplicate Invoice
+- Duplicate Medicine
+- Price deviation exceeds threshold
+
+---
+
+# 6. Review Workflow
+
+```
+
+AI Extraction
+
+↓
+
+Validation
+
+↓
+
+Pending Review
+
+↓
+
+Human Review
+
+↓
+
+Approved
+
+↓
+
+Automation
+
+```
+
+---
+
+# 7. Review Actions
+
+The reviewer may perform the following actions.
+
+### Approve
+
+Accept extracted information without modification.
+
+---
+
+### Edit
+
+Modify one or more extracted values.
+
+---
+
+### Reject
+
+Reject incorrect extraction.
+
+The invoice returns for correction.
+
+---
+
+### Skip
+
+Postpone review.
+
+Invoice remains in Pending Review.
+
+---
+
+# 8. Editable Fields
+
+The reviewer may edit:
+
+Supplier
+
+Invoice
+
+Medicine
+
+Quantity
+
+Unit
+
+Purchase Price
+
+VAT
+
+Batch Number
+
+Expiry Date
+
+Notes
+
+---
+
+# 9. Restricted Fields
+
+The system manages the following fields automatically.
+
+The reviewer shall not modify:
+
+Internal Invoice ID
+
+Processing ID
+
+Audit ID
+
+Created Timestamp
+
+Updated Timestamp
+
+Automation Log
+
+---
+
+# 10. New Supplier
+
+If Supplier does not exist:
+
+Reviewer may:
+
+- Create Supplier
+- Correct Supplier Name
+- Select Existing Supplier
+
+New supplier becomes available for future invoices.
+
+---
+
+# 11. New Medicine
+
+If Medicine does not exist:
+
+Reviewer may:
+
+- Create Medicine
+- Correct Medicine Name
+- Match Existing Medicine
+
+New medicine becomes available for future invoices.
+
+---
+
+# 12. Retail Price
+
+If retail price requires confirmation:
+
+Reviewer determines final retail price.
+
+Reference prices may be displayed.
+
+The reviewer has final authority.
+
+---
+
+# 13. Validation After Review
+
+Any modified field shall be validated again.
+
+Only successful validation may proceed.
+
+---
+
+# 14. Approval
+
+When review is complete:
+
+Invoice Status
+
+↓
+
+Approved
+
+Approved Dataset becomes immutable.
+
+---
+
+# 15. Browser Automation
+
+Automation starts only when:
+
+Invoice Status
+
+=
+
+Approved
+
+Automation shall never use Pending Review data.
+
+---
+
+# 16. Audit Log
+
+Every review action shall record:
+
+Reviewer
+
+Timestamp
+
+Changed Field
+
+Old Value
+
+New Value
+
+Reason
+
+---
+
+# 17. Error Codes
+
+| Code | Description |
+|-------|-------------|
+| REV-001 | Review Required |
+| REV-002 | Review Rejected |
+| REV-003 | Invalid Modification |
+| REV-004 | Approval Failed |
+
+---
+
+# 18. Success Criteria
+
+Human Review is successful when:
+
+- all required corrections completed
+- validation passes
+- reviewer approves invoice
+- approved dataset generated
+
+---
+
+# End of Document

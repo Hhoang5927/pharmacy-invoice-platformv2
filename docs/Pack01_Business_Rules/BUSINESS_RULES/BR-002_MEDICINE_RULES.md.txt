@@ -1,0 +1,138 @@
+# BR-002_MEDICINE_RULES
+
+> Document ID: BR-MED-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines every business rule related to medicine processing.
+
+Medicine is the core business entity of the Pharmacy Invoice Automation System.
+
+Incorrect medicine information can produce incorrect inventory, incorrect purchasing records and incorrect regulatory data.
+
+These rules ensure every medicine is processed consistently.
+
+---
+
+# 2. Scope
+
+Applies to:
+
+- OCR
+- AI Extraction
+- Validation
+- Human Review
+- Excel Dataset
+- Browser Automation
+
+---
+
+# 3. Business Objective
+
+The system shall:
+
+- identify medicines correctly
+- preserve medicine information
+- prevent incorrect medicines
+- prevent duplicated medicines
+- prevent invalid quantities
+- prevent invalid prices
+
+---
+
+# 4. Medicine Data Model
+
+Every medicine contains:
+
+Required
+
+- Medicine Name
+- Unit
+- Quantity
+- Unit Price
+- VAT
+
+Optional
+
+- Batch Number
+- Expiry Date
+- Manufacturer
+
+---
+
+# 5. Medicine Lifecycle
+
+```
+OCR
+
+↓
+
+AI Extraction
+
+↓
+
+Validation
+
+↓
+
+Human Review
+
+↓
+
+Approved
+
+↓
+
+Excel Dataset
+
+↓
+
+Browser Automation
+
+↓
+
+Completed
+```
+
+---
+
+# 6. Business Principles
+
+Medicine data shall never be invented.
+
+Medicine data shall never be guessed.
+
+Unknown medicines require human review.
+
+Approved medicine data becomes immutable.
+
+Automation uses only approved medicine data.
+
+---
+
+# 7. Required Fields
+
+| Field | Required |
+|---------|----------|
+| Medicine Name | Yes |
+| Unit | Yes |
+| Quantity | Yes |
+| Unit Price | Yes |
+| VAT | Yes |
+| Batch | No |
+| Expiry | No |
+| Manufacturer | No |
+
+---
+
+# 8. Validation Rules

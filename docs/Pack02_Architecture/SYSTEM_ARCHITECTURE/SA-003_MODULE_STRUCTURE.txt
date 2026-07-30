@@ -1,0 +1,466 @@
+# SA-003_MODULE_STRUCTURE
+
+> Document ID: SA-003
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the internal module structure of the Pharmacy Invoice Automation Platform.
+
+The objective is to separate the application into independent modules with clear responsibilities, interfaces and ownership.
+
+Each module shall encapsulate one business capability.
+
+---
+
+# 2. Design Principles
+
+The module architecture follows these principles:
+
+- Single Responsibility
+- High Cohesion
+- Low Coupling
+- Clear Interfaces
+- Replaceable Components
+- Independent Testing
+- No Circular Dependencies
+
+---
+
+# 3. Root Structure
+
+```
+
+src/
+
+├── app/
+├── modules/
+├── shared/
+├── infrastructure/
+├── ui/
+├── config/
+├── types/
+├── assets/
+└── main/
+
+```
+
+---
+
+# 4. Application Module
+
+Location
+
+```
+
+src/app/
+
+```
+
+Responsibilities
+
+- Application startup
+- Workflow orchestration
+- Module initialization
+- Global state
+- Lifecycle management
+
+Owns
+
+- Application Context
+- Service Registry
+- Event Bus
+
+Depends On
+
+- modules
+- shared
+
+---
+
+# 5. Business Modules
+
+Location
+
+```
+
+src/modules/
+
+```
+
+Contains
+
+```
+
+invoice/
+supplier/
+medicine/
+ocr/
+ai/
+validation/
+review/
+automation/
+excel/
+audit/
+logging/
+configuration/
+
+```
+
+Every module owns:
+
+- Business Logic
+- Services
+- Interfaces
+- Models
+- Validators
+
+---
+
+# 6. Invoice Module
+
+Responsibilities
+
+- Invoice lifecycle
+- Invoice status
+- Invoice metadata
+- Purchase items
+
+Input
+
+Invoice files
+
+Output
+
+Invoice entity
+
+---
+
+# 7. Supplier Module
+
+Responsibilities
+
+- Supplier lookup
+- Supplier validation
+- Supplier creation
+- Supplier matching
+
+Input
+
+Supplier information
+
+Output
+
+Approved supplier
+
+---
+
+# 8. Medicine Module
+
+Responsibilities
+
+- Medicine lookup
+- Medicine matching
+- Medicine validation
+- Medicine creation
+
+Input
+
+Medicine information
+
+Output
+
+Approved medicine
+
+---
+
+# 9. OCR Module
+
+Responsibilities
+
+- Image preprocessing
+- OCR execution
+- Confidence calculation
+
+Input
+
+Invoice image
+
+Output
+
+OCR Result
+
+---
+
+# 10. AI Module
+
+Responsibilities
+
+- Prompt execution
+- Entity extraction
+- Structured invoice generation
+
+Input
+
+OCR Result
+
+Output
+
+Structured Invoice
+
+---
+
+# 11. Validation Module
+
+Responsibilities
+
+- Execute business rules
+- Generate validation results
+- Produce review requests
+
+Input
+
+Structured Invoice
+
+Output
+
+Validation Result
+
+---
+
+# 12. Human Review Module
+
+Responsibilities
+
+- Display extracted data
+- Allow editing
+- Approval workflow
+
+Input
+
+Validation Result
+
+Output
+
+Approved Dataset
+
+---
+
+# 13. Automation Module
+
+Responsibilities
+
+- Browser control
+- Navigation
+- Data entry
+- Verification
+
+Input
+
+Approved Dataset
+
+Output
+
+Automation Result
+
+---
+
+# 14. Excel Module
+
+Responsibilities
+
+- Generate Excel
+- Read Excel
+- Export approved dataset
+
+Input
+
+Approved Dataset
+
+Output
+
+Excel file
+
+---
+
+# 15. Audit Module
+
+Responsibilities
+
+- Audit history
+- Event recording
+- Traceability
+
+Input
+
+System events
+
+Output
+
+Audit records
+
+---
+
+# 16. Logging Module
+
+Responsibilities
+
+- Application logs
+- Error logs
+- Performance logs
+
+Input
+
+System events
+
+Output
+
+Log files
+
+---
+
+# 17. Configuration Module
+
+Responsibilities
+
+- Read configuration
+- Validate configuration
+- Runtime settings
+
+Input
+
+Configuration files
+
+Output
+
+Configuration service
+
+---
+
+# 18. Shared Module
+
+Location
+
+```
+
+src/shared/
+
+```
+
+Contains
+
+- Utilities
+- Common Types
+- Constants
+- Helpers
+- Shared Interfaces
+
+Business logic is prohibited.
+
+---
+
+# 19. Infrastructure Module
+
+Location
+
+```
+
+src/infrastructure/
+
+```
+
+Responsibilities
+
+- File System
+- Database
+- OCR Provider
+- AI Provider
+- Playwright
+- External APIs
+
+Infrastructure never contains business rules.
+
+---
+
+# 20. UI Module
+
+Location
+
+```
+
+src/ui/
+
+```
+
+Responsibilities
+
+- Dashboard
+- Review Screen
+- Settings
+- Progress
+- Logs
+
+UI never contains business rules.
+
+---
+
+# 21. Dependency Rules
+
+Allowed
+
+```
+
+UI
+
+↓
+
+Application
+
+↓
+
+Business Modules
+
+↓
+
+Infrastructure
+
+↓
+
+Storage
+
+```
+
+Forbidden
+
+- Infrastructure → UI
+- OCR → Review
+- Playwright → Business Rules
+- AI → Browser Automation
+- Module → Module Internal Access
+
+Communication occurs only through public interfaces.
+
+---
+
+# 22. Success Criteria
+
+The module structure is successful when:
+
+- Each module has a single responsibility.
+- Modules are independently testable.
+- Dependencies remain one-directional.
+- Business logic is isolated.
+- Infrastructure components are replaceable.
+
+---
+
+# End of Document

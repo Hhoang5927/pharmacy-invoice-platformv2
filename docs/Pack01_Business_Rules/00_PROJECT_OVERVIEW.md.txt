@@ -1,0 +1,377 @@
+# Project Overview
+
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: High
+>
+> Related Documents:
+> - README.md
+> - PROJECT_RULES.md
+> - 01_PROJECT_VISION.md
+> - 02_BUSINESS_WORKFLOW.md
+
+---
+
+# Purpose
+
+This document provides a high-level overview of the Pharmacy Invoice Automation System.
+
+It explains:
+
+- Why the project exists
+- What business problem it solves
+- Who will use it
+- What is inside the project scope
+- What is intentionally outside the project scope
+
+This document is intended for anyone who needs to quickly understand the system before reading the detailed specifications.
+
+---
+
+# Executive Summary
+
+The Pharmacy Invoice Automation System is an internal software platform designed to automate the processing of pharmaceutical supplier purchase invoices.
+
+Instead of manually reading every invoice and entering hundreds of medicine lines into the pharmacy management website, the system assists the operator by automating most of the repetitive work while keeping a human reviewer in control of the final result.
+
+The project combines OCR, AI-assisted data extraction, business validation, Excel generation and browser automation into a single end-to-end workflow.
+
+---
+
+# Business Background
+
+A pharmacy regularly receives purchase invoices from multiple suppliers.
+
+Each supplier may use different invoice formats.
+
+Each invoice can contain dozens or even hundreds of medicine items.
+
+A typical accounting project may involve:
+
+- Hundreds of invoices
+- Three years of historical records
+- Tens of thousands of medicine lines
+
+Entering this data manually is:
+
+- Slow
+- Repetitive
+- Error-prone
+- Difficult to audit
+
+The purpose of this project is to significantly reduce manual work while maintaining high accuracy.
+
+---
+
+# Problem Statement
+
+Current manual workflow has several limitations:
+
+## Manual Reading
+
+Operators must inspect every invoice manually.
+
+---
+
+## Manual Typing
+
+Every medicine must be entered one by one.
+
+---
+
+## Human Error
+
+Common mistakes include:
+
+- Incorrect quantity
+- Incorrect unit price
+- Wrong VAT
+- Missing batch number
+- Wrong expiry date
+- Incorrect supplier
+
+---
+
+## Low Productivity
+
+Processing hundreds of invoices may require several working days.
+
+---
+
+## Difficult Quality Control
+
+Finding mistakes after manual entry is expensive and time-consuming.
+
+---
+
+# Project Goals
+
+The project aims to achieve the following goals.
+
+## Goal 1
+
+Reduce manual data entry.
+
+---
+
+## Goal 2
+
+Increase processing speed.
+
+---
+
+## Goal 3
+
+Improve data accuracy.
+
+---
+
+## Goal 4
+
+Provide complete auditability.
+
+---
+
+## Goal 5
+
+Allow human verification before final submission.
+
+---
+
+## Goal 6
+
+Support large-scale invoice processing.
+
+---
+
+# Intended Users
+
+Primary users:
+
+- Pharmacy owner
+- Pharmacy staff
+- Accounting staff
+
+Future users may include:
+
+- Multiple pharmacy branches
+- Accounting service providers
+- Enterprise pharmacy groups
+
+---
+
+# System Scope
+
+The system SHALL:
+
+- Read supplier invoices
+- Extract invoice information
+- Validate extracted data
+- Detect inconsistencies
+- Allow manual review
+- Generate intermediate Excel files
+- Automatically enter validated data into the pharmacy management website
+- Produce processing reports
+
+---
+
+# Out of Scope
+
+The system SHALL NOT:
+
+- Replace accounting software
+- Replace pharmacy management software
+- Generate tax declarations
+- Perform financial accounting
+- Manage inventory
+- Replace human approval
+
+---
+
+# High-Level Workflow
+
+```
+Supplier Invoice
+        │
+        ▼
+Image / PDF Processing
+        │
+        ▼
+OCR
+        │
+        ▼
+AI Data Extraction
+        │
+        ▼
+Business Validation
+        │
+        ▼
+Human Review
+        │
+        ▼
+Excel Dataset
+        │
+        ▼
+Browser Automation
+        │
+        ▼
+Pharmacy Management Website
+        │
+        ▼
+Verification
+        │
+        ▼
+Completion Report
+```
+
+---
+
+# Key Features
+
+## Invoice Processing
+
+Support multiple supplier invoice formats.
+
+---
+
+## OCR
+
+Extract raw text from scanned invoices.
+
+---
+
+## AI Extraction
+
+Convert OCR text into structured business data.
+
+---
+
+## Business Validation
+
+Verify extracted values against business rules.
+
+---
+
+## Human Review
+
+Allow users to inspect and correct extracted information before automation.
+
+---
+
+## Excel Generation
+
+Produce a structured intermediate dataset.
+
+This Excel file serves as the canonical input for browser automation.
+
+---
+
+## Browser Automation
+
+Automatically input validated data into the pharmacy management website.
+
+---
+
+## Reporting
+
+Generate processing summaries and error reports.
+
+---
+
+# Design Principles
+
+The project follows several guiding principles.
+
+## Accuracy First
+
+Correct results are more important than maximum speed.
+
+---
+
+## Human in the Loop
+
+Humans always make the final decision.
+
+---
+
+## Traceability
+
+Every important action must be auditable.
+
+---
+
+## Recoverability
+
+Interrupted processing should be resumable.
+
+---
+
+## Extensibility
+
+The system should support future enhancements with minimal redesign.
+
+---
+
+# Success Criteria
+
+The project will be considered successful if it can:
+
+- Process large batches of supplier invoices reliably
+- Reduce manual typing significantly
+- Maintain a high level of accuracy
+- Recover gracefully from failures
+- Produce reproducible results
+- Be maintainable for many years
+
+---
+
+# Assumptions
+
+The project assumes:
+
+- Supplier invoices are legally valid documents.
+- OCR quality depends on scan quality.
+- AI extraction may occasionally require manual correction.
+- Internet access is available for browser automation.
+- Human review remains part of the workflow.
+
+---
+
+# Risks
+
+Potential risks include:
+
+- Poor scan quality
+- OCR errors
+- AI hallucination
+- Website UI changes
+- Slow internet connection
+- Browser automation failures
+
+Mitigation strategies are defined in later documents.
+
+---
+
+# Related Documents
+
+For project vision:
+
+→ 01_PROJECT_VISION.md
+
+For detailed workflow:
+
+→ 02_BUSINESS_WORKFLOW.md
+
+For business logic:
+
+→ 03_BUSINESS_RULES.md
+
+For architecture:
+
+→ 04_SYSTEM_ARCHITECTURE.md
+
+---
+
+# End of Document

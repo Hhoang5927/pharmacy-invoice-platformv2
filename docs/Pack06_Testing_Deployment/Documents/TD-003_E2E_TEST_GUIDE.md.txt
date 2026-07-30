@@ -1,0 +1,399 @@
+# END-TO-END TEST GUIDE
+
+> Document ID: TD-003
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: QA Lead
+
+---
+
+# 1. Purpose
+
+This document defines the End-to-End (E2E) testing strategy for the Pharmacy Invoice Automation Platform.
+
+The objective is to validate complete business workflows from the user's perspective.
+
+E2E tests verify that all system components work together correctly in a production-like environment.
+
+---
+
+# 2. Scope
+
+End-to-End testing covers
+
+Frontend
+
+Backend
+
+Database
+
+OCR
+
+AI
+
+Validation
+
+Human Review
+
+Automation
+
+Reporting
+
+---
+
+# 3. Objectives
+
+E2E tests shall verify
+
+Complete business processes
+
+User interactions
+
+Cross-module integration
+
+Production-like execution
+
+Business outcome correctness
+
+---
+
+# 4. Test Environment
+
+E2E testing shall execute in a dedicated environment.
+
+The environment shall include
+
+Application
+
+Database
+
+Sandbox OCR Provider
+
+Sandbox AI Provider
+
+Automation Target System
+
+Monitoring
+
+Logging
+
+Production shall never be used for automated E2E execution.
+
+---
+
+# 5. Core Business Scenarios
+
+The following scenarios are mandatory.
+
+Scenario 1
+
+Invoice Upload
+
+↓
+
+OCR
+
+↓
+
+AI Extraction
+
+↓
+
+Validation
+
+↓
+
+Review
+
+↓
+
+Automation
+
+↓
+
+Success
+
+Scenario 2
+
+Invoice Upload
+
+↓
+
+OCR Failure
+
+↓
+
+Retry
+
+↓
+
+Success
+
+Scenario 3
+
+Invoice Upload
+
+↓
+
+Validation Failure
+
+↓
+
+Human Correction
+
+↓
+
+Automation
+
+Scenario 4
+
+Automation Failure
+
+↓
+
+Retry
+
+↓
+
+Success
+
+Scenario 5
+
+Duplicate Invoice
+
+↓
+
+Rejected
+
+---
+
+# 6. User Interaction
+
+Tests shall verify
+
+Navigation
+
+Form Input
+
+Validation Messages
+
+Dialogs
+
+Confirmation Messages
+
+Loading States
+
+Error Messages
+
+---
+
+# 7. OCR Verification
+
+Verify
+
+Image upload
+
+OCR execution
+
+Extracted text
+
+Confidence threshold
+
+Retry behavior
+
+Error handling
+
+---
+
+# 8. AI Verification
+
+Verify
+
+Prompt generation
+
+Extraction result
+
+Confidence score
+
+Structured output
+
+Fallback behavior
+
+---
+
+# 9. Validation Verification
+
+Verify
+
+Business rule execution
+
+Validation summary
+
+Blocking errors
+
+Warnings
+
+Review threshold
+
+---
+
+# 10. Human Review Verification
+
+Verify
+
+Editable fields
+
+Approval
+
+Rejection
+
+Comments
+
+Audit Trail
+
+---
+
+# 11. Automation Verification
+
+Verify
+
+Authentication
+
+Navigation
+
+Data entry
+
+Submission
+
+Confirmation
+
+Execution report
+
+Screenshots
+
+Retry logic
+
+---
+
+# 12. Reporting Verification
+
+Verify
+
+Execution report
+
+Audit log
+
+Validation report
+
+Automation report
+
+Processing statistics
+
+---
+
+# 13. Failure Scenarios
+
+E2E tests shall include
+
+OCR unavailable
+
+AI unavailable
+
+Database unavailable
+
+Authentication failure
+
+Network interruption
+
+Unexpected application error
+
+Automation timeout
+
+---
+
+# 14. Performance Expectations
+
+Critical business workflows should complete within acceptable operational limits.
+
+Long-running workflows shall generate progress information.
+
+Timeout values shall follow configuration.
+
+---
+
+# 15. Test Data
+
+E2E test data shall
+
+Be isolated
+
+Be reusable
+
+Be version controlled
+
+Be reset after execution
+
+Avoid production business data.
+
+---
+
+# 16. Execution Frequency
+
+Recommended schedule
+
+Before every release
+
+Nightly execution
+
+Major feature completion
+
+Regression testing
+
+---
+
+# 17. Test Reporting
+
+Every execution shall produce
+
+Execution Summary
+
+Passed Tests
+
+Failed Tests
+
+Execution Duration
+
+Screenshots
+
+Logs
+
+Correlation ID
+
+Artifacts shall be retained according to project policy.
+
+---
+
+# 18. Acceptance Criteria
+
+End-to-End testing is accepted when
+
+✓ Complete business workflows execute successfully.
+
+✓ Critical business scenarios are covered.
+
+✓ External integrations behave correctly.
+
+✓ User interactions function as expected.
+
+✓ Automation produces the expected business outcome.
+
+✓ Reports and logs support troubleshooting.
+
+---
+
+# End of Document

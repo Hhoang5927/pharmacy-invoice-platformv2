@@ -1,0 +1,271 @@
+# BR-006_VALIDATION_RULES
+
+> Document ID: BR-VAL-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines the validation process used to determine whether extracted invoice data is eligible for approval and browser automation.
+
+Validation protects business accuracy and prevents incorrect data from entering the pharmacy management system.
+
+---
+
+# 2. Scope
+
+Applies to:
+
+- OCR Result
+- AI Extraction Result
+- Supplier
+- Invoice
+- Medicine
+- Price
+- Batch
+- Human Review
+- Browser Automation
+
+---
+
+# 3. Validation Principles
+
+Validation never modifies data.
+
+Validation only evaluates data.
+
+If validation fails, processing shall stop until the issue is resolved or approved by a human operator.
+
+---
+
+# 4. Validation Pipeline
+
+```
+OCR Result
+        │
+        ▼
+AI Extraction
+        │
+        ▼
+Field Validation
+        │
+        ▼
+Business Validation
+        │
+        ▼
+Cross Validation
+        │
+        ▼
+Review Decision
+        │
+ ┌──────┴──────┐
+ │             │
+ ▼             ▼
+Approved   Human Review
+```
+
+---
+
+# 5. Validation Levels
+
+Validation is performed in the following order:
+
+### Level 1 — Field Validation
+
+Checks:
+
+- Required fields
+- Empty values
+- Number format
+- Date format
+- VAT format
+
+---
+
+### Level 2 — Business Validation
+
+Checks:
+
+- Supplier
+- Medicine
+- Price
+- Batch
+- Invoice
+
+---
+
+### Level 3 — Cross Validation
+
+Checks:
+
+- Invoice Total
+- Purchase Item Count
+- Duplicate Medicines
+- Duplicate Invoice Number
+
+---
+
+### Level 4 — Human Validation
+
+Human confirms:
+
+- uncertain OCR
+- uncertain AI
+- suspicious values
+
+---
+
+# 6. Validation Severity
+
+| Severity | Description | Action |
+|----------|-------------|--------|
+| Critical | Cannot continue | Stop Processing |
+| High | Human Review Required | Pause |
+| Medium | Warning | Continue |
+| Low | Information | Log Only |
+
+---
+
+# 7. Validation Decision
+
+A validation result shall be one of:
+
+PASS
+
+All validation successful.
+
+↓
+
+Continue.
+
+---
+
+WARNING
+
+Business concern detected.
+
+↓
+
+Continue with warning.
+
+---
+
+REVIEW
+
+Human decision required.
+
+↓
+
+Pending Review.
+
+---
+
+FAIL
+
+Critical validation failed.
+
+↓
+
+Stop Processing.
+
+---
+
+# 8. Rule Evaluation
+
+Validation Rules execute sequentially.
+
+If a Critical Rule fails:
+
+↓
+
+Stop immediately.
+
+If High Rule fails:
+
+↓
+
+Send to Human Review.
+
+Medium:
+
+↓
+
+Warning.
+
+Low:
+
+↓
+
+Log only.
+
+---
+
+# 9. Human Review Queue
+
+Invoices requiring review are placed into the review queue.
+
+Reasons include:
+
+- OCR uncertainty
+- AI uncertainty
+- Unknown supplier
+- Unknown medicine
+- Invalid prices
+- Duplicate invoice
+
+---
+
+# 10. Approved Dataset
+
+Only data that has reached Approved status may be exported.
+
+The Approved Dataset becomes the only source for browser automation.
+
+---
+
+# 11. Validation Log
+
+Each validation execution shall record:
+
+- Invoice ID
+- Validation Time
+- Rule Executed
+- Result
+- Severity
+- Error Code
+- Reviewer (if applicable)
+
+---
+
+# 12. Error Codes
+
+| Code | Description |
+|-------|-------------|
+| VAL-001 | Required Field Missing |
+| VAL-002 | Invalid Format |
+| VAL-003 | Business Validation Failed |
+| VAL-004 | Cross Validation Failed |
+| VAL-005 | Human Review Required |
+
+---
+
+# 13. Success Criteria
+
+Validation is successful when:
+
+- All Critical rules pass.
+- No unresolved High severity issues remain.
+- Human review completed (if required).
+- Approved Dataset generated successfully.
+
+---
+
+# End of Document

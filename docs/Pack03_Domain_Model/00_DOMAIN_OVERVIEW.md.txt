@@ -1,0 +1,359 @@
+# DOMAIN OVERVIEW
+
+> Document ID: DM-000
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the domain model overview of the Pharmacy Invoice Automation Platform.
+
+The domain model establishes a common business language shared by all modules.
+
+Every module shall exchange information using these domain entities.
+
+The domain model is technology independent.
+
+---
+
+# 2. Domain Objectives
+
+The domain model shall:
+
+- Represent real business objects.
+- Remain independent from UI.
+- Remain independent from OCR.
+- Remain independent from AI providers.
+- Remain independent from browser automation.
+- Support future business expansion.
+
+---
+
+# 3. Core Business Flow
+
+```
+Supplier Invoice
+
+↓
+
+Invoice
+
+↓
+
+OCR Result
+
+↓
+
+Structured Invoice
+
+↓
+
+Validation
+
+↓
+
+Human Review
+
+↓
+
+Approved Dataset
+
+↓
+
+Excel
+
+↓
+
+Browser Automation
+
+↓
+
+Completed
+```
+
+---
+
+# 4. Core Domain Model
+
+```
+                    Invoice
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+        ▼               ▼               ▼
+    Supplier      Purchase Item    Invoice Status
+                        │
+          ┌─────────────┴─────────────┐
+          ▼                           ▼
+      Medicine                     Batch
+                        │
+                        ▼
+                Approved Dataset
+```
+
+---
+
+# 5. Primary Entities
+
+The system consists of six primary business entities.
+
+## Invoice
+
+Represents one supplier purchase invoice.
+
+Contains:
+
+- Header information
+- Supplier
+- Purchase Items
+- Status
+- Totals
+
+---
+
+## Supplier
+
+Represents the company providing medicines.
+
+Contains:
+
+- Supplier Code
+- Supplier Name
+- Tax Code
+- Address
+- Contact Information
+
+---
+
+## Medicine
+
+Represents one medicine in the pharmacy catalog.
+
+Contains:
+
+- Medicine Code
+- Medicine Name
+- Unit
+- Registration Number
+- Manufacturer
+
+---
+
+## Purchase Item
+
+Represents one line item within an invoice.
+
+Contains:
+
+- Medicine
+- Quantity
+- Unit Price
+- Batch
+- VAT
+- Total
+
+---
+
+## Batch
+
+Represents manufacturing information.
+
+Contains:
+
+- Batch Number
+- Expiry Date
+- Manufacturing Date
+
+---
+
+## Approved Dataset
+
+Represents the final verified invoice.
+
+This is the only dataset used by Browser Automation.
+
+---
+
+# 6. Supporting Objects
+
+Supporting objects include:
+
+Money
+
+Quantity
+
+Date
+
+Percentage
+
+Validation Result
+
+Review Decision
+
+Execution Result
+
+These objects support business entities but are not standalone entities.
+
+---
+
+# 7. Entity Relationships
+
+Invoice
+
+contains
+
+Purchase Items
+
+Purchase Item
+
+references
+
+Medicine
+
+Purchase Item
+
+contains
+
+Batch
+
+Invoice
+
+belongs to
+
+Supplier
+
+Approved Dataset
+
+contains
+
+Invoice
+
+---
+
+# 8. Entity Lifecycle
+
+Invoice
+
+↓
+
+Imported
+
+↓
+
+OCR Processed
+
+↓
+
+AI Extracted
+
+↓
+
+Validated
+
+↓
+
+Reviewed
+
+↓
+
+Approved
+
+↓
+
+Automated
+
+↓
+
+Completed
+
+---
+
+# 9. Business Ownership
+
+Each entity owns its own business data.
+
+Entities shall not modify other entities directly.
+
+Communication occurs through services.
+
+---
+
+# 10. Immutability Rules
+
+The following entities become immutable after approval:
+
+Approved Dataset
+
+Invoice Snapshot
+
+Automation Result
+
+Audit Record
+
+Historical versions shall never be modified.
+
+---
+
+# 11. Shared Language
+
+All modules shall use identical terminology.
+
+Example:
+
+Invoice
+
+Supplier
+
+Medicine
+
+Purchase Item
+
+Batch
+
+Approved Dataset
+
+No alternative naming is permitted.
+
+---
+
+# 12. Future Extension
+
+The domain model supports future entities such as:
+
+Warehouse
+
+Customer
+
+Sales Invoice
+
+Inventory
+
+Purchase Order
+
+Stock Movement
+
+without redesigning existing entities.
+
+---
+
+# 13. Success Criteria
+
+The domain model is successful when:
+
+- Business terminology is consistent.
+- Relationships are explicit.
+- Entities are independent.
+- Data ownership is clear.
+- Future extensions are supported.
+
+---
+
+# End of Document

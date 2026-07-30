@@ -1,0 +1,133 @@
+# BR-009_ERROR_HANDLING_RULES
+
+> Document ID: BR-ERR-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+
+---
+
+# 1. Purpose
+
+This document defines how business errors shall be classified, recorded, and resolved.
+
+Errors shall never be ignored.
+
+Every error must produce a predictable system response.
+
+---
+
+# 2. Error Categories
+
+Business Errors
+
+Validation Errors
+
+Automation Errors
+
+OCR Errors
+
+AI Extraction Errors
+
+System Errors
+
+User Errors
+
+---
+
+# 3. Error Severity
+
+Critical
+
+↓
+
+Stop immediately.
+
+High
+
+↓
+
+Human Review.
+
+Medium
+
+↓
+
+Continue with warning.
+
+Low
+
+↓
+
+Log only.
+
+---
+
+# 4. Error Processing
+
+Detect
+
+↓
+
+Classify
+
+↓
+
+Record
+
+↓
+
+Notify
+
+↓
+
+Recover
+
+↓
+
+Continue or Stop
+
+---
+
+# 5. Recovery Rules
+
+Recover automatically only when:
+
+- Network interruption
+- Browser timeout
+- Temporary system issue
+
+Business errors require human action.
+
+---
+
+# 6. Error Logging
+
+Each error shall record:
+
+- Error Code
+- Description
+- Invoice ID
+- Time
+- Severity
+- Module
+- User
+- Resolution
+
+---
+
+# 7. Success Criteria
+
+Every detected error is:
+
+- classified
+- logged
+- traceable
+- recoverable or reviewable
+
+---
+
+# End of Document

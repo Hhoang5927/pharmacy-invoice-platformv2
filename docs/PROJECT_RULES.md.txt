@@ -1,0 +1,559 @@
+# PROJECT_RULES.md
+
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Highest
+>
+> Applies To: Entire Repository
+
+---
+
+# Purpose
+
+This document defines the mandatory rules that govern the development of the Pharmacy Invoice Automation System.
+
+These rules apply to:
+
+- Human developers
+- AI coding assistants
+- Future maintainers
+- Code reviewers
+
+No implementation may violate these rules unless explicitly approved by the Project Owner.
+
+---
+
+# Rule Hierarchy
+
+The project follows the following priority order.
+
+```
+PROJECT_RULES
+
+↓
+
+BUSINESS_RULES
+
+↓
+
+SYSTEM_ARCHITECTURE
+
+↓
+
+TECHNICAL_SPECIFICATIONS
+
+↓
+
+IMPLEMENTATION
+
+↓
+
+UNIT TESTS
+```
+
+Implementation must always follow higher-level documents.
+
+---
+
+# Core Principles
+
+## PR-001
+
+Business requirements always take precedence over implementation convenience.
+
+---
+
+## PR-002
+
+Correctness is always more important than speed.
+
+Never sacrifice data integrity to gain performance.
+
+---
+
+## PR-003
+
+The system must never fabricate business data.
+
+If information cannot be extracted confidently, it must be flagged for review.
+
+Never guess.
+
+---
+
+## PR-004
+
+Every automated action must be reproducible.
+
+Given the same inputs, the system should produce the same outputs whenever possible.
+
+---
+
+## PR-005
+
+Every important decision must be traceable.
+
+The system must always allow investigation of:
+
+- OCR output
+- AI extraction
+- Validation
+- Human modifications
+- Automation
+- Final result
+
+---
+
+# Documentation Rules
+
+## PR-010
+
+Documentation is the Single Source of Truth.
+
+---
+
+## PR-011
+
+Code must not redefine business logic.
+
+---
+
+## PR-012
+
+If documentation conflicts with code, documentation wins.
+
+---
+
+## PR-013
+
+Developers must update documentation before changing business behavior.
+
+---
+
+## PR-014
+
+AI assistants must read documentation before implementation.
+
+---
+
+# Business Rules
+
+## PR-020
+
+Business Rules may only be changed with Project Owner approval.
+
+---
+
+## PR-021
+
+Workflow changes require documentation updates.
+
+---
+
+## PR-022
+
+Business terminology must remain consistent.
+
+Example:
+
+Correct
+
+Purchase Invoice
+
+Incorrect
+
+Invoice
+
+Receipt
+
+Purchase Document
+
+---
+
+## PR-023
+
+Business identifiers must never be renamed without approval.
+
+---
+
+# Architecture Rules
+
+## PR-030
+
+The project follows Clean Architecture.
+
+---
+
+## PR-031
+
+Dependencies point inward only.
+
+---
+
+## PR-032
+
+The Domain Layer must remain independent.
+
+It must not depend on:
+
+- UI
+- Database
+- Network
+- Framework
+- AI SDK
+- OCR SDK
+- Playwright
+
+---
+
+## PR-033
+
+Infrastructure implements Domain interfaces.
+
+Never the opposite.
+
+---
+
+## PR-034
+
+No business logic inside Infrastructure.
+
+---
+
+# AI Rules
+
+## PR-040
+
+AI assists business processing.
+
+AI does not define business rules.
+
+---
+
+## PR-041
+
+AI output must always be validated.
+
+---
+
+## PR-042
+
+Low-confidence extraction requires review.
+
+---
+
+## PR-043
+
+AI prompts must be version controlled.
+
+---
+
+## PR-044
+
+Changing prompts requires testing.
+
+---
+
+# OCR Rules
+
+## PR-050
+
+OCR output is considered raw data.
+
+Never trust OCR without validation.
+
+---
+
+## PR-051
+
+Image preprocessing must never alter business meaning.
+
+---
+
+## PR-052
+
+OCR confidence must be preserved.
+
+---
+
+# Automation Rules
+
+## PR-060
+
+Automation must never continue silently after critical failures.
+
+---
+
+## PR-061
+
+Every automation step must be verifiable.
+
+---
+
+## PR-062
+
+Retries must be controlled.
+
+Infinite retry loops are forbidden.
+
+---
+
+## PR-063
+
+Automation must support resume after interruption.
+
+---
+
+# Data Integrity Rules
+
+## PR-070
+
+Original invoice files are immutable.
+
+---
+
+## PR-071
+
+OCR output is immutable.
+
+---
+
+## PR-072
+
+AI output must be preserved.
+
+---
+
+## PR-073
+
+Manual edits must be recorded.
+
+---
+
+## PR-074
+
+No business data may be silently discarded.
+
+---
+
+# Logging Rules
+
+## PR-080
+
+Logging is required for every invoice.
+
+---
+
+## PR-081
+
+Errors must contain meaningful messages.
+
+---
+
+## PR-082
+
+Unexpected exceptions must never be swallowed.
+
+---
+
+## PR-083
+
+Audit information must be preserved.
+
+---
+
+# Code Quality Rules
+
+## PR-090
+
+No placeholder implementation.
+
+Forbidden:
+
+```
+TODO
+
+pass
+
+raise NotImplementedError
+
+return None
+```
+
+inside production code.
+
+---
+
+## PR-091
+
+Dead code must be removed.
+
+---
+
+## PR-092
+
+Duplicate business logic is prohibited.
+
+---
+
+## PR-093
+
+Magic numbers should be avoided.
+
+---
+
+## PR-094
+
+Public APIs require documentation.
+
+---
+
+## PR-095
+
+Every module must have a clear responsibility.
+
+---
+
+# Testing Rules
+
+## PR-100
+
+Critical business rules require automated tests.
+
+---
+
+## PR-101
+
+Domain Services must be tested independently.
+
+---
+
+## PR-102
+
+Regression tests are mandatory after bug fixes.
+
+---
+
+## PR-103
+
+Production code must compile without warnings.
+
+---
+
+# Performance Rules
+
+## PR-110
+
+The system should process invoices in batches.
+
+---
+
+## PR-111
+
+Repeated work should be minimized.
+
+---
+
+## PR-112
+
+Performance optimization must never reduce correctness.
+
+---
+
+# Security Rules
+
+## PR-120
+
+Never expose sensitive supplier information.
+
+---
+
+## PR-121
+
+API keys must never appear in source code.
+
+---
+
+## PR-122
+
+Secrets belong in configuration.
+
+---
+
+# Human Review Rules
+
+## PR-130
+
+Humans always have final authority.
+
+---
+
+## PR-131
+
+The system must allow correction.
+
+---
+
+## PR-132
+
+Human modifications must be auditable.
+
+---
+
+# AI Assistant Rules
+
+Every AI assistant working on this repository must follow these instructions.
+
+1.
+
+Read all documentation before implementation.
+
+2.
+
+Never invent business rules.
+
+3.
+
+Never redesign architecture.
+
+4.
+
+Never change terminology.
+
+5.
+
+Never rename domain concepts.
+
+6.
+
+Never implement assumptions as facts.
+
+7.
+
+Always ask when requirements are unclear.
+
+8.
+
+Always preserve backward compatibility where possible.
+
+9.
+
+Always prefer correctness over performance.
+
+10.
+
+Never modify this document without Project Owner approval.
+
+---
+
+# Compliance
+
+Every Pull Request should be reviewed against this document.
+
+Violations should be corrected before merge.
+
+---
+
+# End of Document

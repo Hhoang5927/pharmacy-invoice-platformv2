@@ -1,0 +1,406 @@
+# DATA MODEL
+
+> Document ID: DM-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the data modeling principles used throughout the Pharmacy Invoice Automation Platform.
+
+The objective is to ensure all modules exchange data using a consistent, strongly typed and business-oriented model.
+
+This document specifies modeling rules only.
+
+It does not define individual business entities.
+
+---
+
+# 2. Design Principles
+
+The data model shall be:
+
+- Business-oriented
+- Strongly typed
+- Explicit
+- Immutable where appropriate
+- Serializable
+- Technology independent
+- Easy to validate
+- Easy to extend
+
+---
+
+# 3. Model Categories
+
+The domain model consists of:
+
+Entity
+
+Value Object
+
+Enumeration
+
+DTO
+
+Repository Contract
+
+Schema
+
+Each category has different responsibilities.
+
+---
+
+# 4. Entity
+
+An Entity represents a business object that has identity.
+
+Examples
+
+Invoice
+
+Supplier
+
+Medicine
+
+Purchase Item
+
+Batch
+
+Approved Dataset
+
+Every Entity shall contain a unique identifier.
+
+Entities own business state.
+
+---
+
+# 5. Value Object
+
+A Value Object represents descriptive information.
+
+It has no identity.
+
+Examples
+
+Money
+
+Quantity
+
+Percentage
+
+Address
+
+Phone Number
+
+Email
+
+Expiry Date
+
+Batch Number
+
+Two Value Objects are equal when all values are equal.
+
+---
+
+# 6. Enumeration
+
+Enumerations define controlled values.
+
+Examples
+
+Invoice Status
+
+Validation Status
+
+Review Status
+
+Automation Status
+
+Execution Result
+
+Enumerations prevent invalid business values.
+
+---
+
+# 7. DTO
+
+DTOs transfer information between modules.
+
+DTOs contain data only.
+
+DTOs contain no business logic.
+
+DTOs may differ from Entities.
+
+---
+
+# 8. Repository
+
+Repositories abstract persistence.
+
+Repositories provide:
+
+Create
+
+Read
+
+Update
+
+Delete
+
+Search
+
+Repositories never contain business rules.
+
+---
+
+# 9. Identity
+
+Every Entity shall contain:
+
+Unique Identifier
+
+Creation Timestamp
+
+Last Modified Timestamp
+
+Version
+
+Identifiers shall never change.
+
+---
+
+# 10. Relationships
+
+Supported relationships
+
+One-to-One
+
+One-to-Many
+
+Many-to-One
+
+Many-to-Many (only when explicitly required)
+
+Relationships shall be explicit.
+
+---
+
+# 11. Ownership
+
+Every business object has exactly one owner.
+
+Example
+
+Invoice owns:
+
+Invoice Header
+
+Purchase Items
+
+Invoice Status
+
+Totals
+
+Purchase Item owns:
+
+Medicine Reference
+
+Batch
+
+Quantity
+
+Price
+
+VAT
+
+Ownership shall never be ambiguous.
+
+---
+
+# 12. Aggregates
+
+Aggregate Root
+
+Invoice
+
+Invoice controls:
+
+Purchase Items
+
+Totals
+
+Invoice Status
+
+Approval State
+
+External modules shall communicate through the Aggregate Root.
+
+---
+
+# 13. Required Fields
+
+Fields are classified as:
+
+Required
+
+Optional
+
+Computed
+
+System Generated
+
+The classification shall be documented for every Entity.
+
+---
+
+# 14. Nullability
+
+Nullable fields shall be explicitly documented.
+
+Required fields shall never be null.
+
+Optional fields may be null.
+
+---
+
+# 15. Immutability
+
+Immutable after approval:
+
+Approved Dataset
+
+Audit Record
+
+Execution Result
+
+Historical Invoice Snapshot
+
+Mutable before approval:
+
+Invoice
+
+Purchase Item
+
+Supplier Mapping
+
+Medicine Mapping
+
+---
+
+# 16. Serialization
+
+Entities shall support serialization to:
+
+JSON
+
+Excel
+
+Internal DTO
+
+Persistent Storage
+
+Serialization format shall remain stable.
+
+---
+
+# 17. Versioning
+
+Every Entity supports:
+
+Version Number
+
+Created Date
+
+Updated Date
+
+Version history shall support auditing.
+
+---
+
+# 18. Validation
+
+Every Entity shall support:
+
+Required Field Validation
+
+Type Validation
+
+Business Validation
+
+Relationship Validation
+
+Validation shall occur before persistence.
+
+---
+
+# 19. Naming Convention
+
+Entity
+
+PascalCase
+
+Example
+
+PurchaseItem
+
+Property
+
+camelCase
+
+Example
+
+purchasePrice
+
+Enum
+
+PascalCase
+
+Enum Value
+
+UPPER_SNAKE_CASE
+
+Example
+
+APPROVED
+
+REVIEW_REQUIRED
+
+FAILED
+
+---
+
+# 20. Data Consistency
+
+Entities shall remain internally consistent.
+
+Relationships shall never reference missing entities.
+
+Duplicate identifiers are prohibited.
+
+Business invariants shall always hold.
+
+---
+
+# 21. Success Criteria
+
+The data model is successful when:
+
+- Every Entity has a clear identity.
+- Relationships are explicit.
+- Serialization is deterministic.
+- Validation rules are enforceable.
+- Domain language remains consistent.
+
+---
+
+# End of Document

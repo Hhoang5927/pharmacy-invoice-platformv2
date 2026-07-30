@@ -1,0 +1,398 @@
+# LOGGING GUIDE
+
+> Document ID: DG-005
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Lead
+
+---
+
+# 1. Purpose
+
+This document defines the logging standards for the Pharmacy Invoice Automation Platform.
+
+The objective is to provide consistent, structured and searchable logs across all modules.
+
+Logging shall support debugging, monitoring, auditing and production diagnostics.
+
+---
+
+# 2. Logging Principles
+
+Logging shall be
+
+- Consistent
+- Structured
+- Searchable
+- Secure
+- Lightweight
+- Actionable
+
+Logs shall describe what happened, where it happened and why it happened.
+
+---
+
+# 3. Logging Objectives
+
+Logging shall support
+
+- Troubleshooting
+- Audit Trail
+- Performance Analysis
+- Error Investigation
+- Operational Monitoring
+
+---
+
+# 4. Log Levels
+
+Supported log levels
+
+TRACE
+
+DEBUG
+
+INFO
+
+WARN
+
+ERROR
+
+FATAL
+
+Production environments should normally disable TRACE and DEBUG.
+
+---
+
+# 5. Required Log Information
+
+Every log entry shall contain
+
+Timestamp
+
+Log Level
+
+Module
+
+Component
+
+Message
+
+Correlation ID
+
+Execution ID
+
+Environment
+
+---
+
+# 6. Module Identification
+
+Each log shall identify its source.
+
+Examples
+
+OCR
+
+AI
+
+VALIDATION
+
+REVIEW
+
+AUTOMATION
+
+API
+
+DATABASE
+
+SYSTEM
+
+CONFIGURATION
+
+---
+
+# 7. Correlation ID
+
+Every processing flow shall generate one Correlation ID.
+
+The Correlation ID shall remain unchanged from
+
+Invoice Upload
+
+↓
+
+OCR
+
+↓
+
+AI Extraction
+
+↓
+
+Validation
+
+↓
+
+Review
+
+↓
+
+Automation
+
+↓
+
+Execution Report
+
+This enables complete request tracing.
+
+---
+
+# 8. Execution ID
+
+Automation executions shall generate a unique Execution ID.
+
+Execution ID shall be included in
+
+Automation Logs
+
+Screenshots
+
+Reports
+
+Retry Operations
+
+---
+
+# 9. Structured Logging
+
+Logs shall be emitted in structured format.
+
+Preferred formats
+
+JSON
+
+Plain Text (Development)
+
+Every field shall use consistent names.
+
+---
+
+# 10. Business Events
+
+Examples
+
+Invoice Uploaded
+
+OCR Started
+
+OCR Completed
+
+AI Extraction Completed
+
+Validation Failed
+
+Invoice Approved
+
+Automation Started
+
+Automation Completed
+
+These events shall be logged at INFO level.
+
+---
+
+# 11. Error Logging
+
+Errors shall include
+
+Error Code
+
+Exception Type
+
+Module
+
+Severity
+
+Stack Trace (Development Only)
+
+Correlation ID
+
+Execution Context
+
+Production logs shall never expose sensitive implementation details.
+
+---
+
+# 12. Performance Logging
+
+Performance logs shall record
+
+Start Time
+
+End Time
+
+Duration
+
+Retry Count
+
+Timeout
+
+Execution Status
+
+Examples
+
+OCR Duration
+
+AI Response Time
+
+Validation Duration
+
+Automation Duration
+
+---
+
+# 13. Security Logging
+
+Security events include
+
+Login Success
+
+Login Failure
+
+Permission Denied
+
+Configuration Change
+
+Authentication Failure
+
+Security logs shall be retained according to security policy.
+
+---
+
+# 14. Sensitive Information
+
+The following shall never be logged
+
+Passwords
+
+Access Tokens
+
+API Keys
+
+Secrets
+
+Connection Strings
+
+Sensitive Personal Data
+
+Sensitive values shall be masked where necessary.
+
+---
+
+# 15. Log Retention
+
+Retention shall be configurable.
+
+Recommended
+
+Development
+
+7 Days
+
+Testing
+
+30 Days
+
+Production
+
+90 Days or according to organizational policy.
+
+---
+
+# 16. Log Rotation
+
+Logs shall support
+
+Size-based rotation
+
+Time-based rotation
+
+Archive
+
+Compression
+
+Automatic cleanup
+
+---
+
+# 17. Monitoring Integration
+
+Logs should integrate with
+
+Monitoring
+
+Alerting
+
+Dashboards
+
+Log Aggregation
+
+Metrics Collection
+
+---
+
+# 18. Development Guidelines
+
+Developers shall
+
+Log meaningful events.
+
+Avoid excessive logging.
+
+Avoid duplicate logs.
+
+Never use logs as business logic.
+
+---
+
+# 19. Prohibited Practices
+
+The following are prohibited
+
+Logging passwords
+
+Logging secrets
+
+Logging duplicate information
+
+Logging inside tight loops without justification
+
+Using print statements in production code
+
+---
+
+# 20. Acceptance Criteria
+
+Logging is accepted when
+
+✓ Every module follows the same logging standard.
+
+✓ Correlation IDs support end-to-end tracing.
+
+✓ Sensitive information is protected.
+
+✓ Logs are searchable.
+
+✓ Production logs support troubleshooting.
+
+✓ Log retention and rotation are configurable.
+
+---
+
+# End of Document

@@ -1,0 +1,389 @@
+# BUSINESS WORKFLOW
+
+> Document ID: BW-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines the complete end-to-end business workflow of the Pharmacy Invoice Automation System.
+
+The workflow describes how purchase invoices are processed from the moment they are received until all invoice data has been entered into the pharmacy management system.
+
+This document defines **business behavior only**.
+
+Implementation details are defined in later technical documents.
+
+---
+
+# 2. Business Goal
+
+The system shall:
+
+- Reduce manual data entry.
+- Increase processing speed.
+- Minimize human errors.
+- Maintain business accuracy.
+- Support very large numbers of invoices.
+- Allow human verification before final submission.
+
+---
+
+# 3. Overall Workflow
+
+```
+Receive Invoice
+
+↓
+
+Organize Invoice Files
+
+↓
+
+OCR Processing
+
+↓
+
+AI Data Extraction
+
+↓
+
+Business Validation
+
+↓
+
+Human Review
+
+↓
+
+Generate Approved Dataset
+
+↓
+
+Browser Automation
+
+↓
+
+Verify Entered Data
+
+↓
+
+Invoice Completed
+```
+
+---
+
+# 4. Detailed Workflow
+
+## Step 1 — Receive Invoice
+
+### Input
+
+Supplier purchase invoice.
+
+Possible formats:
+
+- PDF
+- Image
+- Scanned document
+
+### Output
+
+Raw invoice file stored inside the project.
+
+---
+
+## Step 2 — Organize Invoice Files
+
+Invoices are grouped by:
+
+- Customer
+- Reporting period
+- Supplier
+
+Every invoice receives a unique internal identifier.
+
+Output:
+
+Invoice ready for OCR.
+
+---
+
+## Step 3 — OCR Processing
+
+OCR extracts all visible text from the invoice.
+
+OCR responsibilities:
+
+- Preserve layout.
+- Preserve numbers.
+- Preserve dates.
+- Preserve medicine names.
+
+OCR does not interpret business meaning.
+
+Output:
+
+Raw OCR text.
+
+---
+
+## Step 4 — AI Extraction
+
+AI converts OCR text into structured business data.
+
+Typical fields include:
+
+Invoice
+
+- Invoice Number
+- Invoice Date
+- Supplier
+- Tax Code
+
+Purchase Items
+
+- Medicine Name
+- Unit
+- Quantity
+- Unit Price
+- VAT
+- Batch Number
+- Expiry Date
+
+Output:
+
+Structured invoice data.
+
+---
+
+## Step 5 — Business Validation
+
+The extracted data is validated against Business Rules.
+
+Validation includes:
+
+- Required fields
+- Date validation
+- Quantity validation
+- Price validation
+- Supplier validation
+- Medicine validation
+
+Validation does not modify data.
+
+Output:
+
+Validated invoice.
+
+or
+
+Validation errors.
+
+---
+
+## Step 6 — Human Review
+
+Human operators review only invoices that require attention.
+
+Typical reasons include:
+
+- Unknown supplier
+- Unknown medicine
+- Missing fields
+- OCR uncertainty
+- AI uncertainty
+- Validation failure
+
+Operators may:
+
+- Approve
+- Correct
+- Reject
+
+Approved values become the source of truth.
+
+---
+
+## Step 7 — Generate Approved Dataset
+
+After approval:
+
+A normalized dataset is generated.
+
+This dataset becomes the only source used by browser automation.
+
+Neither OCR output nor raw AI output shall be used directly.
+
+---
+
+## Step 8 — Browser Automation
+
+The automation system logs into the pharmacy management website.
+
+For every approved invoice:
+
+- Open Purchase Invoice screen.
+- Fill supplier information.
+- Fill invoice information.
+- Add purchase items.
+- Save invoice.
+
+Automation must never change approved data.
+
+---
+
+## Step 9 — Verification
+
+The system verifies that the entered information matches the approved dataset.
+
+Verification may include:
+
+- Supplier
+- Invoice Number
+- Item Count
+- Total Amount
+
+Verification failures require manual review.
+
+---
+
+## Step 10 — Invoice Completed
+
+Processing finishes successfully when:
+
+- Invoice entered.
+- Verification passed.
+- Audit log recorded.
+
+Invoice status becomes:
+
+Completed.
+
+---
+
+# 5. Human Decision Points
+
+Human intervention is required when:
+
+- Supplier cannot be identified.
+- Medicine cannot be matched.
+- OCR confidence is too low.
+- AI confidence is too low.
+- Business validation fails.
+- Browser automation fails repeatedly.
+
+---
+
+# 6. Business Principles
+
+The following principles always apply.
+
+Business correctness has higher priority than automation speed.
+
+Human approval overrides AI output.
+
+Automation never invents business data.
+
+Automation only processes approved datasets.
+
+Every business decision must be auditable.
+
+---
+
+# 7. Workflow States
+
+```
+Received
+
+↓
+
+OCR Completed
+
+↓
+
+AI Extracted
+
+↓
+
+Validated
+
+↓
+
+Pending Review
+
+↓
+
+Approved
+
+↓
+
+Automation Running
+
+↓
+
+Verification
+
+↓
+
+Completed
+```
+
+Alternative path:
+
+```
+Validated
+
+↓
+
+Pending Review
+
+↓
+
+Rejected
+
+↓
+
+Corrected
+
+↓
+
+Approved
+```
+
+---
+
+# 8. Expected Processing Result
+
+Each successfully processed invoice shall produce:
+
+- Approved invoice record.
+- Approved purchase items.
+- Complete audit log.
+- Browser automation log.
+- Processing status.
+- Error log (if applicable).
+
+---
+
+# 9. Success Criteria
+
+A workflow execution is considered successful when:
+
+- OCR completes.
+- AI extraction completes.
+- Business validation passes.
+- Human review (if required) is completed.
+- Browser automation succeeds.
+- Verification succeeds.
+- Invoice status is Completed.
+
+---
+
+# End of Document

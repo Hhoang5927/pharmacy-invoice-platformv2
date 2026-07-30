@@ -1,0 +1,257 @@
+# BR-008_AUTOMATION_RULES
+
+> Document ID: BR-AUTO-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines all business rules governing browser automation.
+
+Browser automation is responsible for entering approved purchase invoice data into the pharmacy management system.
+
+Automation is an execution component only.
+
+It never makes business decisions.
+
+---
+
+# 2. Scope
+
+Applies to:
+
+- Approved Dataset
+- Browser Automation
+- Web Pharmacy System
+- Verification
+- Audit Logging
+
+---
+
+# 3. Business Objective
+
+The automation process shall:
+
+- reduce manual data entry
+- increase processing speed
+- preserve approved data
+- minimize human interaction
+- stop immediately when critical errors occur
+
+---
+
+# 4. Automation Principles
+
+Automation shall only use Approved Dataset.
+
+Automation shall never:
+
+- modify approved values
+- invent missing values
+- ignore validation failures
+- continue after critical business errors
+
+Automation executes business decisions.
+
+Automation never creates business decisions.
+
+---
+
+# 5. Automation Workflow
+
+Approved Dataset
+
+↓
+
+Login
+
+↓
+
+Open Purchase Invoice
+
+↓
+
+Enter Supplier
+
+↓
+
+Enter Invoice Information
+
+↓
+
+Enter Purchase Items
+
+↓
+
+Save Invoice
+
+↓
+
+Verify Result
+
+↓
+
+Completed
+
+---
+
+# 6. Preconditions
+
+Automation may start only when:
+
+- Invoice Status = Approved
+- Validation Status = Passed
+- Human Review completed (if required)
+- Browser available
+- User authenticated
+
+---
+
+# 7. Execution Rules
+
+## BR-AUTO-001
+
+One invoice is processed at a time.
+
+---
+
+## BR-AUTO-002
+
+One medicine row is completed before the next row begins.
+
+---
+
+## BR-AUTO-003
+
+Automation shall wait until each page operation completes before continuing.
+
+---
+
+## BR-AUTO-004
+
+Automation shall verify that entered values match approved values.
+
+---
+
+## BR-AUTO-005
+
+If verification fails
+
+↓
+
+Stop Processing.
+
+---
+
+## BR-AUTO-006
+
+If browser session expires
+
+↓
+
+Pause Automation.
+
+---
+
+## BR-AUTO-007
+
+Automation shall record every completed step.
+
+---
+
+## BR-AUTO-008
+
+Successful invoices shall not be entered twice.
+
+---
+
+# 8. Retry Rules
+
+Retry is allowed only for:
+
+- Temporary browser error
+- Slow page loading
+- Network interruption
+
+Maximum retry attempts shall be configurable.
+
+Business validation failures shall never be retried automatically.
+
+---
+
+# 9. Human Intervention
+
+Automation pauses when:
+
+- Login fails
+- Unexpected popup appears
+- Required field unavailable
+- Browser verification fails
+- Critical system error occurs
+
+Operator decides whether to continue.
+
+---
+
+# 10. Verification
+
+After saving an invoice, automation shall verify:
+
+- Supplier
+- Invoice Number
+- Invoice Date
+- Number of Purchase Items
+- Total Amount (if available)
+
+Verification failure requires Human Review.
+
+---
+
+# 11. Logging
+
+Automation shall record:
+
+- Invoice ID
+- Start Time
+- End Time
+- Current Step
+- Execution Result
+- Error Message
+- Retry Count
+
+---
+
+# 12. Error Codes
+
+| Code | Description |
+|-------|-------------|
+| AUTO-001 | Login Failed |
+| AUTO-002 | Page Timeout |
+| AUTO-003 | Element Not Found |
+| AUTO-004 | Save Failed |
+| AUTO-005 | Verification Failed |
+| AUTO-006 | Browser Session Lost |
+
+---
+
+# 13. Success Criteria
+
+Automation is successful when:
+
+- Login completed
+- Invoice entered successfully
+- Verification successful
+- Audit log completed
+- Invoice Status = Completed
+
+---
+
+# End of Document

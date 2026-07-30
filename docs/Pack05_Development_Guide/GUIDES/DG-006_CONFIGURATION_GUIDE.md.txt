@@ -1,0 +1,378 @@
+# CONFIGURATION GUIDE
+
+> Document ID: DG-006
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Lead
+
+---
+
+# 1. Purpose
+
+This document defines the configuration management standards for the Pharmacy Invoice Automation Platform.
+
+The objective is to ensure that application behavior can be modified through configuration rather than source code changes.
+
+Configuration shall be centralized, validated and environment-aware.
+
+---
+
+# 2. Configuration Principles
+
+Configuration shall be
+
+- Centralized
+- Version-controlled
+- Environment-specific
+- Validated
+- Secure
+- Documented
+
+Application behavior shall never depend on hardcoded values.
+
+---
+
+# 3. Configuration Sources
+
+Configuration shall be loaded from the following sources in order of precedence
+
+Runtime Parameters
+
+↓
+
+Environment Variables
+
+↓
+
+Environment Configuration Files
+
+↓
+
+Default Configuration
+
+Higher priority sources override lower priority sources.
+
+---
+
+# 4. Configuration Categories
+
+Application
+
+OCR
+
+AI
+
+Validation
+
+Review
+
+Automation
+
+Database
+
+Logging
+
+Security
+
+Performance
+
+External Services
+
+---
+
+# 5. Environment Configuration
+
+Supported environments
+
+Development
+
+Testing
+
+Staging
+
+Production
+
+Each environment shall maintain independent configuration values.
+
+---
+
+# 6. Environment Variables
+
+Environment variables shall use
+
+UPPER_SNAKE_CASE
+
+Prefix
+
+APP_
+
+Examples
+
+APP_ENV
+
+APP_PORT
+
+APP_DATABASE_URL
+
+APP_AI_PROVIDER
+
+APP_OCR_PROVIDER
+
+APP_LOG_LEVEL
+
+APP_TIMEOUT
+
+---
+
+# 7. Configuration Files
+
+Supported formats
+
+YAML
+
+JSON
+
+Configuration files shall be organized by environment.
+
+Example
+
+config/
+
+development.yaml
+
+testing.yaml
+
+staging.yaml
+
+production.yaml
+
+---
+
+# 8. Sensitive Configuration
+
+Sensitive values include
+
+Passwords
+
+API Keys
+
+Access Tokens
+
+Database Credentials
+
+Encryption Keys
+
+These values shall not be committed to source control.
+
+Sensitive configuration shall be loaded from secure storage or environment variables.
+
+---
+
+# 9. Default Values
+
+Default values may be defined for
+
+Timeouts
+
+Retry Counts
+
+Cache Size
+
+Log Levels
+
+UI Settings
+
+Defaults shall never contain production credentials.
+
+---
+
+# 10. Configuration Validation
+
+Configuration shall be validated during application startup.
+
+Validation includes
+
+Required Values
+
+Type Validation
+
+Range Validation
+
+Dependency Validation
+
+Invalid configuration shall prevent startup when system integrity is affected.
+
+---
+
+# 11. Runtime Configuration
+
+Configuration items shall define whether they support
+
+Hot Reload
+
+or
+
+Restart Required
+
+Runtime behavior shall be documented for each configurable item.
+
+---
+
+# 12. Module Configuration
+
+Each module shall expose only the configuration it requires.
+
+Modules include
+
+OCR
+
+AI
+
+Validation
+
+Review
+
+Automation
+
+Database
+
+Logging
+
+Shared modules shall not access unrelated configuration.
+
+---
+
+# 13. Configuration Access
+
+Configuration shall be accessed through a centralized Configuration Service.
+
+Direct access to configuration files is prohibited.
+
+Configuration shall not be read directly inside business logic.
+
+---
+
+# 14. Configuration Changes
+
+Every configuration change shall record
+
+Timestamp
+
+User
+
+Changed Property
+
+Previous Value
+
+New Value
+
+Reason (if applicable)
+
+Configuration history shall be auditable.
+
+---
+
+# 15. Backup and Recovery
+
+Configuration management shall support
+
+Backup
+
+Restore
+
+Rollback
+
+Version History
+
+Recovery procedures shall be documented.
+
+---
+
+# 16. Error Handling
+
+Configuration errors include
+
+Missing Value
+
+Invalid Type
+
+Invalid Format
+
+Missing Secret
+
+Unsupported Environment
+
+Configuration errors shall generate standardized error codes.
+
+---
+
+# 17. Security
+
+Configuration shall
+
+Encrypt sensitive values at rest where applicable.
+
+Restrict access by role.
+
+Prevent unauthorized modification.
+
+Avoid exposing secrets in logs or error messages.
+
+---
+
+# 18. Development Guidelines
+
+Developers shall
+
+Add new configuration items to the centralized configuration system.
+
+Document every new configuration option.
+
+Avoid duplicate configuration values.
+
+Remove obsolete configuration entries.
+
+---
+
+# 19. Prohibited Practices
+
+The following are prohibited
+
+Hardcoded URLs
+
+Hardcoded credentials
+
+Hardcoded timeout values
+
+Duplicated configuration
+
+Environment-specific logic embedded in source code
+
+Direct reading of environment variables throughout the application
+
+---
+
+# 20. Acceptance Criteria
+
+Configuration management is accepted when
+
+✓ Configuration is centralized.
+
+✓ Multiple environments are supported.
+
+✓ Sensitive information is protected.
+
+✓ Configuration is validated during startup.
+
+✓ Runtime behavior is predictable.
+
+✓ All configuration changes are auditable.
+
+---
+
+# End of Document

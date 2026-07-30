@@ -1,0 +1,288 @@
+# BR-005_PRICE_RULES
+
+> Document ID: BR-PRI-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Product Owner
+
+---
+
+# 1. Purpose
+
+This document defines all business rules related to medicine pricing.
+
+Pricing affects inventory valuation, retail selling price, profitability and regulatory compliance.
+
+Incorrect pricing is considered a critical business error.
+
+---
+
+# 2. Scope
+
+Applies to:
+
+- OCR
+- AI Extraction
+- Human Review
+- Excel Dataset
+- Browser Automation
+
+---
+
+# 3. Business Objective
+
+The system shall:
+
+- preserve supplier purchase prices
+- correctly identify VAT
+- calculate cost consistently
+- assist operators in determining retail prices
+- prevent incorrect selling prices
+
+---
+
+# 4. Price Data Model
+
+Each medicine contains:
+
+Required
+
+- Purchase Price
+- VAT
+
+Optional
+
+- Discount
+- Retail Price
+- Notes
+
+---
+
+# 5. Business Principles
+
+Purchase Price is extracted from the supplier invoice.
+
+The system shall never invent Purchase Price.
+
+Retail Price may be suggested.
+
+Final Retail Price is approved by the operator.
+
+---
+
+# 6. Validation Rules
+
+## BR-PRI-001
+
+Purchase Price is mandatory.
+
+Missing
+
+↓
+
+Validation Failed.
+
+---
+
+## BR-PRI-002
+
+Purchase Price must be numeric.
+
+Examples
+
+125000
+
+PASS
+
+125.000
+
+PASS (normalized)
+
+ABC
+
+FAIL
+
+---
+
+## BR-PRI-003
+
+Purchase Price must be greater than zero.
+
+Zero
+
+↓
+
+FAIL
+
+Negative
+
+↓
+
+FAIL
+
+---
+
+## BR-PRI-004
+
+VAT is mandatory.
+
+Allowed values:
+
+- 0%
+- 5%
+- 8%
+- 10%
+
+Other values require Human Review.
+
+---
+
+## BR-PRI-005
+
+Discount is optional.
+
+If available
+
+↓
+
+Store exactly.
+
+---
+
+## BR-PRI-006
+
+Retail Price is optional during extraction.
+
+It may be calculated later.
+
+---
+
+## BR-PRI-007
+
+Suggested Retail Price
+
+The system may provide a suggested retail price.
+
+The suggestion is advisory only.
+
+It shall never overwrite operator decisions.
+
+---
+
+## BR-PRI-008
+
+Long Chau Reference
+
+Retail price may be compared with Long Chau.
+
+The comparison is for reference only.
+
+The operator decides the final selling price.
+
+---
+
+## BR-PRI-009
+
+Large price deviation
+
+If
+
+Suggested Price
+
+differs significantly from
+
+Reference Price
+
+↓
+
+Human Review.
+
+---
+
+## BR-PRI-010
+
+Approved Retail Price becomes immutable.
+
+Automation shall use only approved values.
+
+---
+
+# 7. Human Review
+
+Required when:
+
+- Purchase Price missing
+- Invalid VAT
+- OCR uncertainty
+- AI uncertainty
+- Large price deviation
+
+Operator may:
+
+- Accept extracted price
+- Modify price
+- Confirm VAT
+- Approve final retail price
+
+---
+
+# 8. Excel Dataset
+
+Approved dataset shall contain:
+
+- Purchase Price
+- VAT
+- Discount
+- Retail Price
+
+All values shall be exported exactly as approved.
+
+---
+
+# 9. Browser Automation
+
+Automation shall:
+
+- Enter Purchase Price
+- Enter VAT
+- Enter Discount (if available)
+- Enter Retail Price (if approved)
+
+Automation shall never:
+
+- calculate prices
+- modify prices
+- override approved values
+
+---
+
+# 10. Error Conditions
+
+| Code | Description |
+|--------|-------------|
+| PRI-001 | Missing Purchase Price |
+| PRI-002 | Invalid Purchase Price |
+| PRI-003 | Invalid VAT |
+| PRI-004 | Large Price Difference |
+| PRI-005 | Price Validation Failed |
+
+---
+
+# 11. Success Criteria
+
+Price processing is successful when:
+
+- Purchase Price validated
+- VAT validated
+- Human Review completed (if required)
+- Approved dataset generated
+- Browser automation completed
+
+---
+
+# End of Document

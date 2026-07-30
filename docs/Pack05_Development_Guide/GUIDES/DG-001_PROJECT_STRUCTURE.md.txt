@@ -1,0 +1,443 @@
+# PROJECT STRUCTURE
+
+> Document ID: DG-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the standard project structure for the Pharmacy Invoice Automation Platform.
+
+The objective is to establish a predictable and maintainable repository layout.
+
+Every source file shall follow this structure.
+
+No module shall create arbitrary directories.
+
+---
+
+# 2. Repository Layout
+
+```
+
+repository/
+
+├── docs/
+│
+├── apps/
+│
+├── packages/
+│
+├── scripts/
+│
+├── tests/
+│
+├── tools/
+│
+├── config/
+│
+├── assets/
+│
+├── .github/
+│
+├── package.json
+│
+├── README.md
+│
+└── LICENSE
+
+```
+
+---
+
+# 3. Documentation
+
+Directory
+
+docs/
+
+Contains
+
+Business Documentation
+
+Architecture
+
+Domain Model
+
+Technical Specification
+
+Development Guide
+
+Testing & Deployment
+
+AI Documentation
+
+The documentation directory is the single source of truth.
+
+---
+
+# 4. Applications
+
+Directory
+
+apps/
+
+Contains
+
+frontend/
+
+backend/
+
+Future applications shall be added under this directory.
+
+---
+
+# 5. Frontend Structure
+
+```
+
+apps/frontend/
+
+src/
+
+components/
+
+pages/
+
+layouts/
+
+hooks/
+
+contexts/
+
+services/
+
+stores/
+
+types/
+
+utils/
+
+styles/
+
+assets/
+
+```
+
+Responsibilities
+
+UI
+
+Human Review
+
+Dashboard
+
+Settings
+
+Authentication
+
+---
+
+# 6. Backend Structure
+
+```
+
+apps/backend/
+
+src/
+
+application/
+
+domain/
+
+infrastructure/
+
+interfaces/
+
+shared/
+
+config/
+
+```
+
+Responsibilities
+
+API
+
+OCR Integration
+
+AI Integration
+
+Validation
+
+Automation
+
+Persistence
+
+---
+
+# 7. Shared Packages
+
+Directory
+
+packages/
+
+Example packages
+
+shared-types
+
+shared-utils
+
+shared-constants
+
+shared-validation
+
+shared-logging
+
+Every shared package shall remain framework independent.
+
+---
+
+# 8. Scripts
+
+Directory
+
+scripts/
+
+Contains
+
+Build Scripts
+
+Migration Scripts
+
+Development Scripts
+
+Maintenance Scripts
+
+Deployment Scripts
+
+Scripts shall be executable independently.
+
+---
+
+# 9. Tests
+
+Directory
+
+tests/
+
+Contains
+
+unit/
+
+integration/
+
+e2e/
+
+fixtures/
+
+mocks/
+
+reports/
+
+Test code shall never reside inside production modules.
+
+---
+
+# 10. Configuration
+
+Directory
+
+config/
+
+Contains
+
+Application Configuration
+
+Environment Configuration
+
+Logging Configuration
+
+Automation Configuration
+
+AI Configuration
+
+OCR Configuration
+
+Configuration shall never be hardcoded.
+
+---
+
+# 11. Assets
+
+Directory
+
+assets/
+
+Contains
+
+Images
+
+Icons
+
+Templates
+
+Prompt Files
+
+Sample Documents
+
+Test Invoices
+
+---
+
+# 12. Tools
+
+Directory
+
+tools/
+
+Contains
+
+Developer Utilities
+
+Maintenance Tools
+
+Import Tools
+
+Export Tools
+
+Diagnostics
+
+---
+
+# 13. GitHub
+
+Directory
+
+.github/
+
+Contains
+
+Workflows
+
+Issue Templates
+
+Pull Request Templates
+
+CODEOWNERS
+
+Automation shall be managed here.
+
+---
+
+# 14. Dependency Rules
+
+Allowed
+
+Presentation
+
+↓
+
+Application
+
+↓
+
+Domain
+
+↓
+
+Infrastructure
+
+Forbidden
+
+Infrastructure → Presentation
+
+Infrastructure → UI
+
+Domain → Infrastructure
+
+Circular dependencies are prohibited.
+
+---
+
+# 15. Import Rules
+
+Imports shall follow
+
+Standard Library
+
+↓
+
+Third-party Libraries
+
+↓
+
+Internal Packages
+
+↓
+
+Relative Imports
+
+Wildcard imports are prohibited unless explicitly justified.
+
+---
+
+# 16. File Organization
+
+Every source file shall have a single responsibility.
+
+Files exceeding the agreed complexity threshold should be refactored.
+
+Business logic shall not be implemented in UI components.
+
+---
+
+# 17. Naming Rules
+
+Directories
+
+lowercase
+
+Example
+
+review
+
+automation
+
+validation
+
+Files
+
+PascalCase for classes.
+
+camelCase for utility modules.
+
+kebab-case for configuration files.
+
+---
+
+# 18. Acceptance Criteria
+
+The project structure is accepted when
+
+✓ Repository layout is standardized.
+
+✓ Every module has a defined location.
+
+✓ Dependency rules are respected.
+
+✓ Shared code is centralized.
+
+✓ Documentation remains synchronized with implementation.
+
+---
+
+# End of Document

@@ -1,0 +1,277 @@
+# ENTITY RELATIONSHIP
+
+> Document ID: DM-002
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the relationships between all business entities in the Pharmacy Invoice Automation Platform.
+
+The objective is to establish a clear ownership model and prevent ambiguous data dependencies.
+
+---
+
+# 2. Design Principles
+
+Relationships shall be:
+
+- Explicit
+- Unidirectional where possible
+- Business-driven
+- Consistent
+- Easy to validate
+- Independent of storage technology
+
+Circular ownership is prohibited.
+
+---
+
+# 3. Core Entity Diagram
+
+```
+                    Invoice
+                        │
+        ┌───────────────┼───────────────┐
+        │               │
+        ▼               ▼
+   Supplier      PurchaseItem (1..N)
+                        │
+          ┌─────────────┴─────────────┐
+          │                           │
+          ▼                           ▼
+     Medicine                     Batch
+                        │
+                        ▼
+                ApprovedDataset
+```
+
+---
+
+# 4. Invoice Relationships
+
+Invoice owns:
+
+- Supplier
+- Purchase Items
+- Invoice Status
+- Invoice Totals
+
+Relationship Summary
+
+| Related Entity | Cardinality | Ownership |
+|----------------|------------|-----------|
+| Supplier | 1 | Reference |
+| Purchase Item | 1..N | Owns |
+| Approved Dataset | 0..1 | Produces |
+
+---
+
+# 5. Supplier Relationships
+
+Supplier may appear in multiple invoices.
+
+Relationship Summary
+
+| Related Entity | Cardinality |
+|----------------|------------|
+| Invoice | 0..N |
+
+Supplier is referenced only.
+
+Invoice does not own Supplier master data.
+
+---
+
+# 6. Purchase Item Relationships
+
+Purchase Item belongs to exactly one Invoice.
+
+Purchase Item references exactly one Medicine.
+
+Purchase Item contains exactly one Batch.
+
+Relationship Summary
+
+| Related Entity | Cardinality |
+|----------------|------------|
+| Invoice | 1 |
+| Medicine | 1 |
+| Batch | 1 |
+
+---
+
+# 7. Medicine Relationships
+
+Medicine may appear in multiple Purchase Items.
+
+Relationship Summary
+
+| Related Entity | Cardinality |
+|----------------|------------|
+| Purchase Item | 0..N |
+
+Medicine is reference data.
+
+---
+
+# 8. Batch Relationships
+
+Batch belongs to one Purchase Item.
+
+A Batch cannot exist independently within the business domain.
+
+Relationship Summary
+
+| Related Entity | Cardinality |
+|----------------|------------|
+| Purchase Item | 1 |
+
+---
+
+# 9. Approved Dataset Relationships
+
+Approved Dataset represents the finalized version of one Invoice.
+
+Relationship Summary
+
+| Related Entity | Cardinality |
+|----------------|------------|
+| Invoice | 1 |
+
+Approved Dataset is immutable.
+
+---
+
+# 10. Relationship Rules
+
+The following rules apply:
+
+Invoice must contain at least one Purchase Item.
+
+Purchase Item must reference one Medicine.
+
+Purchase Item must contain one Batch.
+
+Invoice must reference one Supplier.
+
+Approved Dataset may only exist after Approval.
+
+---
+
+# 11. Ownership Rules
+
+Invoice owns:
+
+- Purchase Items
+- Totals
+- Status
+
+Purchase Item owns:
+
+- Quantity
+- Unit Price
+- VAT
+- Batch
+
+Supplier owns:
+
+- Supplier Information
+
+Medicine owns:
+
+- Medicine Information
+
+Approved Dataset owns:
+
+- Final Snapshot
+
+---
+
+# 12. Cascade Rules
+
+Deleting an Invoice removes:
+
+- Purchase Items
+- Validation Results
+- Review Tasks
+
+Supplier shall not be deleted automatically.
+
+Medicine shall not be deleted automatically.
+
+---
+
+# 13. Reference Integrity
+
+All entity references shall be validated.
+
+Invalid references are prohibited.
+
+Examples:
+
+Purchase Item referencing a missing Medicine is invalid.
+
+Invoice referencing a missing Supplier is invalid.
+
+---
+
+# 14. Aggregate Root
+
+Invoice is the Aggregate Root.
+
+External modules shall interact with:
+
+Invoice
+
+not
+
+Purchase Item
+
+or
+
+Batch
+
+directly.
+
+---
+
+# 15. Future Relationships
+
+The model supports future entities:
+
+Warehouse
+
+Purchase Order
+
+Inventory
+
+Goods Receipt
+
+Sales Invoice
+
+without modifying existing ownership rules.
+
+---
+
+# 16. Success Criteria
+
+The relationship model is successful when:
+
+- Ownership is explicit.
+- Cardinality is documented.
+- References are valid.
+- Aggregate boundaries are respected.
+- Future expansion is supported.
+
+---
+
+# End of Document

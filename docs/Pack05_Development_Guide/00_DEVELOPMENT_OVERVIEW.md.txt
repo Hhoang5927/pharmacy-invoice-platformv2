@@ -1,0 +1,138 @@
+# DEVELOPMENT OVERVIEW
+
+> Document ID: DG-000
+>
+> Version: 1.0.0
+>
+> Status: Approved
+
+---
+
+# 1. Purpose
+
+This document provides an overview of the software development practices for the Pharmacy Invoice Automation Platform.
+
+The objective is to establish a consistent development approach across all modules.
+
+---
+
+# 2. Development Goals
+
+The project shall be:
+
+- Maintainable
+- Testable
+- Modular
+- Scalable
+- Observable
+- Secure
+
+---
+
+# 3. Architecture Principles
+
+Development shall follow:
+
+Presentation Layer
+
+↓
+
+Application Layer
+
+↓
+
+Domain Layer
+
+↓
+
+Infrastructure Layer
+
+Dependencies shall always point inward.
+
+---
+
+# 4. Source of Truth
+
+Business Rules
+
+Pack 01
+
+Architecture
+
+Pack 02
+
+Domain Models
+
+Pack 03
+
+Technical Specifications
+
+Pack 04
+
+Implementation shall never contradict these documents.
+
+---
+
+# 5. Development Standards
+
+Every source file shall:
+
+- Have a single responsibility.
+- Follow naming conventions.
+- Be unit testable.
+- Avoid duplicated logic.
+- Be documented when necessary.
+
+---
+
+# 6. Code Organization
+
+The project shall separate:
+
+Business Logic
+
+Infrastructure
+
+External Services
+
+UI
+
+Configuration
+
+Shared Components
+
+---
+
+# 7. Quality Requirements
+
+Every implementation shall prioritize:
+
+Readability
+
+Consistency
+
+Extensibility
+
+Performance
+
+Security
+
+Reliability
+
+---
+
+# 8. Acceptance Criteria
+
+Development practices are accepted when:
+
+✓ Architecture is respected.
+
+✓ Code is maintainable.
+
+✓ Standards are followed.
+
+✓ Documentation remains synchronized.
+
+---
+
+# End of Document

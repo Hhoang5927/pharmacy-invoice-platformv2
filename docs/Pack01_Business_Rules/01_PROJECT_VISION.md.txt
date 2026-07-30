@@ -1,0 +1,390 @@
+# Project Vision
+
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: High
+>
+> Owner: Product Owner
+>
+> Related Documents:
+> - README.md
+> - PROJECT_RULES.md
+> - 00_PROJECT_OVERVIEW.md
+> - 02_BUSINESS_WORKFLOW.md
+> - 03_BUSINESS_RULES.md
+
+---
+
+# Vision Statement
+
+The Pharmacy Invoice Automation System aims to become a reliable internal platform that automates the processing of pharmaceutical purchase invoices while maintaining a high level of accuracy, transparency and auditability.
+
+The system is designed to reduce repetitive manual work, assist human operators, and support large-scale invoice processing without sacrificing data quality.
+
+Automation should assist humans—not replace business judgment.
+
+---
+
+# Why This Project Exists
+
+Processing supplier invoices manually is one of the most repetitive and time-consuming tasks in pharmacy operations.
+
+A single accounting period may contain:
+
+- Hundreds of purchase invoices
+- Thousands of medicine items
+- Multiple suppliers
+- Different invoice layouts
+- Repeated manual verification
+
+Manual processing introduces unnecessary operational cost and increases the probability of human error.
+
+The purpose of this project is to remove repetitive work while preserving human control over business-critical decisions.
+
+---
+
+# Business Vision
+
+The system should allow a pharmacy to process supplier invoices significantly faster than manual methods while maintaining confidence in the generated data.
+
+Instead of typing invoice information manually, users should focus on reviewing exceptions and making business decisions.
+
+Human expertise should be reserved for situations where automation cannot confidently determine the correct result.
+
+---
+
+# Long-Term Vision
+
+The project is intended to evolve into a modular automation platform.
+
+Future enhancements may include:
+
+- Support for additional pharmacy software
+- Multiple OCR providers
+- Multiple AI providers
+- Batch processing services
+- Dashboard and reporting
+- Multi-user collaboration
+- Cloud deployment
+- API integration
+- Analytics
+
+The architecture should allow these features without major redesign.
+
+---
+
+# Mission
+
+Our mission is:
+
+> Transform invoice processing from manual data entry into an intelligent, review-driven workflow that is accurate, traceable and maintainable.
+
+---
+
+# Guiding Principles
+
+The following principles guide every design decision.
+
+## Accuracy Before Speed
+
+Incorrect data is more expensive than slow processing.
+
+Automation must never prioritize speed over correctness.
+
+---
+
+## Human in Control
+
+The system assists operators.
+
+The system does not replace business decisions.
+
+Whenever confidence is insufficient, human review is required.
+
+---
+
+## Transparency
+
+Every transformation performed by the system should be explainable.
+
+Users should understand where extracted values originated.
+
+---
+
+## Traceability
+
+Every invoice must preserve a complete processing history.
+
+The history should include:
+
+- Original invoice
+- OCR result
+- AI extraction
+- Validation results
+- Human modifications
+- Automation execution
+- Final status
+
+---
+
+## Reliability
+
+The system should continue operating safely even when failures occur.
+
+Unexpected errors should never silently corrupt business data.
+
+---
+
+## Extensibility
+
+The project should support future technologies without requiring large architectural changes.
+
+Examples include:
+
+- Replacing the OCR engine
+- Replacing the AI model
+- Supporting new pharmacy systems
+- Supporting additional suppliers
+
+---
+
+# Success Metrics
+
+The project should be evaluated using measurable outcomes.
+
+## Business Metrics
+
+- Reduction in manual typing
+- Faster invoice processing
+- Lower error rate
+- Reduced correction effort
+- Increased operator productivity
+
+---
+
+## Technical Metrics
+
+- Stable automation
+- High OCR success rate
+- High AI extraction accuracy
+- Reliable browser automation
+- Complete audit trail
+
+---
+
+## Operational Metrics
+
+- Ability to process large batches
+- Minimal system downtime
+- Easy recovery after interruption
+- Maintainable codebase
+
+---
+
+# Product Philosophy
+
+This project is not an OCR product.
+
+This project is not an AI chatbot.
+
+This project is not a browser automation tool.
+
+Instead, it is an integrated business automation platform that combines several technologies into a single business workflow.
+
+Technology exists to support the workflow—not define it.
+
+---
+
+# Core Design Objectives
+
+The project should be:
+
+Reliable
+
+↓
+
+Predictable
+
+↓
+
+Maintainable
+
+↓
+
+Auditable
+
+↓
+
+Extensible
+
+↓
+
+Efficient
+
+Performance is important, but never at the expense of business correctness.
+
+---
+
+# Business Constraints
+
+The system operates under several important constraints.
+
+## Human Review
+
+Business approval remains mandatory.
+
+Automation should never bypass required human validation.
+
+---
+
+## Invoice Integrity
+
+Original invoices are legal documents.
+
+They must remain unchanged.
+
+---
+
+## Business Data Integrity
+
+Extracted values must accurately represent the invoice.
+
+The system must never invent missing information.
+
+---
+
+## External Dependencies
+
+The system depends on external services including:
+
+- OCR providers
+- AI providers
+- Pharmacy management website
+
+These dependencies may fail and must be handled gracefully.
+
+---
+
+# Product Scope
+
+The first production version focuses on:
+
+- Supplier invoice processing
+- OCR
+- AI extraction
+- Validation
+- Human review
+- Excel generation
+- Browser automation
+- Reporting
+
+Other business functions are intentionally excluded.
+
+---
+
+# Non-Goals
+
+The system is NOT intended to:
+
+- Replace accounting software
+- Manage inventory
+- Calculate taxes independently
+- Predict purchasing decisions
+- Perform financial analysis
+- Replace pharmacists
+- Replace accountants
+
+---
+
+# Future Evolution
+
+The project is expected to evolve through multiple phases.
+
+## Phase 1
+
+Single-user desktop workflow.
+
+---
+
+## Phase 2
+
+Improved automation and validation.
+
+---
+
+## Phase 3
+
+Batch processing.
+
+---
+
+## Phase 4
+
+Multi-user collaboration.
+
+---
+
+## Phase 5
+
+Enterprise deployment.
+
+---
+
+# Vision for AI
+
+Artificial Intelligence is used to assist structured data extraction.
+
+AI should never become the source of business truth.
+
+Business truth is determined by:
+
+Invoice
+
+↓
+
+Business Rules
+
+↓
+
+Human Validation
+
+AI contributes information but does not determine correctness.
+
+---
+
+# Vision for Automation
+
+Automation exists to execute repetitive actions consistently.
+
+Automation should never hide failures.
+
+Failures should be visible, understandable and recoverable.
+
+---
+
+# Definition of Success
+
+The project will be considered successful when a user can:
+
+- Process hundreds of supplier invoices efficiently.
+- Review only exceptions instead of every field.
+- Trust the automation results.
+- Resume interrupted processing.
+- Audit every important action.
+- Maintain the system for many years.
+
+---
+
+# Vision Statement Summary
+
+This project exists to transform pharmacy invoice processing into a reliable, intelligent and maintainable workflow that combines automation with human oversight.
+
+The goal is not full autonomy.
+
+The goal is trustworthy automation.
+
+---
+
+# End of Document

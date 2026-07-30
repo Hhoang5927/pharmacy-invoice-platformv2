@@ -1,0 +1,378 @@
+# SA-002_DATA_FLOW
+
+> Document ID: SA-002
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines how data flows through the Pharmacy Invoice Automation System.
+
+The objective is to ensure that data moves in a predictable, traceable and auditable manner between all system modules.
+
+---
+
+# 2. Data Flow Principles
+
+The system shall follow these principles:
+
+- Data flows in one direction.
+- Each module has a single responsibility.
+- Each module produces a defined output.
+- Modules never modify outputs produced by previous modules.
+- Approved data is immutable.
+
+---
+
+# 3. End-to-End Data Flow
+
+```
+
+Supplier Invoice
+
+↓
+
+Invoice Manager
+
+↓
+
+OCR Engine
+
+↓
+
+OCR Result
+
+↓
+
+AI Extraction Engine
+
+↓
+
+Structured Invoice
+
+↓
+
+Validation Engine
+
+↓
+
+Human Review
+
+↓
+
+Approved Dataset
+
+↓
+
+Excel Export
+
+↓
+
+Browser Automation
+
+↓
+
+Verification
+
+↓
+
+Audit Logging
+
+↓
+
+Completed
+
+```
+
+---
+
+# 4. Input Stage
+
+Input Sources
+
+- PDF Invoice
+- Scanned Invoice
+- Image Invoice
+
+Input Requirements
+
+- File exists
+- Supported format
+- Readable image quality
+
+Output
+
+Invoice Object
+
+---
+
+# 5. OCR Stage
+
+Input
+
+Invoice Object
+
+Output
+
+OCR Result
+
+Contains:
+
+- Raw Text
+- Page Structure
+- OCR Metadata
+- Confidence Score
+
+---
+
+# 6. AI Extraction Stage
+
+Input
+
+OCR Result
+
+Output
+
+Structured Invoice
+
+Contains:
+
+Invoice Header
+
+Supplier
+
+Invoice Number
+
+Invoice Date
+
+Purchase Items
+
+Batch
+
+Expiry
+
+Price
+
+VAT
+
+---
+
+# 7. Validation Stage
+
+Input
+
+Structured Invoice
+
+Output
+
+Validation Result
+
+Possible Results
+
+PASS
+
+WARNING
+
+REVIEW
+
+FAIL
+
+---
+
+# 8. Human Review Stage
+
+Input
+
+Validation Result
+
+Reviewer Actions
+
+Approve
+
+Edit
+
+Reject
+
+Output
+
+Approved Dataset
+
+---
+
+# 9. Approved Dataset
+
+Approved Dataset becomes the only trusted business data.
+
+Previous stages become read-only history.
+
+Automation shall consume only Approved Dataset.
+
+---
+
+# 10. Excel Export
+
+Input
+
+Approved Dataset
+
+Output
+
+Invoice Excel
+
+Purpose
+
+- Business Archive
+- Manual Verification
+- Browser Automation Source
+
+---
+
+# 11. Browser Automation
+
+Input
+
+Approved Dataset
+
+Automation enters data into:
+
+Pharmacy Management Website
+
+Output
+
+Execution Result
+
+---
+
+# 12. Verification
+
+Input
+
+Execution Result
+
+Checks
+
+Supplier
+
+Invoice Number
+
+Medicine Count
+
+Price
+
+Completion Status
+
+Output
+
+Verified Invoice
+
+---
+
+# 13. Audit
+
+Every module generates audit information.
+
+Audit records include:
+
+Module
+
+Timestamp
+
+Action
+
+Status
+
+Error
+
+Duration
+
+---
+
+# 14. Failure Flow
+
+If any stage fails
+
+↓
+
+Processing stops
+
+↓
+
+Generate Error
+
+↓
+
+Record Audit
+
+↓
+
+Notify User
+
+↓
+
+Wait for Resolution
+
+---
+
+# 15. Success Flow
+
+Invoice
+
+↓
+
+OCR
+
+↓
+
+AI
+
+↓
+
+Validation
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Excel
+
+↓
+
+Automation
+
+↓
+
+Verification
+
+↓
+
+Completed
+
+---
+
+# 16. Success Criteria
+
+The data flow is successful when:
+
+- Every stage completes successfully.
+- Every transition is recorded.
+- No data loss occurs.
+- Approved Dataset remains unchanged.
+- Browser Automation completes successfully.
+
+---
+
+# End of Document

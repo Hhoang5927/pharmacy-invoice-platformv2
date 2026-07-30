@@ -1,0 +1,452 @@
+# BUSINESS_RULE_TEMPLATE
+
+> **Document ID:** BR-TEMPLATE-001
+> **Version:** 1.0.0
+> **Status:** Approved
+> **Owner:** Product Owner
+> **Applies To:** All Business Rule Specifications
+
+---
+
+# 1. Purpose
+
+This document defines the mandatory template used by every Business Rule Specification in the project.
+
+Its objective is to ensure that:
+
+- every specification follows the same structure,
+- every business rule can be implemented consistently,
+- AI assistants can transform specifications into source code without making business assumptions.
+
+This document is normative.
+
+Any deviation requires explicit approval.
+
+---
+
+# 2. Design Principles
+
+Every Business Rule shall satisfy the following principles.
+
+## Complete
+
+The rule contains all information required for implementation.
+
+---
+
+## Testable
+
+The rule can be verified through automated or manual testing.
+
+---
+
+## Deterministic
+
+The same input always produces the same expected result.
+
+---
+
+## Technology Independent
+
+The rule describes business behavior only.
+
+Implementation details belong elsewhere.
+
+---
+
+## Atomic
+
+One rule solves one business problem.
+
+---
+
+## Traceable
+
+Every rule can be traced back to:
+
+- Business Objective
+- Workflow
+- Functional Requirement
+- Source Code
+- Test Cases
+
+---
+
+# 3. Specification Structure
+
+Every Business Specification shall follow the structure below.
+
+```
+Document Metadata
+
+Purpose
+
+Scope
+
+Business Context
+
+Business Data Model
+
+Business State Machine
+
+Decision Tables
+
+Validation Matrix
+
+Error Matrix
+
+Business Rules
+
+Business Examples
+
+Edge Cases
+
+Automation Notes
+
+Performance Notes
+
+Test Scenarios
+
+Traceability Matrix
+
+Revision History
+```
+
+No section may be omitted.
+
+---
+
+# 4. Business Rule Structure
+
+Each Business Rule shall follow the template below.
+
+```
+Rule ID
+
+Title
+
+Priority
+
+Business Objective
+
+Business Rationale
+
+Trigger
+
+Inputs
+
+Preconditions
+
+Validation Logic
+
+Decision Logic
+
+System Actions
+
+Outputs
+
+State Transition
+
+Error Codes
+
+Human Review
+
+Automation Requirements
+
+Audit Requirements
+
+Recovery Strategy
+
+Performance Notes
+
+Related Workflow
+
+Related Functional Requirements
+
+Related Data Fields
+
+Related Modules
+
+Acceptance Criteria
+
+Business Examples
+
+Negative Examples
+
+Test Cases
+
+Revision History
+```
+
+---
+
+# 5. Rule Identifier
+
+Rule identifiers follow the convention:
+
+```
+BR-<DOMAIN>-XXX
+```
+
+Examples:
+
+```
+BR-SUP-001
+
+BR-MED-014
+
+BR-INV-009
+
+BR-BAT-006
+```
+
+Identifiers are permanent.
+
+Numbers are never reused.
+
+---
+
+# 6. Priority Levels
+
+| Priority | Description |
+|-----------|-------------|
+| Critical | Processing must stop immediately. |
+| High | Human review required before continuing. |
+| Medium | Processing continues with warning. |
+| Low | Informational only. |
+
+Priority must be assigned explicitly.
+
+---
+
+# 7. Validation Logic
+
+Validation shall always be written as executable business logic.
+
+Preferred format:
+
+```
+IF <condition>
+
+THEN <result>
+
+ELSE <alternative>
+```
+
+Avoid descriptive text.
+
+Validation should be deterministic.
+
+---
+
+# 8. Decision Tables
+
+Whenever three or more possible outcomes exist,
+a Decision Table shall be used instead of paragraphs.
+
+Example:
+
+| Supplier Exists | Approved | Action |
+|-----------------|----------|--------|
+| Yes | - | Reuse |
+| No | Yes | Create |
+| No | No | Review |
+
+---
+
+# 9. State Machine
+
+Every business entity shall define its lifecycle.
+
+Example:
+
+```
+Extracted
+
+↓
+
+Validated
+
+↓
+
+Approved
+
+↓
+
+Automated
+
+↓
+
+Completed
+```
+
+Invalid transitions must be documented.
+
+---
+
+# 10. Validation Matrix
+
+Every business field shall be listed.
+
+Example:
+
+| Field | Required | Validation |
+|---------|----------|------------|
+| Name | Yes | Not Empty |
+| Quantity | Yes | >0 |
+| VAT | Yes | Allowed Values |
+
+---
+
+# 11. Error Matrix
+
+Every business error shall have a unique code.
+
+Example:
+
+| Code | Description | Recoverable |
+|-------|-------------|-------------|
+| MED-001 | Missing Name | Yes |
+| MED-002 | Invalid Quantity | Yes |
+| MED-003 | Unknown Medicine | Manual |
+
+Business Rules shall reference these codes.
+
+---
+
+# 12. Business Examples
+
+Every important rule shall include positive examples.
+
+Example:
+
+Invoice
+
+```
+Paracetamol 500mg
+
+Quantity: 12
+
+Unit: Box
+```
+
+Expected Result
+
+PASS
+
+---
+
+# 13. Negative Examples
+
+Rules shall also include failure examples.
+
+Example
+
+Medicine Name
+
+```
+(empty)
+```
+
+Expected Result
+
+FAIL
+
+Error Code
+
+MED-001
+
+---
+
+# 14. Automation Notes
+
+Automation requirements shall describe:
+
+- allowed actions,
+- prohibited actions,
+- retry behavior,
+- manual intervention.
+
+Automation must never infer missing business information.
+
+---
+
+# 15. Test Cases
+
+Every rule shall define measurable test cases.
+
+Example:
+
+```
+TC-MED-001
+
+Input
+
+Medicine Name exists
+
+Expected
+
+PASS
+```
+
+---
+
+# 16. Traceability
+
+Each rule shall reference:
+
+- Workflow IDs
+- Functional Requirements
+- Data Fields
+- Source Modules
+- Error Codes
+- Test Cases
+
+No rule shall exist without traceability.
+
+---
+
+# 17. Quality Checklist
+
+Before approval verify:
+
+- Rule is complete.
+- Rule is deterministic.
+- Rule is testable.
+- Rule has examples.
+- Rule has error codes.
+- Rule defines automation behavior.
+- Rule defines human review behavior.
+- Rule has traceability.
+- Rule has acceptance criteria.
+
+---
+
+# 18. AI Coding Requirements
+
+Business Specifications are written primarily for implementation.
+
+AI assistants shall be able to generate:
+
+- Domain Models
+- Validators
+- Domain Services
+- Browser Automation
+- Unit Tests
+- Integration Tests
+
+without inventing missing business behavior.
+
+If information is missing, the specification is incomplete.
+
+---
+
+# 19. Revision History
+
+| Version | Description |
+|----------|-------------|
+| 1.0.0 | Initial Business Rule Template |
+
+---
+
+# End of Document

@@ -1,0 +1,332 @@
+# OCR SPECIFICATION
+
+> Document ID: TS-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: OCR Architect
+
+---
+
+# 1. Overview
+
+## Purpose
+
+The OCR Module converts invoice images into machine-readable text.
+
+It is the first processing stage of the Pharmacy Invoice Automation Platform.
+
+The OCR module is responsible only for text recognition.
+
+It does not perform business validation or semantic understanding.
+
+---
+
+## Responsibilities
+
+The OCR module shall:
+
+- Accept invoice images and PDF files.
+- Validate supported formats.
+- Pre-process images for recognition.
+- Extract all visible text.
+- Preserve table structure where possible.
+- Return confidence scores.
+- Return page metadata.
+- Produce standardized OCR output.
+
+---
+
+# 2. Scope
+
+## Included
+
+- PDF processing
+- Image processing
+- Multi-page invoices
+- Vietnamese language
+- English language
+- Table extraction
+- Confidence calculation
+
+## Excluded
+
+- AI extraction
+- Business validation
+- Human review
+- Browser automation
+
+---
+
+# 3. Functional Requirements
+
+### FR-001
+
+Accept PDF files.
+
+### FR-002
+
+Accept PNG files.
+
+### FR-003
+
+Accept JPG/JPEG files.
+
+### FR-004
+
+Support multi-page invoices.
+
+### FR-005
+
+Extract all readable text.
+
+### FR-006
+
+Preserve reading order.
+
+### FR-007
+
+Extract table content.
+
+### FR-008
+
+Calculate confidence score.
+
+### FR-009
+
+Return page metadata.
+
+### FR-010
+
+Log OCR execution.
+
+---
+
+# 4. Non-functional Requirements
+
+Average processing time
+
+< 5 seconds per page
+
+Maximum processing time
+
+30 seconds per document
+
+Supported file size
+
+Configurable
+
+Maximum pages
+
+Configurable
+
+Availability
+
+99%
+
+---
+
+# 5. Processing Pipeline
+
+```
+Invoice File
+
+↓
+
+File Validation
+
+↓
+
+Image Pre-processing
+
+↓
+
+OCR Engine
+
+↓
+
+Text Post-processing
+
+↓
+
+Confidence Calculation
+
+↓
+
+OCR Result
+```
+
+---
+
+# 6. Input Contract
+
+Supported Formats
+
+- PDF
+- PNG
+- JPG
+- JPEG
+
+Required Metadata
+
+- File Name
+- File Size
+- Upload Time
+
+Validation
+
+- File exists
+- Supported format
+- Non-empty document
+
+---
+
+# 7. Image Pre-processing
+
+The OCR module should perform:
+
+- Auto rotation
+- Deskew
+- Noise reduction
+- Contrast enhancement
+- Resolution normalization
+- Blank page detection
+
+These operations improve OCR accuracy without altering document content.
+
+---
+
+# 8. OCR Output
+
+The OCR module shall return:
+
+- Extracted text
+- Page count
+- Confidence score
+- Processing duration
+- OCR engine version
+- Language detected
+
+Output format shall be UTF-8 encoded.
+
+---
+
+# 9. Confidence Rules
+
+Confidence shall be calculated:
+
+- Per page
+- Per text block
+- Overall document
+
+Confidence range
+
+0.00 → 1.00
+
+Low confidence documents shall be flagged for review.
+
+---
+
+# 10. Exception Handling
+
+Possible failures
+
+- Unsupported file format
+- Corrupted PDF
+- Empty image
+- OCR engine timeout
+- OCR engine unavailable
+
+Recovery actions
+
+- Retry
+- Mark as failed
+- Send to manual review
+
+---
+
+# 11. Performance
+
+Target average
+
+< 5 seconds/page
+
+Maximum retry
+
+3
+
+Concurrent processing
+
+Configurable
+
+Timeout
+
+Configurable
+
+---
+
+# 12. Configuration
+
+Configurable items
+
+- OCR Provider
+- Language
+- DPI
+- Timeout
+- Retry Count
+- Confidence Threshold
+- Maximum File Size
+- Maximum Pages
+
+---
+
+# 13. Logging
+
+The module shall log:
+
+- File Name
+- Processing Start
+- Processing End
+- Duration
+- OCR Provider
+- Confidence
+- Errors
+- Warnings
+- Correlation ID
+
+---
+
+# 14. Security
+
+The OCR module shall:
+
+- Validate uploaded files.
+- Reject unsupported formats.
+- Avoid executing embedded content.
+- Store no sensitive data unless configured.
+
+---
+
+# 15. Acceptance Criteria
+
+The OCR module is accepted when:
+
+✓ Supported documents are processed successfully.
+
+✓ Extracted text is returned.
+
+✓ Confidence score is generated.
+
+✓ Multi-page documents are supported.
+
+✓ Processing time meets performance targets.
+
+✓ Errors are logged consistently.
+
+---
+
+# End of Document

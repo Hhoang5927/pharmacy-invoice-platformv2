@@ -1,0 +1,366 @@
+# SA-005_AI_MODULE
+
+> Document ID: SA-005
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the architecture of the AI Extraction Module.
+
+The AI Module transforms OCR text into structured business data.
+
+The AI Module performs extraction only.
+
+It never performs business validation or browser automation.
+
+---
+
+# 2. Responsibilities
+
+The AI Module shall:
+
+- Receive OCR Result
+- Build AI Prompt
+- Execute AI Request
+- Validate AI Response
+- Produce Structured Invoice
+- Calculate AI Confidence
+- Record execution metadata
+
+---
+
+# 3. Design Principles
+
+The AI Module shall be provider-independent.
+
+Business Rules shall not exist inside prompts.
+
+Prompt templates shall be version controlled.
+
+Every AI response shall be validated before acceptance.
+
+---
+
+# 4. Internal Architecture
+
+```
+OCR Result
+      │
+      ▼
+Prompt Manager
+      │
+      ▼
+Prompt Builder
+      │
+      ▼
+AI Provider
+      │
+      ▼
+Response Parser
+      │
+      ▼
+Schema Validator
+      │
+      ▼
+Confidence Evaluator
+      │
+      ▼
+Structured Invoice
+```
+
+---
+
+# 5. Components
+
+## Prompt Manager
+
+Responsibilities
+
+- Load prompt templates
+- Manage prompt versions
+- Select prompt by document type
+
+Output
+
+Prompt Template
+
+---
+
+## Prompt Builder
+
+Responsibilities
+
+- Combine OCR Result
+- Apply Prompt Template
+- Produce final prompt
+
+Output
+
+AI Request
+
+---
+
+## AI Provider
+
+Responsibilities
+
+- Send request
+- Receive response
+- Handle provider errors
+
+Supported Providers
+
+- Gemini
+- OpenAI
+- Claude
+
+The provider shall be replaceable.
+
+---
+
+## Response Parser
+
+Responsibilities
+
+- Parse AI response
+- Extract JSON
+- Detect malformed responses
+
+Output
+
+Parsed Response
+
+---
+
+## Schema Validator
+
+Responsibilities
+
+Validate response structure.
+
+Required fields:
+
+- Supplier
+- Invoice Number
+- Invoice Date
+- Purchase Items
+
+Invalid responses shall be rejected.
+
+---
+
+## Confidence Evaluator
+
+Responsibilities
+
+Evaluate extraction quality.
+
+Possible results:
+
+- High
+- Medium
+- Low
+
+Low confidence requires Human Review.
+
+---
+
+# 6. Public Interface
+
+Input
+
+OCR Result
+
+Output
+
+Structured Invoice
+
+Errors
+
+AIException
+
+---
+
+# 7. Processing Flow
+
+OCR Result
+
+↓
+
+Prompt Template
+
+↓
+
+Prompt Builder
+
+↓
+
+AI Provider
+
+↓
+
+Response Parser
+
+↓
+
+Schema Validation
+
+↓
+
+Confidence Evaluation
+
+↓
+
+Structured Invoice
+
+---
+
+# 8. Structured Invoice
+
+The output shall contain:
+
+Invoice Header
+
+Supplier
+
+Invoice Number
+
+Invoice Date
+
+Purchase Items
+
+Medicine
+
+Quantity
+
+Unit
+
+Purchase Price
+
+VAT
+
+Batch Number
+
+Expiry Date
+
+Notes
+
+The structure shall remain consistent regardless of AI provider.
+
+---
+
+# 9. Response Validation
+
+Every response shall satisfy:
+
+- Valid JSON
+- Required fields present
+- Supported data types
+- Business schema compliance
+
+Invalid responses shall not proceed to Validation Engine.
+
+---
+
+# 10. Retry Strategy
+
+Retry is permitted only for:
+
+- Network timeout
+- Provider unavailable
+- Temporary server error
+
+Maximum retry count shall be configurable.
+
+Malformed business responses shall not be retried automatically.
+
+---
+
+# 11. Prompt Versioning
+
+Every prompt shall have:
+
+- Prompt ID
+- Version
+- Created Date
+- Author
+- Status
+
+The executed prompt version shall be recorded for every invoice.
+
+---
+
+# 12. Logging
+
+Record:
+
+- Request ID
+- Provider
+- Prompt Version
+- Start Time
+- End Time
+- Duration
+- Token Usage
+- Confidence
+- Status
+
+---
+
+# 13. Error Handling
+
+Possible Errors
+
+- AI Timeout
+- Provider Error
+- Invalid JSON
+- Missing Fields
+- Schema Validation Failed
+- Confidence Too Low
+
+Every error shall produce:
+
+- Error Code
+- Message
+- Severity
+- Timestamp
+
+---
+
+# 14. Dependencies
+
+Depends On
+
+- OCR Module
+- Configuration Service
+- Logging Service
+
+Does Not Depend On
+
+- Validation Engine
+- Human Review Module
+- Browser Automation
+
+---
+
+# 15. Success Criteria
+
+The AI Module is successful when:
+
+- OCR Result is accepted.
+- Structured Invoice is generated.
+- JSON Schema validation passes.
+- Confidence score is produced.
+- Execution metadata is recorded.
+
+---
+
+# End of Document

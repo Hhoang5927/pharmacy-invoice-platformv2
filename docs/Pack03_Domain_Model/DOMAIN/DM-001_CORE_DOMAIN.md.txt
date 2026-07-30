@@ -1,0 +1,416 @@
+# CORE DOMAIN
+
+> Document ID: DM-001
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Solution Architect
+
+---
+
+# 1. Purpose
+
+This document defines the core business entities of the Pharmacy Invoice Automation Platform.
+
+These entities represent the central business concepts used throughout the entire application.
+
+Every module—including OCR, AI Extraction, Validation, Human Review, Excel Export, and Browser Automation—shall use these entities as the canonical data model.
+
+---
+
+# 2. Core Domain Overview
+
+The platform is centered around six primary business entities:
+
+```
+
+Invoice
+│
+├── Supplier
+│
+├── Purchase Items (1..N)
+│ │
+│ ├── Medicine
+│ └── Batch
+│
+└── Approved Dataset
+
+```
+
+Invoice is the Aggregate Root.
+
+No external module shall manipulate Purchase Items directly.
+
+---
+
+# 3. Invoice
+
+## Description
+
+Invoice represents one purchase invoice imported from a supplier.
+
+An Invoice aggregates all business information required to process a pharmacy purchase.
+
+---
+
+## Responsibilities
+
+Invoice is responsible for:
+
+- Invoice identity
+- Supplier reference
+- Purchase item collection
+- Financial summary
+- Processing status
+- Approval status
+
+---
+
+## Main Properties
+
+| Property | Type | Required |
+|----------|------|----------|
+| invoiceId | UUID | Yes |
+| invoiceNumber | String | Yes |
+| invoiceDate | Date | Yes |
+| supplier | Supplier | Yes |
+| purchaseItems | List<PurchaseItem> | Yes |
+| subtotal | Money | Yes |
+| vatAmount | Money | Yes |
+| totalAmount | Money | Yes |
+| status | InvoiceStatus | Yes |
+| createdAt | DateTime | Yes |
+| updatedAt | DateTime | Yes |
+
+---
+
+## Business Rules
+
+Invoice Number shall not be empty.
+
+Invoice must contain at least one Purchase Item.
+
+Supplier is mandatory.
+
+Total Amount must equal:
+
+Subtotal + VAT
+
+Invoice Status shall follow lifecycle rules.
+
+---
+
+## Lifecycle
+
+Imported
+
+↓
+
+OCR Processed
+
+↓
+
+AI Extracted
+
+↓
+
+Validated
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Automated
+
+↓
+
+Completed
+
+---
+
+# 4. Supplier
+
+## Description
+
+Supplier represents the organization issuing the invoice.
+
+Supplier information is shared across multiple invoices.
+
+---
+
+## Responsibilities
+
+Supplier owns:
+
+- Supplier Identity
+- Legal Information
+- Tax Information
+- Contact Information
+
+---
+
+## Main Properties
+
+| Property | Type |
+|----------|------|
+| supplierId | UUID |
+| supplierCode | String |
+| supplierName | String |
+| taxCode | String |
+| address | String |
+| phone | String |
+| email | String |
+
+---
+
+## Business Rules
+
+Supplier Name is required.
+
+Tax Code is required when available.
+
+Supplier Code must be unique.
+
+---
+
+# 5. Medicine
+
+## Description
+
+Medicine represents one pharmaceutical product.
+
+Medicine information is reference data.
+
+---
+
+## Responsibilities
+
+Medicine owns:
+
+- Medicine Identity
+- Product Information
+- Registration Information
+
+---
+
+## Main Properties
+
+| Property | Type |
+|----------|------|
+| medicineId | UUID |
+| medicineCode | String |
+| medicineName | String |
+| unit | String |
+| registrationNumber | String |
+| manufacturer | String |
+
+---
+
+## Business Rules
+
+Medicine Name is mandatory.
+
+Unit is mandatory.
+
+Medicine Code shall be unique.
+
+---
+
+# 6. Purchase Item
+
+## Description
+
+Purchase Item represents one line in an invoice.
+
+Each Purchase Item references one Medicine.
+
+---
+
+## Responsibilities
+
+Purchase Item owns:
+
+- Quantity
+- Purchase Price
+- VAT
+- Batch
+- Calculated Total
+
+---
+
+## Main Properties
+
+| Property | Type |
+|----------|------|
+| itemId | UUID |
+| medicine | Medicine |
+| batch | Batch |
+| quantity | Decimal |
+| unitPrice | Money |
+| vatRate | Decimal |
+| lineTotal | Money |
+
+---
+
+## Business Rules
+
+Quantity must be greater than zero.
+
+Unit Price must be greater than zero.
+
+Medicine is mandatory.
+
+Batch is mandatory.
+
+---
+
+# 7. Batch
+
+## Description
+
+Batch represents manufacturing information for one purchased medicine.
+
+---
+
+## Responsibilities
+
+Batch owns:
+
+- Batch Number
+- Manufacturing Date
+- Expiry Date
+
+---
+
+## Main Properties
+
+| Property | Type |
+|----------|------|
+| batchNumber | String |
+| manufactureDate | Date |
+| expiryDate | Date |
+
+---
+
+## Business Rules
+
+Batch Number is mandatory.
+
+Expiry Date shall be later than Invoice Date.
+
+Manufacture Date shall not be later than Expiry Date.
+
+---
+
+# 8. Approved Dataset
+
+## Description
+
+Approved Dataset is the finalized business object produced after Human Review.
+
+Browser Automation consumes only Approved Dataset.
+
+---
+
+## Responsibilities
+
+Approved Dataset guarantees that:
+
+- Validation completed
+- Human Review completed
+- Business data finalized
+- Ready for automation
+
+---
+
+## Main Properties
+
+| Property | Type |
+|----------|------|
+| approvalId | UUID |
+| invoice | Invoice |
+| approvedBy | User |
+| approvedAt | DateTime |
+| approvalVersion | Integer |
+
+---
+
+## Business Rules
+
+Approved Dataset is immutable.
+
+No business data may change after approval.
+
+Automation shall only process Approved Dataset.
+
+---
+
+# 9. Entity Relationships
+
+| Parent | Child | Cardinality |
+|---------|-------|-------------|
+| Invoice | Supplier | 1 : 1 |
+| Invoice | Purchase Item | 1 : N |
+| Purchase Item | Medicine | N : 1 |
+| Purchase Item | Batch | 1 : 1 |
+| Invoice | Approved Dataset | 1 : 0..1 |
+
+---
+
+# 10. Aggregate Boundary
+
+Aggregate Root
+
+Invoice
+
+Contained Entities
+
+Supplier (Reference)
+
+Purchase Item
+
+Batch
+
+External modules shall never modify child entities directly.
+
+All modifications shall occur through Invoice.
+
+---
+
+# 11. Invariants
+
+The following conditions shall always be true:
+
+- Invoice has one Supplier.
+- Invoice has at least one Purchase Item.
+- Purchase Item references one Medicine.
+- Purchase Item contains one Batch.
+- Approved Dataset cannot exist before Approval.
+- Completed Invoice cannot return to Draft.
+- Immutable entities cannot be modified.
+
+---
+
+# 12. Success Criteria
+
+The Core Domain is considered complete when:
+
+- All primary business entities are defined.
+- Entity responsibilities are explicit.
+- Relationships are documented.
+- Business invariants are identified.
+- Aggregate boundaries are respected.
+
+---
+
+# End of Document

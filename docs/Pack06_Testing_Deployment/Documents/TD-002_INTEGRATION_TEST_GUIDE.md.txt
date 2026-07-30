@@ -1,0 +1,319 @@
+# INTEGRATION TEST GUIDE
+
+> Document ID: TD-002
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: QA Lead
+
+---
+
+# 1. Purpose
+
+This document defines the integration testing standards for the Pharmacy Invoice Automation Platform.
+
+The objective is to verify that multiple modules interact correctly and consistently.
+
+Integration tests validate real communication between system components.
+
+---
+
+# 2. Scope
+
+Integration testing applies to
+
+Frontend ↔ Backend
+
+Backend ↔ Database
+
+Backend ↔ OCR Provider
+
+Backend ↔ AI Provider
+
+Validation ↔ Review
+
+Automation ↔ External Systems
+
+Configuration ↔ Modules
+
+---
+
+# 3. Objectives
+
+Integration tests shall verify
+
+Data flow
+
+API contracts
+
+Database interaction
+
+External service integration
+
+Configuration loading
+
+Module interoperability
+
+---
+
+# 4. Test Environment
+
+Integration tests shall execute in an isolated environment.
+
+The environment shall include
+
+Application
+
+Database
+
+Configuration
+
+Mock or Sandbox External Services
+
+Independent test data
+
+Production environments shall never be used.
+
+---
+
+# 5. Test Data
+
+Integration test data shall
+
+Be isolated
+
+Be repeatable
+
+Be deterministic
+
+Be automatically cleaned after execution
+
+Fixtures shall be reusable across test suites.
+
+---
+
+# 6. Database Integration
+
+Tests shall verify
+
+CRUD operations
+
+Transactions
+
+Rollback behavior
+
+Constraint validation
+
+Data consistency
+
+Database state shall be reset between test executions.
+
+---
+
+# 7. OCR Integration
+
+Integration tests shall verify
+
+Document upload
+
+OCR execution
+
+Response parsing
+
+Confidence values
+
+Failure handling
+
+Retry behavior
+
+OCR provider failures shall be simulated where appropriate.
+
+---
+
+# 8. AI Integration
+
+Integration tests shall verify
+
+Prompt generation
+
+Provider communication
+
+Response parsing
+
+Structured extraction
+
+Timeout handling
+
+Retry policy
+
+AI responses shall use deterministic fixtures whenever possible.
+
+---
+
+# 9. Validation Integration
+
+Tests shall verify
+
+Validation rule execution
+
+Rule ordering
+
+Validation results
+
+Review threshold behavior
+
+Error propagation
+
+---
+
+# 10. Automation Integration
+
+Tests shall verify
+
+Login
+
+Navigation
+
+Invoice submission
+
+Confirmation detection
+
+Error handling
+
+Retry execution
+
+Automation shall execute against approved test environments only.
+
+---
+
+# 11. API Integration
+
+Tests shall verify
+
+HTTP status codes
+
+Request validation
+
+Response schema
+
+Authentication
+
+Authorization
+
+Error responses
+
+API contracts shall remain backward compatible unless explicitly versioned.
+
+---
+
+# 12. Configuration Integration
+
+Tests shall verify
+
+Environment loading
+
+Secret resolution
+
+Default values
+
+Configuration overrides
+
+Module configuration access
+
+---
+
+# 13. Failure Scenarios
+
+Integration tests shall include
+
+Service unavailable
+
+Database timeout
+
+Invalid configuration
+
+Authentication failure
+
+Network interruption
+
+Malformed external response
+
+---
+
+# 14. Logging Verification
+
+Tests shall verify that
+
+Correlation ID is propagated.
+
+Errors are logged.
+
+Business events are recorded.
+
+Sensitive information is not logged.
+
+---
+
+# 15. Performance Expectations
+
+Integration tests should complete within acceptable execution time.
+
+Long-running scenarios shall be clearly identified.
+
+Performance benchmarking belongs to TD-004.
+
+---
+
+# 16. Maintenance
+
+Integration tests shall
+
+Remain independent.
+
+Avoid duplicated scenarios.
+
+Be updated when interfaces change.
+
+Fail whenever contracts are broken.
+
+---
+
+# 17. Prohibited Practices
+
+The following are prohibited
+
+Testing against production systems
+
+Shared mutable test environments
+
+Hardcoded credentials
+
+Ignoring cleanup
+
+Order-dependent integration tests
+
+---
+
+# 18. Acceptance Criteria
+
+Integration testing is accepted when
+
+✓ Module interactions are verified.
+
+✓ External integrations behave correctly.
+
+✓ API contracts are validated.
+
+✓ Database consistency is confirmed.
+
+✓ Failure scenarios are covered.
+
+✓ Tests are repeatable and deterministic.
+
+---
+
+# End of Document

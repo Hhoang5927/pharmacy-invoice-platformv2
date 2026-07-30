@@ -1,0 +1,569 @@
+# NAMING CONVENTIONS
+
+> Document ID: DG-003
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Lead
+
+---
+
+# 1. Purpose
+
+This document defines the naming conventions for the Pharmacy Invoice Automation Platform.
+
+Consistent naming improves readability, maintainability and collaboration.
+
+These rules apply to both human developers and AI coding assistants.
+
+---
+
+# 2. General Principles
+
+Names shall
+
+- Be descriptive.
+- Be consistent.
+- Avoid abbreviations unless widely accepted.
+- Represent business meaning.
+- Follow the project language standard (English).
+
+Avoid generic names such as
+
+data
+
+item
+
+object
+
+temp
+
+value
+
+result
+
+manager
+
+helper
+
+---
+
+# 3. Directory Names
+
+Directories shall use
+
+lowercase
+
+Examples
+
+review
+
+automation
+
+validation
+
+invoice
+
+supplier
+
+shared
+
+configuration
+
+---
+
+# 4. File Names
+
+TypeScript
+
+camelCase
+
+Examples
+
+invoiceService.ts
+
+validationEngine.ts
+
+reviewRepository.ts
+
+React Components
+
+PascalCase
+
+InvoiceReview.tsx
+
+SupplierCard.tsx
+
+ValidationPanel.tsx
+
+Configuration Files
+
+kebab-case
+
+logging-config.yaml
+
+automation-config.json
+
+---
+
+# 5. Class Names
+
+Classes shall use
+
+PascalCase
+
+Examples
+
+InvoiceService
+
+ValidationEngine
+
+AutomationExecutor
+
+OCRProcessor
+
+ReviewManager
+
+---
+
+# 6. Interface Names
+
+Interfaces shall use
+
+PascalCase
+
+Do not prefix with "I".
+
+Correct
+
+InvoiceRepository
+
+OCRProvider
+
+AutomationDriver
+
+Incorrect
+
+IInvoiceRepository
+
+IOCRProvider
+
+---
+
+# 7. Function Names
+
+Functions shall use
+
+camelCase
+
+Examples
+
+validateInvoice()
+
+extractSupplier()
+
+calculateTotal()
+
+generateReport()
+
+submitInvoice()
+
+---
+
+# 8. Variable Names
+
+Variables shall use
+
+camelCase
+
+Examples
+
+invoiceNumber
+
+supplierName
+
+purchaseItems
+
+validationResult
+
+executionReport
+
+Avoid
+
+tmp
+
+obj
+
+val
+
+data1
+
+---
+
+# 9. Constants
+
+Constants shall use
+
+UPPER_SNAKE_CASE
+
+Examples
+
+MAX_RETRY_COUNT
+
+DEFAULT_TIMEOUT
+
+MAX_UPLOAD_SIZE
+
+SUPPORTED_FILE_TYPES
+
+---
+
+# 10. Enumerations
+
+Enum Names
+
+PascalCase
+
+Enum Values
+
+UPPER_SNAKE_CASE
+
+Example
+
+InvoiceStatus
+
+PENDING
+
+APPROVED
+
+REJECTED
+
+FAILED
+
+---
+
+# 11. Database
+
+Tables
+
+snake_case
+
+Examples
+
+invoice
+
+purchase_item
+
+supplier
+
+automation_log
+
+Columns
+
+snake_case
+
+invoice_number
+
+supplier_name
+
+approval_time
+
+created_at
+
+updated_at
+
+Primary Keys
+
+id
+
+Foreign Keys
+
+supplier_id
+
+invoice_id
+
+review_id
+
+---
+
+# 12. API Endpoints
+
+REST endpoints
+
+lowercase
+
+kebab-case
+
+Examples
+
+/api/invoices
+
+/api/reviews
+
+/api/automation
+
+/api/validation
+
+Actions
+
+POST
+
+/api/invoices
+
+GET
+
+/api/invoices/{id}
+
+PUT
+
+/api/invoices/{id}
+
+DELETE
+
+/api/invoices/{id}
+
+---
+
+# 13. DTO Names
+
+Suffix
+
+Dto
+
+Examples
+
+InvoiceDto
+
+SupplierDto
+
+PurchaseItemDto
+
+ValidationReportDto
+
+ExecutionReportDto
+
+---
+
+# 14. Domain Objects
+
+Do not use suffixes.
+
+Correct
+
+Invoice
+
+Supplier
+
+PurchaseItem
+
+Batch
+
+Medicine
+
+Incorrect
+
+InvoiceEntity
+
+SupplierModel
+
+PurchaseItemData
+
+---
+
+# 15. Service Names
+
+Suffix
+
+Service
+
+Examples
+
+InvoiceService
+
+OCRService
+
+ReviewService
+
+AutomationService
+
+---
+
+# 16. Repository Names
+
+Suffix
+
+Repository
+
+Examples
+
+InvoiceRepository
+
+SupplierRepository
+
+ReviewRepository
+
+---
+
+# 17. Controller Names
+
+Suffix
+
+Controller
+
+Examples
+
+InvoiceController
+
+ReviewController
+
+AutomationController
+
+---
+
+# 18. React Components
+
+PascalCase
+
+Examples
+
+InvoiceTable
+
+InvoiceForm
+
+SupplierSelector
+
+ReviewDialog
+
+ValidationSummary
+
+---
+
+# 19. React Hooks
+
+Prefix
+
+use
+
+Examples
+
+useInvoice()
+
+useReview()
+
+useValidation()
+
+useAutomation()
+
+---
+
+# 20. Environment Variables
+
+UPPER_SNAKE_CASE
+
+Prefix
+
+APP_
+
+Examples
+
+APP_PORT
+
+APP_ENV
+
+APP_LOG_LEVEL
+
+APP_AI_PROVIDER
+
+APP_OCR_PROVIDER
+
+APP_DATABASE_URL
+
+---
+
+# 21. Error Codes
+
+Format
+
+MODULE_ERROR_CODE
+
+Examples
+
+OCR_001
+
+OCR_002
+
+AI_001
+
+VAL_001
+
+REV_001
+
+AUTO_001
+
+CFG_001
+
+---
+
+# 22. Event Names
+
+Past tense
+
+Examples
+
+invoiceCreated
+
+invoiceApproved
+
+reviewCompleted
+
+automationFinished
+
+validationFailed
+
+---
+
+# 23. Log Categories
+
+Examples
+
+OCR
+
+AI
+
+VALIDATION
+
+REVIEW
+
+AUTOMATION
+
+DATABASE
+
+API
+
+SYSTEM
+
+---
+
+# 24. Acceptance Criteria
+
+Naming conventions are accepted when
+
+✓ Naming is consistent.
+
+✓ Business terminology is preserved.
+
+✓ Files follow standard naming.
+
+✓ APIs follow REST conventions.
+
+✓ Database objects are predictable.
+
+✓ AI-generated code follows identical conventions.
+
+---
+
+# End of Document

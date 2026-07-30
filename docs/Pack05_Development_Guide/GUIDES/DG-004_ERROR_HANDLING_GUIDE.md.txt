@@ -1,0 +1,417 @@
+# ERROR HANDLING GUIDE
+
+> Document ID: DG-004
+>
+> Version: 1.0.0
+>
+> Status: Approved
+>
+> Priority: Critical
+>
+> Owner: Technical Lead
+
+---
+
+# 1. Purpose
+
+This document defines the error handling strategy for the Pharmacy Invoice Automation Platform.
+
+The objective is to ensure consistent, predictable and maintainable error handling across all modules.
+
+Errors shall never be ignored.
+
+Every error shall be classified, logged and handled appropriately.
+
+---
+
+# 2. Design Principles
+
+Error handling shall be
+
+- Predictable
+- Consistent
+- Recoverable when possible
+- Observable
+- User-friendly
+- Secure
+
+Internal implementation details shall never be exposed to end users.
+
+---
+
+# 3. Error Categories
+
+The platform defines the following categories
+
+Business Error
+
+Validation Error
+
+Technical Error
+
+Infrastructure Error
+
+External Service Error
+
+Security Error
+
+Configuration Error
+
+Unexpected Error
+
+Each category shall have dedicated handling rules.
+
+---
+
+# 4. Business Errors
+
+Business Errors occur when business rules are violated.
+
+Examples
+
+Duplicate Invoice
+
+Expired Medicine
+
+Invalid Batch
+
+Invoice Total Mismatch
+
+Business Errors shall
+
+- Stop the current business operation.
+- Display user-friendly messages.
+- Never be retried automatically.
+
+---
+
+# 5. Validation Errors
+
+Validation Errors occur during input validation.
+
+Examples
+
+Required field missing
+
+Invalid date format
+
+Negative quantity
+
+Invalid VAT
+
+Validation Errors shall
+
+- Highlight the affected field.
+- Return detailed validation messages.
+- Allow user correction.
+
+---
+
+# 6. Technical Errors
+
+Technical Errors occur due to software or infrastructure failures.
+
+Examples
+
+Database timeout
+
+Network interruption
+
+File read failure
+
+Memory allocation failure
+
+Technical Errors may be retried according to Retry Policy.
+
+---
+
+# 7. External Service Errors
+
+Examples
+
+OCR Provider unavailable
+
+AI Provider timeout
+
+Authentication failure
+
+Rate limit exceeded
+
+External Service Errors shall
+
+- Be logged.
+- Respect retry policies.
+- Trigger fallback mechanisms where available.
+
+---
+
+# 8. Security Errors
+
+Examples
+
+Unauthorized access
+
+Invalid token
+
+Permission denied
+
+Session expired
+
+Security Errors shall
+
+- Immediately terminate the current operation.
+- Never expose sensitive information.
+- Be logged as security events.
+
+---
+
+# 9. Configuration Errors
+
+Examples
+
+Missing environment variable
+
+Invalid configuration
+
+Configuration conflict
+
+Configuration Errors shall prevent application startup whenever system integrity cannot be guaranteed.
+
+---
+
+# 10. Unexpected Errors
+
+Unexpected Errors represent unknown failures.
+
+Examples
+
+Unhandled exception
+
+Unknown runtime error
+
+Unexpected null reference
+
+Unexpected Errors shall
+
+- Be logged.
+- Generate diagnostic information.
+- Return generic user messages.
+- Never expose stack traces to users.
+
+---
+
+# 11. Error Structure
+
+Every error shall contain
+
+Error Code
+
+Category
+
+Module
+
+Severity
+
+Message
+
+Timestamp
+
+Correlation ID
+
+Recoverable
+
+Additional Context
+
+---
+
+# 12. Error Severity
+
+Severity Levels
+
+INFO
+
+WARNING
+
+ERROR
+
+CRITICAL
+
+Severity determines
+
+Logging
+
+Notification
+
+Retry behavior
+
+Escalation
+
+---
+
+# 13. Retry Strategy
+
+Retry shall be used only for recoverable technical failures.
+
+Examples
+
+Network timeout
+
+Temporary service unavailable
+
+Retry shall not be used for
+
+Business Errors
+
+Validation Errors
+
+Security Errors
+
+Maximum Retry Count shall be configurable.
+
+---
+
+# 14. User Messages
+
+User-facing messages shall
+
+Be clear.
+
+Be concise.
+
+Describe the problem.
+
+Suggest corrective action when appropriate.
+
+Never expose
+
+Stack traces
+
+SQL statements
+
+Internal identifiers
+
+API keys
+
+Passwords
+
+---
+
+# 15. Logging
+
+Every error shall log
+
+Timestamp
+
+Module
+
+Error Code
+
+Severity
+
+Correlation ID
+
+Exception
+
+Execution Context
+
+---
+
+# 16. Exception Handling
+
+Exceptions shall
+
+Be caught at appropriate boundaries.
+
+Be converted into standardized error objects.
+
+Avoid propagating framework-specific exceptions across layers.
+
+---
+
+# 17. Recovery
+
+Recovery strategies include
+
+Retry
+
+Fallback Provider
+
+Rollback
+
+Manual Review
+
+Abort Operation
+
+The chosen strategy depends on the error category.
+
+---
+
+# 18. Monitoring
+
+Critical errors shall support
+
+Alerting
+
+Metrics
+
+Dashboard reporting
+
+Trend analysis
+
+---
+
+# 19. Testing
+
+Every business-critical error scenario shall have automated tests.
+
+Tests shall verify
+
+Correct classification
+
+Correct logging
+
+Correct user response
+
+Correct recovery behavior
+
+---
+
+# 20. Prohibited Practices
+
+The following are prohibited
+
+Empty catch blocks
+
+Silent failures
+
+Swallowing exceptions
+
+Hardcoded error messages
+
+Returning raw exception objects
+
+Ignoring promise rejections
+
+Logging sensitive information
+
+---
+
+# 21. Acceptance Criteria
+
+The error handling strategy is accepted when
+
+✓ Every error is classified.
+
+✓ Every error is logged.
+
+✓ Sensitive information is protected.
+
+✓ Retry behavior is deterministic.
+
+✓ User messages remain clear.
+
+✓ Error handling is consistent across all modules.
+
+---
+
+# End of Document
