@@ -1092,22 +1092,74 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
             item.medicine_id,
         )
 
+    @staticmethod
+    def _medicine_search_fill_candidates(search_name: str) -> list[str]:
+        """
+        BUG FIX (2026-08, PO-confirmed via real hands-on testing): the
+        real site's search-as-you-type is apparently sensitive to the
+        LENGTH of the typed string in a not-fully-understood way --
+        typing the FULL 'Coldi-B DNH' (11 chars) produced NO dropdown
+        at all, while typing just 'Coldi-B' (7 chars) did, correctly
+        showing 'Coldi-B DNH' among the results. Not treated as a
+        one-off special case for this specific name -- any sufficiently
+        long medicine name could plausibly hit the same real, unknown
+        threshold. Returns the full name first, then progressively
+        SHORTER word-truncated prefixes (dropping one trailing word at
+        a time, e.g. 'Coldi-B DNH' -> 'Coldi-B' -> nothing further, a
+        single word is never truncated below itself -- an empty search
+        would surface every medicine, not the one actually wanted).
+        """
+        words = search_name.split()
+        candidates = [search_name]
+        for word_count in range(len(words) - 1, 0, -1):
+            candidates.append(" ".join(words[:word_count]))
+        return candidates
+
+    def _fill_medicine_search_until_matched(
+        self, search_key: str, search_name: str, is_match: Callable[[], bool]
+    ) -> bool:
+        """
+        Fills ``search_key`` with progressively shorter candidates (see
+        _medicine_search_fill_candidates's own docstring) until
+        ``is_match()`` reports a real result against the resulting
+        dropdown, or every candidate has been tried. Whichever candidate
+        last succeeds is left typed into the box -- the caller's own
+        subsequent lookup/click against the FULL, untruncated
+        ``search_name`` (never the possibly-truncated candidate that
+        merely triggered the dropdown) is what actually determines which
+        row is correct, so a truncated search surfacing multiple
+        unrelated candidates is still resolved to the exact right one
+        (or correctly flagged ambiguous) -- never a guess based on the
+        truncated text alone.
+        """
+        for candidate in self._medicine_search_fill_candidates(search_name):
+            self._fill(search_key, candidate)
+            self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+            if is_match():
+                return True
+        return False
+
     def _fill_and_check_medicine_result(self, search_key: str, search_name: str) -> bool:
-        """Fill one line's own search box once and report whether a name-anchored match exists."""
-        self._fill(search_key, search_name)
-        self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+        """Fill one line's own search box and report whether a name-anchored match exists,
+        retrying with shorter prefixes if the full name alone finds nothing."""
         result_entry = self._registry.require_usable("medicine.search_result_option")
-        return self._locate_parameterized(result_entry, search_name).count() > 0
+        return self._fill_medicine_search_until_matched(
+            search_key,
+            search_name,
+            lambda: self._locate_parameterized(result_entry, search_name).count() > 0,
+        )
 
     def _fill_and_check_medicine_result_by_code(
         self, search_key: str, search_name: str, website_catalog_code: str
     ) -> bool:
-        """Fill one line's own search box once (by name) and report whether a code-anchored
-        match exists."""
-        self._fill(search_key, search_name)
-        self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+        """Fill one line's own search box (by name) and report whether a code-anchored match
+        exists, retrying with shorter prefixes if the full name alone finds nothing."""
         result_entry = self._registry.require_usable("medicine.search_result_option_by_code")
-        return self._locate_parameterized(result_entry, website_catalog_code).count() > 0
+        return self._fill_medicine_search_until_matched(
+            search_key,
+            search_name,
+            lambda: self._locate_parameterized(result_entry, website_catalog_code).count() > 0,
+        )
 
     def _create_medicine_for_line(self, item: PurchaseItem) -> None:
         """

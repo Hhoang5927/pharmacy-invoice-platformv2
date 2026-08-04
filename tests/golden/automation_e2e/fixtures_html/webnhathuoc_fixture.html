@@ -755,6 +755,39 @@
         }
       }, autoSelectDelayMs);
     }
+    // search_length_limit (2026-08, PO-confirmed via real hands-on
+    // testing -- CRITICAL, real search-as-you-type bug): typing the
+    // FULL "Coldi-B DNH" (11 chars) produced NO dropdown at all on the
+    // live site, while typing just "Coldi-B" (7 chars) did, correctly
+    // showing "Coldi-B DNH" among the results -- a real, not-fully-
+    // understood length sensitivity, not an automation bug. Models
+    // that precisely: when set, the typed value's own length (not a
+    // fixed medicine name) decides whether results show at all. Moves
+    // the SAME row elements in/out of the DOM (never destroys/recreates
+    // them) so their own click listeners (data-medicine-result log,
+    // Part 3's chip simulation) stay intact across repeated toggles --
+    // a naive innerHTML swap would silently lose them.
+    const searchLengthLimitParam = new URLSearchParams(location.search).get(
+      "search_length_limit"
+    );
+    const searchLengthLimit = searchLengthLimitParam ? Number(searchLengthLimitParam) : null;
+    if (searchLengthLimit !== null) {
+      const resultsTable = document.getElementById("medicine-search-results-table");
+      const allResultRows = [...resultsTable.children];
+      const applySearchLengthGate = (value) => {
+        if (value.length > searchLengthLimit) {
+          allResultRows.forEach((row) => row.remove());
+        } else {
+          allResultRows.forEach((row) => resultsTable.appendChild(row));
+        }
+      };
+      ["first-line-search", "subsequent-line-search"].forEach((inputId) => {
+        const el = document.getElementById(inputId);
+        if (el) {
+          el.addEventListener("input", () => applySearchLengthGate(el.value));
+        }
+      });
+    }
     // 2026-08, added for TestMedicineResolutionMergedIntoPerLineLoop:
     // create_medicine()'s real flow clicks #submit-medicine TWICE --
     // once before "Tên thuốc" is filled (group/code submit), once

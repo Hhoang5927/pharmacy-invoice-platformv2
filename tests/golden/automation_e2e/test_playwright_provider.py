@@ -1458,6 +1458,143 @@ class TestMedicineSearchStripsPackagingDescription:
         assert extract("Hãng sản xuất: Công ty ABC") == "Công ty ABC"
 
 
+class TestMedicineSearchLengthFallback:
+    """
+    Bug fix (2026-08, PO-confirmed via real hands-on testing -- CRITICAL,
+    real search-as-you-type quirk, not an automation bug): typing the
+    FULL "Coldi-B DNH" (11 chars) into the real site's search box
+    produced NO dropdown at all, while typing just "Coldi-B" (7 chars)
+    did, correctly showing "Coldi-B DNH" among the results -- a real,
+    not-fully-understood length sensitivity. Not treated as a one-off
+    fix for this specific name -- any sufficiently long medicine name
+    could plausibly hit the same real threshold, so
+    _fill_and_check_medicine_result/_fill_and_check_medicine_result_by_code
+    now retry with progressively shorter, word-truncated prefixes (see
+    _medicine_search_fill_candidates) whenever the full name alone
+    finds nothing, before concluding the medicine does not exist yet.
+    The fixture's own 'search_length_limit' query param (see that
+    script block's own comment) models the real length sensitivity by
+    the TYPED value's own length, not a hardcoded name, so these tests
+    exercise the real fallback loop, not a special-cased stub.
+    """
+
+    @staticmethod
+    def _make_item(medicine_name: str, medicine_id: str = "med-1"):
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        return PurchaseItem(
+            id="item-1",
+            medicine_name=medicine_name,
+            unit=Unit(code="vien"),
+            quantity=Quantity(Decimal("5")),
+            unit_price=Money(Decimal("10000")),
+            medicine_id=medicine_id,
+            retail_units_per_purchase_unit=1,
+        )
+
+    def test_short_name_still_matches_on_the_first_try_no_fallback_needed(
+        self, page: Page
+    ) -> None:
+        # A generous limit (30) never actually blocks "Paracetamol
+        # 500mg" (16 chars) -- proves the new candidate-generation loop
+        # does not change behavior for the ordinary, already-working
+        # case: the FULL name is still tried FIRST, and still succeeds
+        # immediately without ever needing a shorter candidate.
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?search_length_limit=30")
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Paracetamol 500mg"), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH1"]
+
+    def test_long_name_falls_back_to_a_shorter_prefix_and_selects_the_right_row(
+        self, page: Page
+    ) -> None:
+        # search_length_limit=9: "Coldi-B DNH" (11 chars, the FULL name)
+        # exceeds it -- 0 results, exactly the real reported bug --
+        # forcing a retry with the shorter, word-truncated "Coldi-B"
+        # (7 chars, under the limit), which succeeds. TH4 ("Coldi")
+        # also matches that shorter search, proving the FULL name's own
+        # end-anchored match (never the truncated prefix) is still what
+        # actually selects TH5, not TH4 -- the same disambiguation
+        # safety net already proven for the un-truncated case.
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?search_length_limit=9")
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Coldi-B DNH"), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
+
+    def test_name_missing_even_after_every_fallback_still_creates_a_new_one(
+        self, page: Page
+    ) -> None:
+        from pharmacy_invoice_automation.domain.entities.medicine import Medicine
+        from pharmacy_invoice_automation.domain.enums.medicine_type import MedicineType
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        class _StubMedicineRepository:
+            def __init__(self, medicine: Medicine) -> None:
+                self._medicine = medicine
+
+            def get_by_id(self, medicine_id: str) -> Medicine | None:
+                return self._medicine if medicine_id == self._medicine.id else None
+
+        medicine = Medicine(
+            id="med-new",
+            medicine_code="TH99",
+            name="Xyzmycin Totally Unknown",
+            medicine_type=MedicineType.OVER_THE_COUNTER,
+            unit=Unit(code="vien"),
+        )
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page,
+            _registry_with_confirmed_vien_label(),
+            config,
+            logging.getLogger("test"),
+            medicine_repository=_StubMedicineRepository(medicine),
+        )
+        # search_length_limit=30 -- generous, never the reason nothing
+        # is found here (every truncated candidate, down to the first
+        # single word "Xyzmycin", genuinely has no match in the
+        # fixture's own static result set) -- proves the fallback loop
+        # exhausts ALL of its candidates (not just the full name) before
+        # correctly falling through to create_medicine(), still ending
+        # with the newly-created row selected for this exact line.
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?search_length_limit=30")
+        page.evaluate(
+            "document.getElementById('open-supplier-dialog').hidden = true;"
+            "document.getElementById('tblMain').innerHTML = "
+            '\'<button type="button" title="Thêm mới nếu chưa có" '
+            'id="open-medicine-dialog" onclick="this.hidden=true">Thêm mới nếu chưa có'
+            "</button>'"
+        )
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Xyzmycin Totally Unknown", medicine_id="med-new"), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH99"]
+        assert page.locator("#medicine-name-input").input_value() == "Xyzmycin Totally Unknown"
+
+
 class TestMedicineResolutionMergedIntoPerLineLoop:
     """
     Bug fix (2026-08, PO-confirmed via direct real-time observation of a
