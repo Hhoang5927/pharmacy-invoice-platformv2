@@ -1824,6 +1824,96 @@ class TestMedicineDisambiguationByHumanSelection:
                 self._make_item(), 0
             )
 
+    def test_reads_the_right_chip_out_of_two_simultaneously_open_drug_search_boxes(
+        self, page: Page
+    ) -> None:
+        """
+        BUG FIX #2 (2026-08, PO-confirmed via real DOM inspection of the
+        actual line-item table): medicine.drug_search_box
+        (#drugSearchBoxId) is NOT page-wide-unique -- PO observed a real
+        count of 2 with two rows simultaneously in edit mode, one
+        already selected and one still empty. This fixture models
+        EXACTLY that: two '#drugSearchBoxId' elements exist
+        unconditionally (one per search input), and this test explicitly
+        asserts there are 2 of them at read time, only one of which has
+        a chip -- proving _selected_match_container_locator's
+        filter-by-content approach picks the right one instead of
+        assuming a fixed position/count.
+        """
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=5_000
+        )
+        disambiguation_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?auto_select_medicine_code=TH7&auto_select_medicine_after_ms=200"
+        )
+
+        disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item(), 0
+        )
+
+        assert page.evaluate("document.querySelectorAll('#drugSearchBoxId').length") == 2
+        containing_chip = page.evaluate(
+            "[...document.querySelectorAll('#drugSearchBoxId')]"
+            ".filter(el => el.querySelector('.ui-select-match-item')).length"
+        )
+        assert containing_chip == 1
+        assert page.evaluate("window.medicineResultClickLog") == ["TH7"]
+
+    def test_more_than_one_chip_at_once_fails_cleanly_not_a_silent_guess(
+        self, page: Page
+    ) -> None:
+        """
+        Defensive case PO explicitly asked for: if _selected_match_container_locator
+        ever finds MORE than one drug_search_box simultaneously containing
+        a chip (an unexpected state -- not the normal "still waiting"
+        one), it must raise a clear error instead of arbitrarily picking
+        one. Simulated by injecting a second, decoy chip into the OTHER
+        (normally empty) drug_search_box right as the real one appears.
+        """
+        from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
+            VerificationFailedError,
+        )
+
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=3_000
+        )
+        disambiguation_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=200"
+        )
+        # Decoy: injects a second chip into subsequent-line-search's own
+        # (otherwise empty) drug_search_box shortly after the real
+        # selection, simulating two rows simultaneously showing a chip.
+        page.evaluate(
+            """
+            () => {
+              setTimeout(() => {
+                const decoyBox = document.getElementById("subsequent-line-search").parentNode;
+                const chip = document.createElement("span");
+                chip.className = "ui-select-match-item btn btn-default btn-xs";
+                chip.innerHTML =
+                  '<span class="close ui-select-match-close">&times;</span>' +
+                  '<span><span class="ng-binding ng-scope">DECOY - Other Row</span></span>';
+                decoyBox.insertBefore(chip, document.getElementById("subsequent-line-search"));
+              }, 400);
+            }
+            """
+        )
+
+        with pytest.raises(VerificationFailedError, match="Part 3"):
+            disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
+                self._make_item(), 0
+            )
+
 
 class TestUpdateRetailPricesAfterSave:
     """

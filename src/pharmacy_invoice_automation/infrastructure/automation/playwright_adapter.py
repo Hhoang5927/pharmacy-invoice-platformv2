@@ -806,7 +806,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         """
         self._log_manufacturer_suggestions(matches, supplier)
         self._wait_for_human_medicine_selection(search_key)
-        code = self._read_selected_medicine_code(search_key)
+        code = self._read_selected_medicine_code()
         self._persist_website_catalog_code(item, code)
 
     def _log_manufacturer_suggestions(self, matches: Locator, supplier: Supplier | None) -> None:
@@ -884,17 +884,10 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         return value or None
 
     _HUMAN_SELECTION_POLL_INTERVAL_MS = 200
-    # TEMPORARY DIAGNOSTIC (2026-08): PO ruled out the race-condition
-    # theory via a real dry-run -- clicked the correct --dry-run browser
-    # window, waited the full 180s (a genuine timeout, not an early
-    # false alarm), and it still failed. Next real suspect: the two
-    # registry entries (medicine.selected_match_chip/its own
-    # aria-expanded read) may simply not match the LIVE site's actual
-    # DOM, even though they match this project's own local fixture.
-    # Logs the raw per-tick values below (throttled to avoid flooding)
-    # so the next real dry-run run tells us directly which of the two
-    # conditions is really the problem, instead of guessing from a
-    # static snapshot again. Remove this block once root-caused.
+    # TEMPORARY DIAGNOSTIC (2026-08): kept per PO's own explicit request,
+    # to self-confirm the corrected locating method below (medicine.drug_search_box
+    # + filter-by-chip-presence) before removing this. Logs the raw
+    # per-tick values, throttled to avoid flooding.
     _HUMAN_SELECTION_DIAGNOSTIC_LOG_INTERVAL_MS = 2_000
 
     def _wait_for_human_medicine_selection(self, search_key: str) -> None:
@@ -910,41 +903,66 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
         BUG FIX (2026-08, PO-confirmed via a real dry-run -- CRITICAL,
         race condition): the original implementation checked these as
-        TWO SEPARATE, SEQUENTIAL expect() calls -- aria-expanded first
-        (its own full timeout budget), THEN the chip's visibility
-        (a much shorter, independently-bounded follow-up wait). PO's own
-        decisive, real click made the first check resolve almost
-        instantly, but the run then failed within seconds on the SECOND
-        check -- the exact same root-cause class already fixed for
-        _wait_for_row_settled and the Phase 1 medicine-selection settle
-        wait (_MEDICINE_SELECTION_SETTLE_MS's own docstring): AngularJS
-        needs a real, non-instant digest cycle between updating
-        aria-expanded and actually rendering the chip into the DOM, and
-        a second check bounded by its own SHORT, independent timeout
-        (rather than sharing the full remaining budget) can time out on
-        exactly that real, human-paced gap even though the selection
-        genuinely completed. Fixed the same way as those precedents:
-        both conditions are polled TOGETHER, every tick, across the
-        FULL configured timeout -- success requires observing both true
-        in the SAME tick, never short-circuiting into a second,
-        independently-bounded wait once the first condition alone is
-        satisfied.
+        TWO SEPARATE, SEQUENTIAL expect() calls -- fixed by polling both
+        together every tick across the FULL configured timeout (see git
+        history of this method for the full incident). PO then RULED
+        OUT this theory entirely via a second real dry-run (correct
+        browser window, waited the full 180s, still failed) and a
+        temporary diagnostic log proved aria-expanded flipped correctly
+        every time while the chip locator matched 0 elements FOREVER --
+        a pure locator bug, not a timing one.
+
+        BUG FIX #2 (2026-08, PO-confirmed via real DOM inspection of the
+        actual line-item table -- CRITICAL, wrong anchor entirely): the
+        chip was never actually a sibling of the search input at all --
+        that assumption was copied from the SUPPLIER field's structure
+        (a page-wide-unique widget) without verifying the MEDICINE
+        line-item table's own structure, which is different: each row's
+        widget lives inside its own 'medicine.drug_search_box'
+        (#drugSearchBoxId) container, rendered only while that row is
+        being edited (ng-if="gridItem.IsEditingItem") -- and PO confirmed
+        this id is NOT page-wide-unique either (can repeat across
+        concurrently-editing rows, count observed as high as 2). Fixed
+        by filtering that container set down to whichever ONE element
+        actually contains the chip (_selected_match_container_locator),
+        never assuming a fixed position/count -- see that method and
+        medicine.drug_search_box's own registry notes for the full
+        evidence trail.
 
         Raises VerificationFailedError -- never silently continues, never
         guesses a row -- if both conditions are never observed true
-        together within the timeout.
+        together within the timeout, OR immediately if more than one
+        drug_search_box element simultaneously contains a chip (an
+        unexpected state this project refuses to resolve by guessing
+        which one is "this" row's).
         """
         entry = self._registry.require_usable(search_key)
         input_locator = self._locate(entry)
-        chip_locator = self._selected_match_chip_locator(input_locator)
         deadline = time.monotonic() + (self._config.human_disambiguation_timeout_ms / 1000)
         next_diagnostic_log_at = time.monotonic()
         while True:
-            if self._human_medicine_selection_is_complete(input_locator, chip_locator):
+            aria_expanded = self._safe_get_attribute(input_locator, "aria-expanded")
+            matching_container_count = self._safe_locator_count(
+                self._selected_match_container_locator()
+            )
+            if matching_container_count > 1:
+                raise VerificationFailedError(
+                    "Part 3: found "
+                    f"{matching_container_count} 'medicine.drug_search_box' elements "
+                    "simultaneously containing a selected-match chip -- cannot tell which one "
+                    "is this line's own row. Refusing to guess -- this is an unexpected state, "
+                    "not a normal 'still waiting' one."
+                )
+            if aria_expanded == "false" and matching_container_count == 1:
                 return
             now = time.monotonic()
             if now >= next_diagnostic_log_at:
-                self._log_human_medicine_selection_diagnostic(input_locator, chip_locator)
+                self._logger.info(
+                    "Part 3 DIAGNOSTIC: aria-expanded=%r, drug_search_box elements containing "
+                    "a chip=%r",
+                    aria_expanded,
+                    matching_container_count,
+                )
                 next_diagnostic_log_at = now + (
                     self._HUMAN_SELECTION_DIAGNOSTIC_LOG_INTERVAL_MS / 1000
                 )
@@ -960,92 +978,80 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 )
             self._page.wait_for_timeout(self._HUMAN_SELECTION_POLL_INTERVAL_MS)
 
-    def _log_human_medicine_selection_diagnostic(
-        self, input_locator: Locator, chip_locator: Locator
-    ) -> None:
-        """TEMPORARY DIAGNOSTIC -- see _HUMAN_SELECTION_DIAGNOSTIC_LOG_INTERVAL_MS's own comment."""
+    @staticmethod
+    def _safe_get_attribute(locator: Locator, name: str) -> str | None:
+        """Non-raising attribute read for the poll loop -- a transient Playwright error
+        (e.g. the element briefly detached mid-digest) is treated as "value unknown yet",
+        not a hard failure."""
         try:
-            aria_expanded = input_locator.get_attribute("aria-expanded")
-        except Exception as exc:  # noqa: BLE001
-            aria_expanded = f"<error reading attribute: {exc}>"
-        try:
-            chip_count = chip_locator.count()
-        except Exception as exc:  # noqa: BLE001
-            chip_count = f"<error counting: {exc}>"  # type: ignore[assignment]
-        try:
-            chip_visible = chip_locator.is_visible() if chip_count == 1 else False
-        except Exception as exc:  # noqa: BLE001
-            chip_visible = f"<error checking visibility: {exc}>"  # type: ignore[assignment]
-        self._logger.info(
-            "Part 3 DIAGNOSTIC: aria-expanded=%r, chip_locator matched %r element(s), "
-            "chip_visible=%r",
-            aria_expanded,
-            chip_count,
-            chip_visible,
-        )
+            return locator.get_attribute(name)
+        except Exception:  # noqa: BLE001
+            return None
 
     @staticmethod
-    def _human_medicine_selection_is_complete(
-        input_locator: Locator, chip_locator: Locator
-    ) -> bool:
-        """
-        One atomic-enough tick of Part 3's combined poll -- both checks
-        are plain, non-waiting Playwright reads (no auto-retry of their
-        own), so there is no gap in which one could be re-evaluated
-        against a DOM state the other has already moved past. A
-        transient Playwright error (e.g. the input briefly detached
-        mid-digest) is treated as "not complete yet, keep polling"
-        rather than a hard failure -- this is exactly the kind of
-        momentary DOM churn the whole combined-poll fix exists to
-        tolerate.
-        """
+    def _safe_locator_count(locator: Locator) -> int:
+        """Non-raising count read for the poll loop -- same "transient error means keep
+        polling" contract as _safe_get_attribute."""
         try:
-            return input_locator.get_attribute("aria-expanded") == "false" and (
-                chip_locator.is_visible()
-            )
+            return locator.count()
         except Exception:  # noqa: BLE001
-            return False
+            return 0
 
-    def _selected_match_chip_locator(self, input_locator: Locator) -> Locator:
+    def _selected_match_container_locator(self) -> Locator:
         """
-        Locates medicine.selected_match_chip RELATIONALLY to an already-
-        resolved row-aware search-input locator -- its own immediately
-        preceding sibling matching that registry entry's css class --
-        mirroring the PO-confirmed real snapshot's own immediate-sibling
-        structure (chip directly followed by the input). Deliberately
-        not a standalone page-wide lookup: with multiple line items,
-        each row has its own such chip once selected, and only THIS
-        row's is wanted.
+        Locates the ONE medicine.drug_search_box (#drugSearchBoxId)
+        element that currently contains a medicine.selected_match_chip.
+        NOT scoped by row position/index -- PO confirmed
+        #drugSearchBoxId repeats across concurrently-editing rows (not
+        page-wide-unique, and its own count is not stable), and there is
+        no reliable way for this method to predict which numeric
+        position corresponds to "this" row's own widget. Filtering by
+        which container actually HAS a chip instead is robust to that:
+        whichever row a human just finished selecting for is the one
+        that will match, regardless of how many other rows happen to be
+        open/edited at the same moment.
         """
+        drug_search_box_entry = self._registry.require_usable("medicine.drug_search_box")
         chip_entry = self._registry.require_usable("medicine.selected_match_chip")
+        assert drug_search_box_entry.strategy == "css" and drug_search_box_entry.value is not None
         assert chip_entry.strategy == "css" and chip_entry.value is not None
-        class_name = chip_entry.value.lstrip(".")
-        return input_locator.locator(
-            f"xpath=preceding-sibling::*[contains(concat(' ', normalize-space(@class), ' '), "
-            f"' {class_name} ')][1]"
+        return self._page.locator(drug_search_box_entry.value).filter(
+            has=self._page.locator(chip_entry.value)
         )
 
-    def _read_selected_medicine_code(self, search_key: str) -> str:
+    def _read_selected_medicine_code(self) -> str:
         """
-        Reads the real site's own SDK code back from the now-visible
+        Reads the real site's own SDK code back from the now-confirmed
         selected-match chip's own nested code-label element
         (medicine.selected_match_chip_code_label -- deliberately NOT the
         chip's own inner_text(), which also contains its close button's
         '×'), whose text is '{code} - {tên thuốc}' (PO-confirmed real
         snapshot -- same shape medicine.search_result_option_by_code
-        already relies on) -- the part before the first ' - '.
+        already relies on) -- the part before the first ' - '. Located
+        via _selected_match_container_locator (filter-by-content), not
+        relative to any specific row's search input -- see that method's
+        own docstring for why a position/index-based approach was
+        rejected.
         """
-        entry = self._registry.require_usable(search_key)
-        input_locator = self._locate(entry)
-        chip_locator = self._selected_match_chip_locator(input_locator)
+        chip_entry = self._registry.require_usable("medicine.selected_match_chip")
         code_label_entry = self._registry.require_usable("medicine.selected_match_chip_code_label")
+        assert chip_entry.strategy == "css" and chip_entry.value is not None
         assert code_label_entry.strategy == "css" and code_label_entry.value is not None
-        chip_text = chip_locator.locator(code_label_entry.value).inner_text().strip()
-        code = chip_text.split(" - ", 1)[0].strip()
+        container = self._selected_match_container_locator()
+        container_count = container.count()
+        if container_count != 1:
+            raise VerificationFailedError(
+                "Part 3: expected exactly 1 'medicine.drug_search_box' element containing a "
+                f"selected-match chip when reading back its code, found {container_count}. "
+                "Refusing to guess which one is this line's own row."
+            )
+        chip_text = container.locator(chip_entry.value).locator(code_label_entry.value)
+        chip_text_value = chip_text.inner_text().strip()
+        code = chip_text_value.split(" - ", 1)[0].strip()
         if not code:
             raise VerificationFailedError(
                 f"Part 3: could not parse a website catalog code from the selected chip's own "
-                f"text ('{chip_text}')."
+                f"text ('{chip_text_value}')."
             )
         return code
 
@@ -1230,6 +1236,24 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
     # is real, already-confirmed evidence for exactly the right scope
     # (medicine.add_new_trigger's own registry notes: "#tblMain is the
     # invoice line-item table") -- not a new guess.
+    #
+    # FLAGGED, NOT YET FIXED (2026-08, PO-confirmed via direct real DOM
+    # inspection while chasing an UNRELATED medicine.selected_match_chip
+    # bug): the claim above ("#tblMain is the invoice line-item table")
+    # is WRONG -- #tblMain is actually the "Thêm mới thuốc" (create-
+    # medicine) DIALOG's own inner table (has "Nhóm thuốc"/"Mã thuốc"
+    # fields), a long-standing mislabeling, not a new regression. Every
+    # real --dry-run run so far has happened to pass anyway (PO's own
+    # words: "may mắn không gây hậu quả nghiêm trọng... tình cờ đúng
+    # ngữ cảnh") -- consistent with #tblMain being a real but LARGER
+    # container that also happens to wrap the true line-item table as a
+    # descendant, not proof this scope is actually correct/safe in
+    # every case. DO NOT silently "fix" this by guessing a replacement
+    # -- needs the real line-item table's own container id/class from a
+    # fresh PO DOM snapshot first (same standard as every other anchor
+    # in this file). Tracked for a follow-up pass; left unchanged here
+    # since real --dry-run evidence has not yet shown this scope
+    # actually failing for _wait_for_row_settled's own purpose.
     _LINE_ITEMS_TABLE_SCOPE = "#tblMain"
 
     def _line_item_rows(self) -> Locator:

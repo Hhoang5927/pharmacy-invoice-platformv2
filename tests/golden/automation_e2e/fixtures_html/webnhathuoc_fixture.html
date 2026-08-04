@@ -389,11 +389,23 @@
         CONTENT, not accessible name, so the visible "Đóng" text is
         still needed too -- this needs both.
       -->
-      <div role="cell" aria-label="Đóng">Đóng<input type="text" role="combobox" id="first-line-search" aria-expanded="true" /></div>
+      <!--
+        medicine.drug_search_box (PO-confirmed 2026-08 via a real DOM
+        snapshot of the actual line-item table, NOT the create-medicine
+        dialog -- see #tblMain's own correction elsewhere in this file):
+        each row's real medicine-search widget (input + dropdown + the
+        eventual selected-match chip) lives inside its own
+        '<div id="drugSearchBoxId">' -- NOT page-wide-unique, PO
+        confirmed a real count of 2 with two rows simultaneously in
+        edit mode. Modeled here as two SEPARATE elements sharing the
+        SAME id (matching that real non-uniqueness), one wrapping each
+        of this fixture's two search inputs.
+      -->
+      <div role="cell" aria-label="Đóng">Đóng<div id="drugSearchBoxId"><input type="text" role="combobox" id="first-line-search" aria-expanded="true" /></div></div>
     </div>
   </div>
   <input type="text" role="combobox" aria-label="Select box" disabled />
-  <input type="text" role="combobox" aria-label="Select box" id="subsequent-line-search" aria-expanded="true" />
+  <div id="drugSearchBoxId"><input type="text" role="combobox" aria-label="Select box" id="subsequent-line-search" aria-expanded="true" /></div>
   <div role="table" id="medicine-search-results-table">
     <div role="row"><div role="cell"><b data-medicine-result="TH1">TH1 - Paracetamol 500mg</b><span class="info-item"> - Ton: 10 (Hop)</span></div></div>
     <div role="row"><div role="cell"><b data-medicine-result="TH2">TH2 - Amoxicillin 500mg</b><span class="info-item"> - Ton: 5 (Hop)</span></div></div>
