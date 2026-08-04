@@ -7,6 +7,7 @@ therefore does not naturally belong to any single one of them (Stage 04).
     PricePolicy                  -- total-consistency + price-source policy
     MedicineValidationService    -- cross-catalog medicine classification/coding
     PurchasePolicy                -- supplier/medicine resolution + duplicate checks
+    SupplementClassificationService -- supplement/functional-food line detection
 
 Replaces the prior domain.rules package (free functions); see each
 service's own docstring for exactly which prior rule it folds in.
@@ -24,6 +25,9 @@ from pharmacy_invoice_automation.domain.services.purchase_policy import (
     PurchasePolicy,
     SupplierResolution,
 )
+from pharmacy_invoice_automation.domain.services.supplement_classification_service import (
+    SupplementClassificationService,
+)
 from pharmacy_invoice_automation.domain.services.tax_calculation_service import (
     TaxCalculationService,
 )
@@ -36,4 +40,5 @@ __all__ = [
     "PurchasePolicy",
     "SupplierResolution",
     "MedicineResolution",
+    "SupplementClassificationService",
 ]

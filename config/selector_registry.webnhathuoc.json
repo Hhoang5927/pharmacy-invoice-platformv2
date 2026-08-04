@@ -1,6 +1,555 @@
 {
   "site": "webnhathuoc.com",
-  "version": 1,
-  "description": "PLACEHOLDER selector registry. Populated in Prompt 05 (Infrastructure) per Technical Design Document Section 8.2 and Workflow Specifications (Login, Open Import Invoice, Create Supplier, Create Medicine). No selector is ever hardcoded in automation code -- every locator lives here.",
-  "selectors": {}
+  "version": 22,
+  "base_url": "https://webnhathuoc.com/home/",
+  "description": "Externalized Playwright locators for webnhathuoc.com, keyed by logical, human-readable element name. No selector is ever hardcoded in automation code -- every locator used by infrastructure.automation.playwright_adapter must be looked up from this file via infrastructure.automation.selector_registry.selector_registry_loader.",
+  "provenance": "Entries with status 'confirmed' are transcribed verbatim (locator only, never the recorded fill values) from real Playwright codegen recordings supplied as ground truth: 01_login.py, 02_open_import_invoice.py, 03_create_supplier.py, 04_create_medicine.py (2026-07-31), 05_full_flow_existing_supplier_medicine.py + 05a_full_flow_new_supplier_medicine_search_draft.py (2026-08), and 06_multi_line_items.py (2026-08, 5 line items in one invoice -- the first recording to show the real multi-line fill sequence and revealed that the per-line quantity/price/VAT fields are a single SHARED set, not per-row-suffixed as earlier evidence had suggested; see invoice_line.quantity_field's notes). A separate, non-script source also feeds this file: table_structure.html (2026-08), a real live-DOM snapshot (not a recording) of the invoice line-items table with 5 stable rows, which resolved the row-scoping question 06_multi_line_items.py's tbody:nth-child(N) evidence could not (see invoice_line.select_row_for_batch_button and the row-id-suffix formula referenced by invoice_line.quantity_field/unit_price_field/vat_field/discount_field). All script sources live in docs/reference/automation_scripts/ and are gitignored -- several contain real credentials, never committed; table_structure.html was described directly by the PO rather than supplied as a file in this repo. Entries with status 'derived' extend a confirmed structural pattern using a business rule confirmed separately by the Product Owner, or a reasonable inference from surrounding confirmed evidence (documented per-entry). Entries with status 'needs_verification' are not evidenced by any recording or PO confirmation and MUST be captured from a fresh Playwright codegen session (or manually verified against the live site) before PlaywrightBrowserAutomationProvider relies on them -- do not treat their 'value' as production-ready.",
+  "selectors": {
+    "login.navigate": {
+      "strategy": "goto",
+      "status": "confirmed",
+      "value": "https://webnhathuoc.com/home/",
+      "source": "01_login.py:9",
+      "notes": null
+    },
+    "login.open_login_dialog_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Đăng nhập",
+      "nth": 1,
+      "source": "05_full_flow...py:10; 05a_...py:10",
+      "notes": "CONFLICT WITH EARLIER EVIDENCE, not silently resolved: 01_login.py recorded this as .first (nth=0), but both newer recordings (05 and 05a, 2026-08) independently use .nth(1). Updated to nth=1 on a 2-of-3 majority from the more recent recordings, but this positional index is evidently not perfectly stable across sessions -- flag as a priority target for a live selector smoke test before trusting it in production. If it breaks, try nth=0 as a fallback."
+    },
+    "login.username_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Nhập tài khoản đăng nhập của",
+      "source": "01_login.py:11-12; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Accessible name is truncated in the recording (the site's own placeholder text is longer); Playwright's default substring name matching still resolves it. Do not pass exact=true with this truncated string."
+    },
+    "login.password_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Nhập mật khẩu đăng nhập của b",
+      "source": "01_login.py:13-15; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Same truncated-name caveat as login.username_field."
+    },
+    "login.submit_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Đăng Nhập",
+      "source": "01_login.py:16; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Distinct element from login.open_login_dialog_button -- capitalization of 'Nhập' differs between the two recorded button names ('Đăng nhập' opens the dialog, 'Đăng Nhập' submits it) and is preserved verbatim; do not normalize casing."
+    },
+    "login.close_notification_popup": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "a",
+      "filter_has_text": "Đóng",
+      "source": "05_full_flow...py:16; 05a_...py:16",
+      "notes": "The 'Đóng' popup shown after login (a CSDL DQG notice, per PO). Base locator is every <a> tag on the page, filtered to the one containing 'Đóng' text -- broad by construction (mirrors the recording exactly), so the Provider must treat this as OPTIONAL/best-effort: attempt the close, and proceed normally if no matching element is found within a short timeout, since PO confirmed this popup does not always appear. Distinct element from supplier.creation_confirmation_close_button (a <button>, not an <a>) despite both showing 'Đóng' text. BUG FIX (2026-08, PO-confirmed via two consecutive real --dry-run runs): the first run's own newly-added log line ('not present, skipped') proved this is a genuine TIMING issue, not a wrong selector -- the popup was still visible on screen moments later. login() now uses PlaywrightBrowserAutomationProvider._click_if_eventually_visible (expect().to_be_visible() with its own longer, dedicated 8-second timeout, same real-DOM-polling mechanism as _wait_for_row_settled) instead of the short, generic _click_if_present used by every other optional-click site. This is a timeout increase grounded in real evidence, not a guess at a new selector -- the value/filter_has_text above are unchanged."
+    },
+    "login.session_indicator": {
+      "strategy": null,
+      "status": "needs_verification",
+      "source": null,
+      "notes": "Still no recording exercises is_session_valid(). Needs a locator for an element only present when authenticated (e.g. an account menu / logout control) so the Provider can check session validity without a full navigation round-trip."
+    },
+    "open_import_invoice.menu_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Nhập Xuất ",
+      "source": "02_open_import_invoice.py:10; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Trailing space in the accessible name is preserved verbatim from the recording."
+    },
+    "open_import_invoice.submenu_link": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "link",
+      "name": "Nhập hàng",
+      "source": "02_open_import_invoice.py:11; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": null
+    },
+    "open_import_invoice.add_new_button": {
+      "strategy": "title",
+      "status": "not_applicable",
+      "value": "Thêm mới",
+      "nth": 2,
+      "source": "02_open_import_invoice.py:12; reused identically in 04_create_medicine.py:10 and 05_full_flow...py:52 (first invocation).",
+      "notes": "ROOT CAUSE, CONFIRMED AND FIXED (2026-08, PO-confirmed via a real screenshot of the live \"Nhập Xuất\" -> \"Nhập hàng\" flow, no longer a hypothesis): clicking \"Nhập hàng\" already lands directly on a fresh, ready-to-use \"PHIẾU NHẬP HÀNG\" form -- this third click was never needed on this account/site state. PO enumerated the REAL three \"Thêm mới\"-titled buttons that exist on that already-open form: (1) add supplier, (2) add another line item, (3) add a new medicine (\"Thêm mới thuốc\" -- exactly open_import_invoice.stray_add_product_dialog's #add-product-dialog). This entry's own get_by_title(\"Thêm mới\").nth(2) was landing on (3), not opening a new invoice at all. REMOVED from open_import_invoice_form() entirely -- no replacement click needed. Kept in the registry (status not_applicable, not deleted) as a historical record of a genuine root-cause investigation, per this project's own provenance-preservation practice. The two secondary source citations (04_create_medicine.py:10, 05_full_flow...py:52) were re-examined during that investigation and found to likely never have been genuine \"opens a new invoice\" evidence either (see prior notes revision in git history) -- only 02_open_import_invoice.py:12's own minimal script ever supported this entry, and even that recording's own reason for including this click (an account/site state where \"Nhập hàng\" led to a list needing an explicit \"create new\" action, unlike the direct-to-form landing now confirmed) is understood only as a plausible explanation, not independently re-verified -- moot either way, since the click is removed regardless of why it was originally recorded."
+    },
+    "open_import_invoice.stray_add_product_dialog": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#add-product-dialog.in",
+      "source": "PO's own real --dry-run error report (2026-08, reproduced twice, stable): a click:supplier.add_new_trigger failure (pointer events intercepted) surfaced this exact dialog -- id=\"add-product-dialog\" (\"Thêm mới thuốc\"), Bootstrap's own \"in\" class marking it visible -- already open immediately after open_import_invoice_form() completed, before any other interaction. Presence-only selector (detection, never a guessed close action).",
+      "notes": "ROOT CAUSE CONFIRMED AND FIXED (2026-08, PO-confirmed via real screenshot, no longer a hypothesis): open_import_invoice.add_new_button's own extra, unnecessary third click was landing directly on this dialog's own trigger (\"Thêm mới thuốc\", one of 3 real \"Thêm mới\" buttons on the already-open invoice form) instead of opening a new invoice -- removed from open_import_invoice_form() entirely; see that entry's own notes for the full analysis. This was NOT a stray/incomplete-draft-invoice-on-the-server issue as first suspected. This defensive check itself (open_import_invoice_form() still checks this right after its now-2-click sequence) is KEPT regardless, as a genuine second line of defense -- fails cleanly with a clear diagnostic instead of the opaque pointer-event-blocked Playwright timeout this previously surfaced as, should this dialog ever appear for a genuinely different reason in the future. Deliberately does NOT attempt to click any close/cancel control inside this dialog -- no real DOM evidence names which specific element that is, and guessing risks submitting a real, unintended medicine-creation dialog on the live site."
+    },
+    "supplier.add_new_trigger": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "description": "Thêm mới nếu chưa có",
+      "exact": true,
+      "scope": "#receiptNoteViewId",
+      "source": "03_create_supplier.py:10; reused identically in 05_full_flow...py:21 and 05a_...py:20. Scope corrected 2026-08 per a REAL Playwright strict-mode-violation error from a live --dry-run run, which enumerated its own two disambiguating candidate locators directly: (1) locator(\"#receiptNoteViewId\").get_by_title(\"Thêm mới nếu chưa có\") -- the real addSupplier() trigger; (2) locator(\"#tblMain\").get_by_title(\"Thêm mới nếu chưa có\") -- a DIFFERENT button, ng-click=\"addDrugGroup()\" (not confirmed to be the same element as medicine.add_new_trigger despite the identical title text -- flagged, not resolved, see that entry's notes). This is runtime-verified evidence (Playwright itself determined #receiptNoteViewId is a valid, suffiently-narrow ancestor that does not also contain the #tblMain button), not a DOM-snapshot guess.",
+      "notes": "Opens #create-supplyer-dialog, used when the supplier field on the invoice form has no matching existing supplier. Scoping history, most recent first (2026-08, PO-confirmed): (3, current) #receiptNoteViewId -- broader than #supplierSearchBoxId (the trigger is a SIBLING of that container, not a descendant -- see supplier.search_input's own history) but still narrow enough to exclude #tblMain, per a real strict-mode-violation error's own suggested candidates. (2, reverted) #supplierSearchBoxId -- wrong, excluded the real element entirely, caught by a live --dry-run timeout. (1, original) unscoped/page-wide -- the real-recording-evidenced form, worked historically only because #tblMain's own trigger was not yet in the DOM at this point in every recorded flow; the real strict-mode error now proves that assumption breaks in at least one real run, which is exactly why a real scope was needed instead of continuing to rely on DOM sequencing."
+    },
+    "supplier.default_tag_remove_button": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": ".close.ui-select-match-close",
+      "source": "05_full_flow...py:19-20; 05a_...py:19",
+      "notes": "Removes the invoice form's default 'Hàng nhập lẻ' supplier tag before searching for the real supplier (PO-confirmed required step). 05_full_flow...py additionally clicked page.get_by_text(\"× Hàng nhập lẻ\") immediately before this -- 05a_...py achieves the same removal with only this single css click, so that extra text click is treated as non-essential/exploratory and not carried into this entry. If a click on this alone does not work in practice, try clicking supplier.default_tag_text first (get_by_text, value='× Hàng nhập lẻ') as a fallback -- not registered as its own key since it was not confirmed to be necessary."
+    },
+    "supplier.dialog_root": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#create-supplyer-dialog",
+      "source": "03_create_supplier.py:11-18; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Element id preserves the site's own spelling ('supplyer', not 'supplier') verbatim -- do not 'fix' this typo, it must match the live DOM."
+    },
+    "supplier.name_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#create-supplyer-dialog > .modal-dialog > .modal-content > .modal-body > .row > .col-md-12 > .table > tbody > tr:nth-child(1) > td:nth-child(2) > .form-control",
+      "nth": 0,
+      "source": "03_create_supplier.py:11-12; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Row 1 of the dialog's field table = Tên nhà cung cấp, per the PO-confirmed field order (Tên nhà cung cấp -> Số điện thoại -> Địa chỉ -> Mã số thuế -> Mã vạch -> Ghi chú)."
+    },
+    "supplier.phone_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#create-supplyer-dialog > .modal-dialog > .modal-content > .modal-body > .row > .col-md-12 > .table > tbody > tr:nth-child(2) > td:nth-child(2) > .form-control",
+      "source": "03_create_supplier.py:13-14; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Row 2 = Số điện thoại."
+    },
+    "supplier.address_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#create-supplyer-dialog > .modal-dialog > .modal-content > .modal-body > .row > .col-md-12 > .table > tbody > tr:nth-child(3) > td:nth-child(2) > .form-control",
+      "source": "03_create_supplier.py:15-16; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Row 3 = Địa chỉ."
+    },
+    "supplier.tax_code_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#create-supplyer-dialog > .modal-dialog > .modal-content > .modal-body > .row > .col-md-12 > .table > tbody > tr:nth-child(4) > td:nth-child(2) > .form-control",
+      "source": "03_create_supplier.py:17-18; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "Row 4 = Mã số thuế."
+    },
+    "supplier.barcode_field": {
+      "strategy": "css",
+      "status": "derived",
+      "value": "#create-supplyer-dialog > .modal-dialog > .modal-content > .modal-body > .row > .col-md-12 > .table > tbody > tr:nth-child(5) > td:nth-child(2) > .form-control",
+      "source": null,
+      "notes": "Row 5 = Mã vạch, per the PO-confirmed field order applied to the same confirmed row pattern as rows 1-4. Still never exercised by any recording -- per explicit PO instruction this field is auto-generated and must NEVER be filled by the Provider."
+    },
+    "supplier.note_field": {
+      "strategy": "css",
+      "status": "derived",
+      "value": "#create-supplyer-dialog > .modal-dialog > .modal-content > .modal-body > .row > .col-md-12 > .table > tbody > tr:nth-child(6) > td:nth-child(2) > .form-control",
+      "source": null,
+      "notes": "Row 6 = Ghi chú, per the PO-confirmed field order applied to the same confirmed row pattern as rows 1-4. Still not exercised by any recording (only rows 1-4 were ever filled) -- verify row index against the live dialog before relying on this in production."
+    },
+    "supplier.submit_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Thêm mới",
+      "scope": "#create-supplyer-dialog",
+      "source": "03_create_supplier.py:19; reused identically in 05_full_flow...py and 05a_...py",
+      "notes": "The visible label 'Thêm mới' is shared with medicine.group_submit_button and medicine.submit_button elsewhere on the site -- the Provider must always scope this locator to the dialog_root to avoid strict-mode ambiguity."
+    },
+    "supplier.creation_confirmation_close_button": {
+      "strategy": "role",
+      "status": "derived",
+      "role": "button",
+      "name": "Đóng",
+      "nth": 0,
+      "source": "05_full_flow...py:35",
+      "notes": "A <button> (not the <a> used by login.close_notification_popup, despite the same 'Đóng' text) that appears after supplier.submit_button + medicine.create_dialog_close_button, presumably confirming the new supplier was created. Not exercised in 05a_...py's shorter recording, so treated as possibly optional/conditional -- status 'derived' rather than 'confirmed' pending a run that isolates this specific step."
+    },
+    "supplier.search_input": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#supplierSearchBoxId input[type=search]",
+      "source": "PO direct DOM inspection (2026-08) -- REPLACES the prior role=row-scoped approach entirely (see git history of this entry). Verified via real live-page Console checks, not a recording: document.querySelectorAll('#itemSearchUISelectID').length === 42 first proved the id used for the 'Mat hang' (medicine) search box is NOT unique and must never be used as a selector for anything; document.querySelectorAll('#supplierSearchBoxId').length === 1 then confirmed this container id IS unique on the real invoice form.",
+      "notes": "REVISED, root-caused fix for the real --dry-run failure this PO chased down across several rounds (PO-confirmed 2026-08, final): the prior approach scoped via role=row name='Nha cung cap:  LS Tong no: S' -- that name embeds the supplier's own OUTSTANDING DEBT FIGURE ('LS Tong no: ...'), a value that differs per supplier/session, so it only ever worked by coincidence during the one recording that produced it and legitimately times out against any other real debt value. #supplierSearchBoxId is PO-verified unique and wraps the whole supplier search block (search input, suggestion list, and the 'Them moi neu chua co'/add-new trigger -- see supplier.add_new_trigger, now scoped into this same container) -- this css selector needs no accessible-name matching and so has no dependency on any dynamic text at all. Distinct from #itemSearchUISelectID (the medicine/'Mat hang' search box's own id), which is PO-confirmed to appear 42 times on the real page and must never be used as a selector under any circumstance."
+    },
+    "supplier.search_result_option": {
+      "strategy": "text",
+      "status": "confirmed",
+      "value": "Công ty cổ phần Traphaco - 75",
+      "exact": false,
+      "source": "05_full_flow...py:40",
+      "notes": "Recorded value is the literal example text clicked ('{Tên nhà cung cấp} - {đầu Địa chỉ}'), NOT a fixed string -- select_supplier(name) must substitute the runtime supplier name for the 'value' here (e.g. get_by_text(name, exact=False)), relying on Playwright's substring match to find the right result without needing the full address suffix."
+    },
+    "medicine.add_new_trigger": {
+      "strategy": "title",
+      "status": "confirmed",
+      "value": "Thêm mới nếu chưa có",
+      "scope": "#tblMain",
+      "source": "04_create_medicine.py:11",
+      "notes": "#tblMain is the invoice line-item table; this trigger fires when a typed medicine name has no existing match on the current line. UNCHANGED, verified still structurally correct (2026-08) when supplier.add_new_trigger's own scope was corrected -- confirmed as candidate (2) in that real strict-mode-violation error, locator(\"#tblMain\").get_by_title(\"Thêm mới nếu chưa có\"), so this entry's own locator resolution is not affected either way. FLAGGED, not fixed (needs its own PO confirmation, not resolved here): that same real error log showed this exact element's ng-click is \"addDrugGroup()\", not an add-medicine-sounding handler -- open whether this trigger actually opens a MEDICINE creation dialog (this entry's own name/notes) or a DRUG GROUP creation dialog (medicine.group_dialog_root's own separate flow), or whether \"addDrugGroup\" is simply this site's real internal name for what is, in the UI, medicine creation. Do not assume either reading; verify against the real dialog that opens before relying on this distinction."
+    },
+    "medicine.group_dialog_root": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#create-drug-group-dialog",
+      "source": "04_create_medicine.py:12-17,19-30",
+      "notes": "OPEN QUESTION for the PO, not resolved unilaterally: 05_full_flow...py never opens this dialog at all -- it selects the medicine group via a plain <select> instead (see medicine.group_select_existing). Both may be real (this dialog for the rare case a group truly does not exist yet vs. the dropdown for the common case both groups already exist), but this has not been confirmed. Do not assume this dialog is obsolete."
+    },
+    "medicine.group_name_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": ".col-md-12 > .table > tbody > tr > td:nth-child(2) > .form-control",
+      "nth": 0,
+      "source": "04_create_medicine.py:12-13,19-25",
+      "notes": "Recorded without an explicit #create-drug-group-dialog prefix -- the Provider should scope interaction to medicine.group_dialog_root to avoid collision with other same-shaped row/field tables on the page. This is where the display value from value_mappings.medicine_group_display_label is typed."
+    },
+    "medicine.group_code_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": ".col-md-12 > .table > tbody > tr:nth-child(2) > td:nth-child(2) > .form-control",
+      "nth": 0,
+      "source": "04_create_medicine.py:14-16,26-29",
+      "notes": "Same scoping caveat as medicine.group_name_field. A short internal code -- no business rule specifies its exact value."
+    },
+    "medicine.group_submit_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Thêm mới",
+      "scope": "#create-drug-group-dialog",
+      "source": "04_create_medicine.py:17,30",
+      "notes": "Shares its visible label with supplier.submit_button and medicine.submit_button -- always scope to medicine.group_dialog_root."
+    },
+    "medicine.group_select_existing": {
+      "strategy": "label",
+      "status": "confirmed",
+      "value": "Nhóm thuốc",
+      "source": "05_full_flow...py:53,83,114",
+      "notes": "A plain <select> (get_by_label + select_option), used identically 3 times in the recording, all with the same raw option value 'number:396866'. Confirms a select-existing-group mechanism exists (distinct from medicine.group_dialog_root's create-if-missing dialog -- see the open question flagged there). PO decision (2026-08): select-existing is the PRIMARY path (only 2 fixed groups exist system-wide, and this long-active account almost certainly already has both) -- create-if-missing is a rare fallback, not optimized. PlaywrightBrowserAutomationProvider.create_medicine() implements this by calling select_option(label=...) using the ALREADY-CONFIRMED display text from value_mappings.medicine_group_display_label (the exact string typed when a group is created, so likely to match its own option text), NOT the raw value_mappings.medicine_group_select_option_value mapping below (still unconfirmed and no longer needed for this)."
+    },
+    "medicine.category_dropdown": {
+      "strategy": "label",
+      "status": "confirmed",
+      "value": "Loại hàng",
+      "source": "05_full_flow...py:57,87",
+      "notes": "'Loại hàng' (item type) -- a plain <select>, recorded with raw value '4' both times. WORTH THE PO'S ATTENTION: this could plausibly be the site's own field for distinguishing medicine vs. supplement/functional-food (thuc pham chuc nang) or other item categories, which would be directly relevant to the earlier TPCN business rule -- but this is speculation, not confirmed; the recording never shows the dropdown's visible option list. Do not wire any TPCN logic to this field without confirming what option '4' (and the full option list) actually means."
+    },
+    "medicine.code_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Mã thuốc",
+      "source": "04_create_medicine.py:31-32",
+      "notes": "Recorded as clicked twice with no fill() call -- likely an auto-generated/read-only code field. Not exercised in 05_full_flow...py (that recording used the Nhóm thuốc dropdown + Tên thuốc autocomplete path instead, never this field) -- verify whether the Provider needs to fill this at all before relying on it as an input field."
+    },
+    "medicine.create_dialog_close_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "×",
+      "exact": true,
+      "source": "04_create_medicine.py:34; reused identically in 05_full_flow...py:34 (after supplier creation, not medicine creation)",
+      "notes": "Closes a confirmation/interstitial dialog. Confirmed to be a GENERIC close-button pattern, not medicine-specific -- 05_full_flow...py shows the identical role=button name='×' exact=true used right after supplier creation too. Always scope narrowly (e.g. to the dialog currently expected to be open) since name='×' alone is likely non-unique if multiple modals could coexist in the DOM."
+    },
+    "medicine.unit_dropdown": {
+      "strategy": "label",
+      "status": "confirmed",
+      "value": "Đơn vị xuất lẻ",
+      "source": "04_create_medicine.py:35; reused identically in 05_full_flow...py:58,118,148 (each with a different raw value: 1111712, 1111712, 1111720)",
+      "notes": "Locator itself (get_by_label) is confirmed and reinforced by 3 further uses. Every recorded interaction used select_option with a raw internal <option value>, never a display label, so no label string was ever captured -- use select_option(label=...) with a confirmed entry from value_mappings.unit_display_label instead once those labels are verified against the live dropdown."
+    },
+    "medicine.name_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Tên thuốc",
+      "source": "04_create_medicine.py:37-38; reused identically in 05_full_flow...py:54-55,84-85,115-116",
+      "notes": "OPEN QUESTION, not resolved unilaterally (see this task's flagged ambiguity #1): typing here triggers an autocomplete dropdown (fragile #ui-id-NN items, see medicine.autocomplete_suggestion_unconfirmed) whose selection click may mean 'pick this exact existing medicine' or 'accept a spelling suggestion while still creating a new one' -- the recording alone cannot distinguish these for the row-3 're-search Sáng mắt then click Thêm mới' case. Do not assume either interpretation in the Provider without confirming with the PO."
+    },
+    "medicine.submit_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Thêm mới",
+      "source": "04_create_medicine.py:36,39; reused identically in 05_full_flow...py:66,93,123",
+      "notes": "Shares its visible label with supplier.submit_button and medicine.group_submit_button -- scope to the medicine-creation dialog/panel at call time, not to the whole page."
+    },
+    "medicine.autocomplete_suggestion_unconfirmed": {
+      "strategy": null,
+      "status": "needs_verification",
+      "source": "05_full_flow...py:56,86,117 (#ui-id-37, #ui-id-80, #ui-id-126)",
+      "notes": "Explicitly NOT usable: jQuery-UI-style autocomplete item IDs (#ui-id-N) that renumber every session, exactly as PO warned against. Recorded inside medicine.name_field's autocomplete dropdown (within the create-medicine flow), NOT the same widget as medicine.search_result_option below (which is a role=cell result within a line-item search box, confirmed via 05a_...py). Needs a fresh recording that captures the suggestion list's visible text/role instead of its generated id before this can be used."
+    },
+    "medicine.search_input": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "combobox",
+      "scope_role": "cell",
+      "filter_has_text": "Đóng",
+      "source": "05_full_flow...py:51; 05a_...py:35-36; reinforced for the FIRST line item only by 06_multi_line_items.py:39-41",
+      "notes": "REVISED SCOPE (06_multi_line_items.py, 5 line items): this locator is only evidenced for the VERY FIRST medicine search on a fresh invoice form -- every subsequent line item's search in the new recording used a DIFFERENT, consistently-repeated locator instead (role=combobox name='Select box' nth=1 -- see invoice_line.subsequent_row_medicine_search_input). This is the field's own scoped, table-cell-filtered combobox, distinct from medicine.name_field (which lives inside the separate create-medicine dialog). The Provider must use THIS key only for index==0 of the per-line fill loop, and invoice_line.subsequent_row_medicine_search_input for every later item."
+    },
+    "invoice_line.subsequent_row_medicine_search_input": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "combobox",
+      "name": "Select box",
+      "nth": 1,
+      "source": "06_multi_line_items.py:51-52,56-57,63,73-74 (3 distinct line items, always nth=1, never growing)",
+      "notes": "NEW (06_multi_line_items.py): the medicine search combobox used for every line item AFTER the first one on a given invoice -- consistently role=combobox name='Select box' nth=1 across 3 independently observed uses (line items 2, 3, 4), never a growing index. Distinct from medicine.search_input (the first-item-only locator, a differently-scoped combobox). nth=1 implies a second, undemonstrated 'Select box'-named combobox may exist at nth=0 (a decoy or an unrelated control) -- not confirmed, just noted since this project has seen that pattern elsewhere (e.g. login.open_login_dialog_button)."
+    },
+    "medicine.search_result_option": {
+      "strategy": "text_ends_with",
+      "status": "confirmed",
+      "value": "b",
+      "source": "05a_...py:37; reinforced by 06_multi_line_items.py:53,75 (role=cell, full descriptive string). BUG FIX #2 (2026-08, PO-confirmed via a real DOM snapshot): outerHTML of one real result row copied directly from a live --dry-run session's search-result dropdown -- '<b>893100160624 - <span class=\"bg-warning\">Coldi</span>-B DNH</b><span class=\"info-item\">Giá nhập.../Tồn.../SĐK...</span>'.",
+      "notes": "HISTORY: originally role=cell, name=<medicine name substring>, exact=false, matching the FULL descriptive cell text ('{SĐK} - {tên thuốc} Giá nhập: .../... - Tồn: ... - SĐK: ... - Hãng sản xuất: ... - QCĐG: ...'). BUG FIX #2 (2026-08, PO-confirmed via two consecutive real --dry-run runs -- CRITICAL, wrong-medicine-selection risk): the IDENTICAL 'Row 2 did not settle' failure at the IDENTICAL point (Naphacogyl -> Coldi) on both runs, despite both _wait_for_row_settled and _MEDICINE_SELECTION_SETTLE_MS already being in place, ruled out timing and pointed at a selection-matching bug. PO confirmed live: typing 'Coldi' returns >= 4 real results (this account's search reaches the national drug database, not just an internal catalog), each with its own real SĐK code prefix the automation cannot predict in advance (e.g. '893100160624 - Coldi-B DNH', '893110391924 - Coldi') -- the old exact=false substring match on the full cell text matched BOTH 'Coldi' and 'Coldi-B DNH' when searching 'Coldi' (substring collision), and a full exact match is not possible either (the numeric code prefix is real, dynamic, and unknown ahead of time). PO's own real DOM snapshot (see 'source' above) revealed the fix: the FIRST <b> tag inside each result cell contains ONLY '{code} - {tên thuốc}' (clean, no price/stock -- those live in a separate, ever-changing sibling <span class=\"info-item\">). strategy='text_ends_with' (see PlaywrightBrowserAutomationProvider._locate_parameterized's own implementation) builds an END-anchored, case-insensitive regex from the runtime medicine name and filters this <b> tag by it -- 'Coldi$' matches '...- Coldi' but NOT '...- Coldi-B DNH' (which ends in 'DNH'), and vice versa 'Coldi-B DNH$' only matches the longer one. 'value': 'b' is the real, confirmed CSS tag for this element (not a guess -- copied directly from the real snapshot's own tag name). WATCH FOR: if a different medicine's real result cell nests the name differently (e.g. no <b> wrapper, or multiple <b> tags per cell), this will need re-verification -- the current fix is grounded in exactly one real snapshot (the Coldi/Coldi-B DNH case), not exhaustively checked against every medicine name shape. BUG FIX #3 (2026-08, PO-confirmed via a real --dry-run run, investigated and root-caused via code reading, not a live DOM snapshot this time): PlaywrightBrowserAutomationProvider.search_medicine() was checking this selector's .count() IMMEDIATELY after fill(), with no settle wait at all -- a false negative here (site's search-as-you-type not yet finished) makes an ALREADY-existing medicine look 'not found', triggering an unnecessary create_medicine() call. search_medicine() now waits _MEDICINE_SELECTION_SETTLE_MS first, same reasoning/constant already used by _search_and_select_medicine_for_line."
+    },
+    "medicine.search_result_option_by_code": {
+      "strategy": "text_starts_with",
+      "status": "derived",
+      "value": "b",
+      "source": "Same real <b> tag element as medicine.search_result_option (see that entry's own 'source' snapshot) -- no separate recording of its own.",
+      "notes": "DERIVED (2026-08, Part 1 of the multi-result-disambiguation feature, PO-approved 2026-08): reuses the SAME already-confirmed <b>{code} - {tên thuốc}</b> shape medicine.search_result_option's own real DOM snapshot established, just anchored from the OTHER end -- START-anchored on the code, instead of END-anchored on the name. Used only when a Medicine already has a confirmed website_catalog_code (Medicine.website_catalog_code, migrations.migration_0004_add_website_catalog_code) from a prior real selection -- lets automation jump straight to the exact right row by its unique code instead of re-disambiguating an ambiguous name (e.g. 'Naphacogyl', PO-confirmed to appear on >= 4 distinct real catalog rows) every single time. This specific anchor direction has not been independently re-confirmed against a fresh live DOM snapshot of its own -- flagged 'derived', not 'confirmed', for exactly that reason; re-verify if a different medicine's real result cell ever turns out to nest code+name differently (same caveat medicine.search_result_option's own notes already flag)."
+    },
+    "invoice.number_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Số hóa đơn",
+      "source": "05_full_flow...py:47-48",
+      "notes": "BUG FIX (2026-08, PO-confirmed via a real --dry-run run): registered/confirmed but never actually called by fill_and_save_invoice() -- the exact same 'forgot to wire it up' gap previously found for supplier.default_tag_remove_button. Now filled once, for real, right before Phase 1's per-line loop."
+    },
+    "invoice.date_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Ngày hóa đơn",
+      "source": "05_full_flow...py:49-50",
+      "notes": "OPEN QUESTION, not resolved unilaterally: the recording ALSO shows a full calendar-widget click-through (columnheader navigation, day-cell click) immediately before this direct fill() -- it is not confirmed whether the direct textbox fill alone is sufficient for the site to register the date, or whether the calendar widget interaction is functionally required (some date pickers only fire their change-detection through their own JS, not a raw value assignment). Do not assume fill() alone works without confirming against the live site; the calendar-widget steps are not modeled here as a fallback since they are far more complex/fragile and were not clearly necessary either. BUG FIX (2026-08, PO-confirmed via a real --dry-run run): also never actually called by fill_and_save_invoice() until now (same 'forgot to wire it up' gap as invoice.number_field) -- now filled with invoice.invoice_date.strftime('%d/%m/%Y') (matching the recording's own '11/01/2024' example verbatim) right before Phase 1's per-line loop. BUG FIX #2 (2026-08, PO-confirmed via the very next real --dry-run run -- CRITICAL, WRONG DATE on a real invoice): the OPEN QUESTION above is now CONFIRMED the hard way -- fill() produced a visibly WRONG date on the real site (e.g. '19/01/2024' instead of the invoice's real date), not merely a rejected/ignored one. BUG FIX #3 (2026-08, PO-confirmed via real hands-on testing -- FULLY RESOLVED): PO personally clicked directly into this textbox and confirmed the calendar does NOT open -- proving fill() was never going to work, this is a display-only field bound to a separate calendar widget (see invoice.date_calendar_trigger and friends below). This entry's own locator (role=textbox name='Ngày hóa đơn') is now used ONLY to read back the final value after calendar navigation, for _fill_invoice_date_and_verify's roundtrip check -- never filled directly any more."
+    },
+    "invoice.date_calendar_trigger": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "button[ng-click*=\"onInvoiceDateClick\"]",
+      "source": "Real DOM snapshot (2026-08, PO-copied outerHTML directly from the live site): '<button type=\"button\" class=\"btn btn-primary\" ng-click=\"onInvoiceDateClick(); ...\"><i class=\"fa-regular fa-calendar-days\"></i></button>'.",
+      "notes": "BUG FIX (2026-08, PO-confirmed -- CRITICAL, WRONG DATE on a real invoice, resolving invoice.date_field's own long-open question). PO personally verified clicking directly into the 'Ngày hóa đơn' textbox does NOT open its calendar -- this dedicated button (a calendar icon, ng-click='onInvoiceDateClick') must be clicked instead. Substring match ([ng-click*=...], not exact), per the same lesson already learned on invoice_line.add_row_button -- the real ng-click value is truncated with '...' in PO's own snapshot, implying an Angular-appended suffix (event handling) exactly like that entry's own history. The function name 'onInvoiceDateClick' is PO-confirmed distinct from whatever handler backs the separate 'Ngày:' field (not shared), so this anchor is safe from that field's own collision risk -- unlike the earlier itemSearchUISelectID false-anchor incident."
+    },
+    "invoice.date_calendar_dropdown": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": ".datepicker.datepicker-dropdown",
+      "source": "Real DOM snapshot (2026-08, PO-described directly): a single, page-shared bootstrap-datepicker instance that repositions itself (top/left style) to whichever bound field/trigger was last activated -- confirmed only one is ever open at a time.",
+      "notes": "Used both as the year/month/day navigation entries' own scope (below) and, with a ':visible' CSS pseudo-class appended in code by PlaywrightBrowserAutomationProvider._verify_exactly_one_calendar_visible, as a defensive check right after clicking invoice.date_calendar_trigger -- PO's own explicit request, to fail cleanly instead of navigating an ambiguous or absent calendar if this shared-widget assumption is ever wrong."
+    },
+    "invoice.date_calendar_switch": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": ".datepicker-switch:visible",
+      "scope": ".datepicker.datepicker-dropdown",
+      "source": "Real DOM snapshot (2026-08, PO-described directly): shows the current month+year (e.g. 'Tháng 8 2026') -- click once for month-grid view, click again for year-grid view.",
+      "notes": "PlaywrightBrowserAutomationProvider._select_invoice_date_via_calendar clicks this TWICE unconditionally (PO's own proposed strategy) to jump straight to year-grid view, then picks year -> month -> day by matching text, regardless of how far the target date is from the currently-displayed month/year -- avoids the fragile, position-counting '«'-repeated-clicking approach the raw recordings used (which needed to know in advance how many months to step back). ':visible' appended DEFENSIVELY, NOT independently confirmed via PO's own snapshot: standard bootstrap-datepicker structure has one '.datepicker-switch' header PER view (days/months/years), each inside its own container toggled via display -- only one visible at a time -- so an unscoped '.datepicker-switch' would likely be a real strict-mode ambiguity (3 matches) once all 3 view containers exist in the DOM. Flagged for re-verification on the next real --dry-run run; if this specific site's widget genuinely only renders one switch element at a time (removed/added, not hidden), this suffix is harmless but unnecessary."
+    },
+    "invoice.date_calendar_year_option": {
+      "strategy": "text_exact",
+      "status": "confirmed",
+      "value": "span.year",
+      "scope": ".datepicker.datepicker-dropdown",
+      "source": "Real DOM snapshot (2026-08, PO-described directly): year-grid view cells.",
+      "notes": "Parameterized -- PlaywrightBrowserAutomationProvider._locate_parameterized substitutes the real runtime year (e.g. '2024') via strategy='text_exact' (a full, case-insensitive regex match ^...$ against this span, not the substring/end-anchored matching medicine.search_result_option uses -- year text has no unpredictable prefix/suffix to worry about, so a full match is both possible and safest here). Selecting a year auto-returns bootstrap-datepicker to month-grid view, which invoice.date_calendar_month_option (below) then targets."
+    },
+    "invoice.date_calendar_month_option": {
+      "strategy": "text_exact",
+      "status": "confirmed",
+      "value": "span.month",
+      "scope": ".datepicker.datepicker-dropdown",
+      "source": "05_full_flow...py:45 (page.get_by_text(\"Th1\", exact=True).click()) -- confirms the real Vietnamese month-abbreviation format ('Th1'..'Th12', no leading zero) directly from a recorded action, reinforced by the real DOM snapshot (2026-08) showing the same month-grid structure.",
+      "notes": "Parameterized, strategy='text_exact' -- PlaywrightBrowserAutomationProvider builds the runtime value as f'Th{target_date.month}' (no leading zero, matching the confirmed 'Th1' example exactly). Selecting a month auto-returns bootstrap-datepicker to day-grid view, which invoice.date_calendar_day_option (below) then targets."
+    },
+    "invoice.date_calendar_day_option": {
+      "strategy": "text_exact",
+      "status": "confirmed",
+      "value": "td.day:not(.old):not(.new)",
+      "scope": ".datepicker.datepicker-dropdown",
+      "source": "05_full_flow...py:46 / 06_multi_line_items.py:23,26 (get_by_role(\"cell\", name=...) -- a <td> inside a table gets an implicit ARIA role=cell, the same real elements this CSS selector targets), reinforced by the real DOM snapshot (2026-08) explicitly confirming the '.old'/'.new' classes bootstrap-datepicker uses for greyed-out adjacent-month overflow days.",
+      "notes": "Parameterized, strategy='text_exact' -- PO's own explicit instruction: EXCLUDE '.old'/'.new' cells (previous/next month's overflow days, visually greyed out but still real, clickable <td> elements that could otherwise collide with the target day's own number) via the ':not()' CSS pseudo-classes baked directly into this entry's own 'value', not a separate runtime filter. The 05_full_flow/06_multi_line_items recordings' own get_by_role(\"cell\", name=\"11\")/get_by_role(\"cell\", name=\"8\") calls did NOT exclude old/new -- an earlier, less rigorous version of essentially this same real widget; PO's own fresh DOM inspection is what confirmed the exclusion classes exist and must be used."
+    },
+    "medicine.purchase_price_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Giá nhập lẻ",
+      "source": "05_full_flow...py:59-62,88-91,119,149",
+      "notes": "The medicine catalog dialog's own purchase-price attribute -- distinct from invoice_line.unit_price_field, which is the per-invoice-line price entered afterward in the line-item table."
+    },
+    "medicine.retail_price_field": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "textbox",
+      "name": "Giá bán lẻ",
+      "source": "05_full_flow...py:63,92,120,150",
+      "notes": "PO-confirmed textbox for the suggested retail price. In every recorded occurrence this field was only ever clicked, never filled by the human -- consistent with it being intended for automatic calculation (services.price_policy.PricePolicy.calculate_suggested_retail_price) rather than manual entry."
+    },
+    "medicine.conversion_factor_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "input[name=\"HeSo\"]",
+      "source": "05_full_flow...py:64-65,121-122",
+      "notes": "'Hệ số' (conversion factor/coefficient). Appeared for medicines 1 and 3 in the recording but not medicine 2 -- appears conditional (likely on the selected unit/category), not always present. Business meaning not confirmed -- do not assume a specific formula without PO confirmation."
+    },
+    "invoice_line.add_row_button": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "[title=\"Thêm mới\"][ng-click*=\"onAddNewItem\"]",
+      "source": "05_full_flow...py:80,94,113; reinforced by 06_multi_line_items.py:50,72,85,97 (title text); real strict-mode-violation error from a live --dry-run run (2026-08) enumerated all 4 real elements sharing title=\"Thêm mới\" and their ng-click handlers, confirming this button's own handler starts with onAddNewItem(gridItem)",
+      "notes": "REVISED UNDERSTANDING (06_multi_line_items.py, 5 line items): this button is clicked AFTER a line's medicine is selected and its quantity/price/VAT are filled -- it CONFIRMS the just-filled line and reveals a fresh, empty field set for the next one. It is NOT clicked before filling (the Provider's earlier fill_and_save_invoice implementation had this backwards). Used for 4 of 5 lines in the new recording (line 2 instead used an alternate control, tbody:nth-child(3) > tr > td:nth-child(10) > .input-group > span > .btn -- see invoice_line.select_row_for_batch_button's notes for why this is treated as a one-off anomaly, not a second valid mechanism). BUG FIX (2026-08, PO-confirmed via a real strict-mode-violation error log against the live site): title=\"Thêm mới\" alone is genuinely ambiguous on the real invoice form -- the real error enumerated 4 candidates: (1) addSupplier() (the NCC/supplier trigger), (2) onAddNewItem(gridItem) -- THIS button, confirmed by the PO as the correct 'Thêm dòng hóa đơn' target, (3) onAddNew() -- unidentified, not needed by any current workflow, flagged here only for provenance in case it becomes relevant later, (4) addDrugGroup() inside #tblMain (the drug-group trigger). Position-based nth() was explicitly REJECTED as the fix here per the PO's own explicit direction, having just been burned by the same instability on supplier.add_new_trigger (see that entry's notes) -- disambiguating instead via the real, confirmed ng-click handler attribute, which is unique among the 4 candidates and independent of DOM ordering. BUG FIX #2 (2026-08, PO-confirmed via a real --dry-run timeout against the live site): the first fix used an EXACT match, ng-click=\"onAddNewItem(gridItem)\" -- this never matched on the real site, because the real attribute's full value is longer, \"onAddNewItem(gridItem); $event.preventDefault(); $event.stopPropagation();\" (Angular's inline event-handling suffix, appended by the framework, not something a plain handler-name transcription would capture). Switched to a CSS substring match, [ng-click*=\"onAddNewItem\"], per the PO's own explicit direction to never exact-match a string with a variable/framework-appended suffix -- \"onAddNewItem\" does not appear as a substring in any of the other 3 candidates' handler names (onAddNew(), addSupplier(), addDrugGroup()), so this remains just as specific while tolerating the suffix. Upgraded status derived -> confirmed since this is grounded directly in the real error log's own candidate enumeration, the same first-class evidence standard used for supplier.add_new_trigger's #receiptNoteViewId scoping. WATCH FOR: if a different account/site state ever changes this handler's name or argument (e.g. a future Angular refactor), this selector will need re-verification against fresh real evidence -- do not silently widen back to title-only or reintroduce nth()."
+    },
+    "invoice_line.quantity_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#tbxQuantityId",
+      "source": "06_multi_line_items.py:43,55,64-66,76 (all 5 medicines, always unsuffixed, never '#tbxQuantityId2')",
+      "notes": "REVISES the prior 'derived, #tbxQuantityId2' entry -- that was based on a single sighting in an earlier, sparser recording (05_full_flow...py) and turned out to be wrong. This newer, 5-line recording never shows a suffixed quantity id at all during active fill: it is ONE SHARED field, temporarily bound to whichever row was just added/selected (matching invoice_line.unit_price_field and invoice_line.vat_field, which already showed this pattern). The field was clicked in every occurrence but never seen with an explicit fill() value in this recording (unlike Price/VAT) -- the element identity is confirmed, its fill mechanics are assumed to work like any other text input (no counter-evidence either way). RESOLVED FURTHER (table_structure.html, 2026-08, real DOM snapshot): each row is genuinely its own <tbody> (ng-repeat=\"gridItem in viewModel.NoteItems\"). '#tbxQuantityId' (this value, no suffix) IS specifically row 1's own persistent copy -- rows 2-5 have their own '#tbxQuantityId1'..'#tbxQuantityId4' (suffix = str(row_position - 1) for row_position >= 2). PlaywrightBrowserAutomationProvider._row_id_suffix()/_fill_row_specific_field() implement this to address an ALREADY-COMMITTED row's own field -- a DIFFERENT concept from Phase 1's shared active-row usage of this same base value (see fill_and_save_invoice's own docstring)."
+    },
+    "invoice_line.unit_price_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#tbxPriceId",
+      "source": "05_full_flow...py:67-69,95-99,124-132; reinforced by 06_multi_line_items.py:44,54,78,90 (always unsuffixed, all 5 medicines)",
+      "notes": "RESOLVED (06_multi_line_items.py) for ACTIVE FILL: earlier notes here reported an unresolved 'row 3 breaks the no-suffix/row1,\"2\"/row2 hypothesis' puzzle from a 3-row recording, plus a PO decision not to guess a suffix formula. The 5-line recording settled that -- during active fill (Phase 1), this is a SINGLE SHARED field the site temporarily binds to whichever row was just added/selected (search medicine -> select -> fill this shared quantity/price/VAT set -> click invoice_line.add_row_button to confirm and advance). FURTHER RESOLVED (table_structure.html, 2026-08, real DOM snapshot): once committed, each row also has its OWN persistent copy at '#tbxPriceId' + row_id_suffix (empty for row 1, str(row_position - 1) for row_position >= 2) -- see invoice_line.quantity_field's notes for the full formula and PlaywrightBrowserAutomationProvider._row_id_suffix(). invoice_line.select_row_for_batch_button's notes cover what remains genuinely unresolved (the Lo/Han batch/expiry trigger's own base id)."
+    },
+    "invoice_line.vat_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#tbxVATId",
+      "source": "05_full_flow...py:71-73,103-106,133-135; reinforced by 06_multi_line_items.py:47-49,58-60,69-71,82-84,93-96 (always unsuffixed, all 5 medicines)",
+      "notes": "RESOLVED for active fill, same as invoice_line.unit_price_field/quantity_field: a shared, unsuffixed field during Phase 1, confirmed as a plain text input filled with a percentage number (e.g. '5'), not a dropdown/select. Once committed, also has its own per-row persistent copy at '#tbxVATId' + row_id_suffix -- see invoice_line.unit_price_field's/quantity_field's notes for the full formula (table_structure.html, 2026-08)."
+    },
+    "invoice_line.discount_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#tbxDiscountId",
+      "source": "06_multi_line_items.py:81",
+      "notes": "NEW (06_multi_line_items.py): 'Chiết khấu' (discount), same shared-per-line-fill-set family as quantity/price/VAT (unsuffixed id during active fill, same naming convention, and -- by the same table_structure.html row_id_suffix formula documented on invoice_line.quantity_field -- presumably also has a per-row persistent copy at '#tbxDiscountId' + suffix once committed, though this specific field was never independently observed in the DOM snapshot; treat that extrapolation as unconfirmed, not this field's base id). Only ever clicked once in the recording, never filled with a value -- the element's existence and identity are confirmed, but its business meaning (currency amount vs. percentage, how it interacts with unit_price/VAT/line total) is NOT confirmed. Not wired into PlaywrightBrowserAutomationProvider -- PurchaseItem has no corresponding discount field today, and this is not part of the current mandatory fill flow. Flagged for future reference only, per explicit instruction."
+    },
+    "invoice_line.batch_number_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#txtBatchNumber",
+      "source": "05_full_flow...py:75-76 (row 1), :108-109 (row 2), :137-139 (row 3)",
+      "notes": "CONFIRMED exactly as the PO hypothesized: this id is shared across every row with no numeric suffix at all, in all 3 observed rows -- unlike Price/VAT/Quantity, which do vary. Must be filled verbatim (only leading/trailing whitespace trimmed) per Business Rules."
+    },
+    "invoice_line.expiry_date_field": {
+      "strategy": "placeholder",
+      "status": "confirmed",
+      "value": "Nhập 010122 => 01/01/",
+      "scope_role": "row",
+      "scope_name": "Hạn dùng:",
+      "exact": true,
+      "source": "05_full_flow...py:77-78,110-111,140-141",
+      "notes": "Scoped to the row=row element whose accessible name is exactly 'Hạn dùng:' (exact match required, per the recording's own exact=True), then the field with this placeholder text. Filled with dd/mm/yyyy (e.g. '27/10/2026') in two of three observed rows and ddmmyy with no separators (e.g. '080925') in the third -- both were accepted by the recording, so either format may be safe, but this is not independently confirmed as a business rule."
+    },
+    "invoice_line.confirm_row_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Cập nhật",
+      "source": "05_full_flow...py:79,112,142; reinforced by 06_multi_line_items.py:103,109,113",
+      "notes": "Replaces the prior unconfirmed placeholder guess of 'Thêm mới' for this step -- the real confirm-this-line control is a separate button labeled 'Cập nhật' (Update), consistent across all 3 rows in the original recording and all 3 batch-entry rows completed in 06_multi_line_items.py. Used to confirm a row's batch/expiry entry (Phase 2), distinct from invoice_line.add_row_button which confirms a row's quantity/price/VAT entry (Phase 1)."
+    },
+    "invoice_line.select_row_for_batch_button": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": ".fa-calendar-days",
+      "source": "table_structure.html (2026-08, real DOM snapshot, PO-described directly)",
+      "notes": "RESOLVED -- REPLACES the abandoned tbody:nth-child(N) CSS-position approach entirely (see git history of this entry for that investigation). This trigger is a calendar-icon button (ng-click=\"updateBatchExpiryDate\") that is visually IDENTICAL on every row -- no distinguishing id or text of its own -- only distinguishable by which <tbody> it lives in, since each row is genuinely its own <tbody> (ng-repeat=\"gridItem in viewModel.NoteItems\", the same finding invoice_line.quantity_field's row_id_suffix formula is built on). PlaywrightBrowserAutomationProvider._click_batch_edit_button_for_row(position) scopes via _line_item_rows().nth(position - 1).locator(\".fa-calendar-days\").click() -- Playwright's Locator.nth() on an ALREADY-tbody-filtered locator set (counts only within that set) is NOT the same thing as CSS ':nth-child(N)' (counts ALL sibling elements regardless of tag, so a <thead> sibling shifts the count -- this was the confirmed root cause of the earlier tbody:nth-child(N) approach's failure). Clicking this reveals the SAME shared invoice_line.batch_number_field/expiry_date_field overlay, already 'attached' to this row -- invoice_line.batch_number_field's existing 'shared, unsuffixed' confirmation (05_full_flow...py, 3 rows) stands UNCHANGED: it is the shared overlay that gets attached, not a per-row-suffixed field of its own. No further row selection is needed after this click; invoice_line.confirm_row_button ('Cập nhật') finalizes it as before. BUG FIX (2026-08, PO-confirmed via a real --dry-run run): _line_item_rows() (previously a raw page-wide page.locator(\"tbody\")) now scopes to \"#tblMain tbody\" -- a real dry-run run found the page-wide count returning 24 for a 3-item real invoice (other real tables elsewhere on the live page, never modeled by this project's local fixture). #tblMain is real, already-confirmed evidence for this exact scope (medicine.add_new_trigger's own notes: '#tblMain is the invoice line-item table'), not a new guess -- but this specific scoping choice has not itself been independently re-verified against the live site yet; the next real --dry-run run should confirm the count now matches expectations exactly."
+    },
+    "invoice.commercial_discount_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "input[ng-model=\"viewModel.Discount\"]",
+      "source": "PO direct DOM inspection (2026-08), not a Playwright codegen recording -- PO confirmed with 100% certainty via live DOM inspect, not inferred or guessed.",
+      "notes": "Whole-invoice commercial discount ('Tra truoc/C.K.Don (VND)', PO-confirmed 2026-08) at the BOTTOM of the invoice entry form -- a DIFFERENT field from invoice_line.discount_field ('Chiet khau', a per-line-item field, never wired into automation and NOT this concept: that field applies to one medicine line, this one applies to the whole invoice, e.g. Traphaco's 'Giam Tru CKTM' summary row -- domain.entities.purchase_invoice.PurchaseInvoice.commercial_discount_amount). PO also confirmed a sibling percentage field, input[ng-model=\"discountWithRatio\"] ('C.K.Don (%)') -- NOT used here: PurchaseInvoice.commercial_discount_amount is a Money (VND) value, so it maps directly onto this VND field with no percentage conversion needed. Do not assume this field shares invoice_line.discount_field's '#tbxDiscountId' id -- that field is scoped to the per-line fill set, this one is a page-level, once-per-invoice field near invoice.save_button."
+    },
+    "invoice.save_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Ghi Phiếu",
+      "source": "05_full_flow...py:145,152",
+      "notes": "Used twice in the recording: once for the initial save, once again after an edit (line 146 onward) -- consistent both times."
+    },
+    "invoice.save_success_indicator": {
+      "strategy": "role",
+      "status": "derived",
+      "role": "link",
+      "name": "Sửa",
+      "source": "05_full_flow...py:146",
+      "notes": "Not the human's stated purpose (they clicked it to enter an edit flow, not to verify success) -- but its appearance right after invoice.save_button implies the invoice is now listed/editable, i.e. the save succeeded, since an unsaved invoice would have nothing to edit. Reasonable inference, not a direct confirmation -- kept as 'derived' rather than 'confirmed'."
+    },
+    "invoice.edit_link": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "link",
+      "name": "Sửa",
+      "source": "05_full_flow...py:146",
+      "notes": "Same locator as invoice.save_success_indicator, but registered separately since this entry's actual recorded purpose IS clicking it (to enter the post-save edit flow used by medicine.retail_price_field's update-after-save step) -- directly evidenced, unlike save_success_indicator's inferred use. Clicked exactly once per save cycle, not once per line item -- reveals the per-line 'Chỉnh sửa thuốc' controls (see invoice_line.edit_medicine_button)."
+    },
+    "invoice_line.edit_medicine_button": {
+      "strategy": "title",
+      "status": "derived",
+      "value": "Chỉnh sửa thuốc",
+      "source": "05_full_flow...py:147",
+      "notes": "The locator pattern itself (title='Chỉnh sửa thuốc') is directly evidenced, but only at index 0 (recorded as .first, for an invoice with 3 line items already saved). No fixed 'nth' is set here on purpose -- PlaywrightBrowserAutomationProvider._update_retail_prices_after_save() supplies a runtime index per line item, assuming index N corresponds to the Nth saved line in order. This positional correspondence is a REASONABLE but NOT independently confirmed extrapolation from the single recorded case -- flagged 'derived' rather than 'confirmed' for exactly that reason. Opens a medicine edit dialog exposing Đơn vị xuất lẻ / Giá nhập lẻ / Giá bán lẻ for that line's medicine again."
+    },
+    "invoice_line.edit_dialog_close_button": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "button",
+      "name": "Đóng",
+      "nth": 1,
+      "source": "05_full_flow...py:151",
+      "notes": "Closes the medicine edit dialog opened by invoice_line.edit_medicine_button. A DIFFERENT element from supplier.creation_confirmation_close_button (nth=0) despite sharing the 'Đóng' label -- at least 2 same-named 'Đóng' buttons can coexist at this point in the flow; this one is confirmed to be nth=1, not nth=0."
+    }
+  },
+  "value_mappings": {
+    "medicine_group_display_label": {
+      "description": "Domain MedicineType -> exact display text typed into medicine.group_name_field (the create-if-missing dialog). Confirmed directly from 04_create_medicine.py (the literal strings typed, not inferred).",
+      "prescription": {
+        "status": "confirmed",
+        "label": "Thuốc kê đơn",
+        "source": "04_create_medicine.py:13"
+      },
+      "over_the_counter": {
+        "status": "confirmed",
+        "label": "Thuốc không kê đơn",
+        "source": "04_create_medicine.py:25"
+      }
+    },
+    "medicine_group_select_option_value": {
+      "description": "Domain MedicineType -> raw <option value> for medicine.group_select_existing's select_option() call. NOT USED by the Provider (superseded, 2026-08): create_medicine() selects by LABEL text via value_mappings.medicine_group_display_label instead, reusing already-confirmed strings, since no raw value was ever confirmed here. Kept only as a historical record of the one raw value actually observed ('number:396866', all 3 medicines in 05_full_flow...py) in case select_option(label=...) ever needs a value-based fallback.",
+      "prescription": {"status": "needs_verification", "suggested_label": null},
+      "over_the_counter": {"status": "needs_verification", "suggested_label": null}
+    },
+    "unit_display_label": {
+      "description": "Domain Unit.code -> exact display text for select_option(label=...) on medicine.unit_dropdown. NONE of these are confirmed: every recording (04_create_medicine.py and 05_full_flow...py, 4 occurrences total) selected this dropdown by raw internal option value ('1111732', '1111712' x2, '1111720'), never by visible label text, so no label string was ever captured. 'suggested_label' below is an unverified best-guess placeholder for a human to confirm against the live dropdown -- it must not be relied on by the Provider until its status is changed to 'confirmed'. Domain.Unit (src/pharmacy_invoice_automation/domain/value_objects/unit.py) currently defines only 6 real codes plus 'other'.",
+      "vien": {"status": "needs_verification", "suggested_label": "Viên"},
+      "tuyp": {"status": "needs_verification", "suggested_label": "Tuýp"},
+      "hop": {"status": "needs_verification", "suggested_label": "Hộp"},
+      "chai": {"status": "needs_verification", "suggested_label": "Chai"},
+      "goi": {"status": "needs_verification", "suggested_label": "Gói"},
+      "ong": {"status": "needs_verification", "suggested_label": "Ống"},
+      "other": {"status": "needs_verification", "suggested_label": null}
+    }
+  }
 }

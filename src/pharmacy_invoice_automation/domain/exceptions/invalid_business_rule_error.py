@@ -1,11 +1,17 @@
-"""
-Exception: InvalidBusinessRuleError. Raised for a business-rule invariant violation.
+"""Exception: InvalidBusinessRuleError."""
 
-This file is a scaffold only. No business logic, classes, or functions are
-defined here -- this is intentional. This prompt (Project Bootstrap & Skeleton
-Generation) creates project structure only.
+from __future__ import annotations
 
-Implemented in: Prompt 04
-Governing contract: docs/architecture/Implementation_Specification.md, Section 6
-(Module Contracts) and Section 3 (Folder Specification).
-"""
+from pharmacy_invoice_automation.domain.exceptions.domain_error import DomainError
+
+
+class InvalidBusinessRuleError(DomainError):
+    """
+    Raised when an operation would violate a named business rule --
+    for example, an invalid Invoice status transition (see
+    domain.entities.invoice.Invoice.transition_to).
+    """
+
+    def __init__(self, rule_name: str, message: str) -> None:
+        super().__init__(f"Business rule '{rule_name}' violated: {message}")
+        self.rule_name = rule_name

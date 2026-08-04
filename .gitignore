@@ -24,6 +24,10 @@ htmlcov/
 .env
 *.secret
 *.key
+data/.secrets/
+# Reference Playwright recordings (ground truth for the Selector Registry) --
+# 05_full_flow_existing_supplier_medicine.py contains real credentials.
+docs/reference/automation_scripts/
 
 # --- Project runtime data (never committed; created at runtime) ---
 data/*.sqlite3

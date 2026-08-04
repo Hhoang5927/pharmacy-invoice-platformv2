@@ -55,3 +55,14 @@ src = ["src", "tests"]
 python_version = "3.12"
 mypy_path = "src"
 packages = ["pharmacy_invoice_automation"]
+# infrastructure.di.ServiceContainer is a generic type-to-instance
+# registry BY DESIGN keyed on abstract Domain/Application ports (its own
+# whole purpose per its docstring) -- resolve()/register_instance()/
+# register_factory() never instantiate the type, only use it as a dict
+# key, so mypy's "type-abstract" check (which assumes type[X] always
+# implies "a constructor for X") is a structural false positive here,
+# not a real bug. Composition Root (registration.py, cli.py, and every
+# later stage) calls container.resolve(SomeAbstractPort) dozens of
+# times by design -- disabled globally rather than via a type: ignore
+# at every one of those call sites (2026-08).
+disable_error_code = ["type-abstract"]

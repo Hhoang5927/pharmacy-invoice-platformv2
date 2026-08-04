@@ -10,6 +10,7 @@ storage is the local filesystem or something else.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 
 class FileStorageProvider(ABC):
@@ -32,9 +33,13 @@ class FileStorageProvider(ABC):
         """True if a file exists at ``path``."""
 
     @abstractmethod
-    def list_files(self, folder_path: str, extensions: list[str]) -> list[str]:
+    def list_files(self, folder_path: str, extensions: Sequence[str]) -> list[str]:
         """
         Return every file path under ``folder_path`` whose extension is
         in ``extensions`` (e.g. [".jpg", ".jpeg", ".png"] for FR-02
         invoice image discovery).
+
+        ``extensions`` is typed as Sequence rather than list since it
+        is read-only; the return value stays a concrete list, since
+        callers receiving a value have no analogous invariance problem.
         """

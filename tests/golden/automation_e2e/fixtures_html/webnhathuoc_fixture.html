@@ -1,0 +1,773 @@
+<!doctype html>
+<!--
+  Local, static stand-in for the parts of webnhathuoc.com's invoice-import
+  form that PlaywrightBrowserAutomationProvider drives. Structure mirrors
+  the confirmed selectors in config/selector_registry.webnhathuoc.json
+  (element ids/roles/labels), so tests exercise the real Provider code
+  against a real DOM without ever touching the live site or needing
+  credentials.
+-->
+<html lang="vi">
+<head><meta charset="utf-8"><title>Fixture</title></head>
+<body>
+  <!--
+    A decoy occupies index 0 for role=button name="Đăng nhập" so the real,
+    functional button below lands at nth=1 -- matching the real registry's
+    confirmed nth=1 (based on 2 of 3 reference recordings; see
+    login.open_login_dialog_button's notes for the nth=0-vs-1 conflict).
+    Hidden alongside #open-login once the login form is shown, since
+    Playwright's default name matching is case-insensitive/substring and
+    would otherwise collide with login.submit_button's "Đăng Nhập" query.
+  -->
+  <button type="button" id="open-login-decoy" disabled>Đăng nhập</button>
+  <button type="button" id="open-login">Đăng nhập</button>
+  <div id="login-form" hidden>
+    <label>Nhập tài khoản đăng nhập của bạn
+      <input type="text" id="username" />
+    </label>
+    <label>Nhập mật khẩu đăng nhập của bạn
+      <input type="password" id="password" />
+    </label>
+    <button type="button" id="submit-login">Đăng Nhập</button>
+  </div>
+  <div id="session-indicator" hidden>Xin chào, đã đăng nhập</div>
+
+  <!--
+    login.close_notification_popup (bug investigation, PO-confirmed
+    2026-08): the "Đóng" popup (CSDL DQG notice) that PO's own real
+    --dry-run report saw NOT close on screen, despite no error anywhere
+    in the log -- because login()'s own "login succeeded" log covers
+    this whole step silently either way. Hidden by default here (PO
+    confirmed this popup does not always appear); a test opts into
+    showing it via a "?show_login_popup" query string on
+    login.navigate's own URL (see TestLoginNotificationPopup below) --
+    login() always navigates itself via login.navigate, so any DOM
+    mutation attempted BEFORE calling login() would just be wiped by
+    that navigation; a URL flag is the only way this fixture can model
+    "sometimes present" without two separate fixture files.
+  -->
+  <a href="#" id="login-notification-popup-close" hidden>Đóng</a>
+
+  <button type="button">Nhập Xuất</button>
+  <a href="#">Nhập hàng</a>
+  <span title="Thêm mới">1</span>
+  <span title="Thêm mới">2</span>
+  <span title="Thêm mới">3</span>
+
+  <!--
+    #add-product-dialog (defensive check, PO-confirmed 2026-08, root
+    cause not yet identified): absent the "in" class by default, since
+    a real invoice form normally opens WITHOUT this dialog already
+    showing -- PO's own real --dry-run report found it already open
+    ("in" class present) right after open_import_invoice_form()
+    completed, in at least one real, reproducible run. Tests toggle the
+    "in" class directly to exercise both states without needing to
+    understand or guess how the real site's server-side condition that
+    triggers this actually works.
+  -->
+  <div id="add-product-dialog" class="modal fade">Thêm mới thuốc</div>
+
+  <!--
+    #receiptNoteViewId (bug fix, PO-confirmed 2026-08, final): the
+    whole invoice/receipt-note form -- wraps the supplier area
+    (input-group-btn + #supplierSearchBoxId) but deliberately does NOT
+    contain #tblMain (the separate line-items table component), per a
+    REAL Playwright strict-mode-violation error from a live --dry-run
+    run, which enumerated its own two disambiguating candidates
+    directly: locator("#receiptNoteViewId").get_by_title(...) for the
+    real addSupplier() trigger vs. locator("#tblMain").get_by_title(...)
+    for a different addDrugGroup() button. supplier.add_new_trigger is
+    now scoped here -- REPLACES two earlier, incorrect attempts (see
+    git history / that entry's own notes): unscoped page-wide (relied
+    on fragile DOM-sequencing luck), then #supplierSearchBoxId (wrong --
+    excluded the real sibling element entirely).
+  -->
+  <div id="receiptNoteViewId">
+    <div class="input-group-btn">
+      <button type="button" id="open-supplier-dialog" aria-description="Thêm mới nếu chưa có">
+        Thêm mới nếu chưa có
+      </button>
+    </div>
+    <div id="supplierSearchBoxId">
+      <input type="search" id="supplier-search" />
+      <div id="supplier-search-results">
+        <span>Cong ty Duoc ABC - 123 Le Loi</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="create-supplyer-dialog" hidden>
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-12">
+              <table class="table">
+                <tbody>
+                  <tr><td>Tên nhà cung cấp</td><td><input class="form-control" data-field="name" /></td></tr>
+                  <tr><td>Số điện thoại</td><td><input class="form-control" data-field="phone" /></td></tr>
+                  <tr><td>Địa chỉ</td><td><input class="form-control" data-field="address" /></td></tr>
+                  <tr><td>Mã số thuế</td><td><input class="form-control" data-field="tax_code" /></td></tr>
+                  <tr><td>Mã vạch</td><td><input class="form-control" data-field="barcode" readonly /></td></tr>
+                  <tr><td>Ghi chú</td><td><input class="form-control" data-field="note" /></td></tr>
+                </tbody>
+              </table>
+              <button type="button" id="submit-supplier">Thêm mới</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    #tblMain (the invoice line-item table itself, confirmed by
+    medicine.add_new_trigger's own registry notes: "#tblMain is the
+    invoice line-item table") is only POPULATED (its own
+    medicine/drug-group trigger button) after the supplier step
+    completes, mirroring the real invoice form's own sequencing.
+    REVISED (2026-08, PO-confirmed, final): no longer load-bearing for
+    avoiding a collision with supplier.add_new_trigger -- that trigger
+    is now correctly scoped to #receiptNoteViewId, which a REAL
+    strict-mode-violation error proved does not contain #tblMain (see
+    #receiptNoteViewId's own comment). Kept deferred anyway since it
+    still matches the real invoice form's actual sequencing, not
+    because it is required for disambiguation any more.
+    test_playwright_provider.py's
+    test_supplier_add_new_trigger_does_not_collide_with_the_tblmain_trigger
+    populates #tblMain directly (bypassing this deferred injection)
+    specifically to prove the scoping itself, independent of sequencing.
+
+    BUG FIX (2026-08, PO-confirmed via a real --dry-run run):
+    #invoice-rows-container (see its own comment below) is nested
+    INSIDE #tblMain here, not a sibling of it -- a real dry-run run
+    found page.locator("tbody") returning 24 matches page-wide for a
+    3-item invoice (other real tables elsewhere on the live page, not
+    modeled in this fixture at all), when only 1-3 were ever expected.
+    _wait_for_row_settled/_click_batch_edit_button_for_row now both
+    scope their own tbody counting to "#tblMain tbody" instead of a
+    page-wide "tbody" -- #tblMain is real, already-confirmed evidence
+    (not a new guess) for exactly this container, so this nesting
+    models the real site's structure this fix now relies on.
+    submit-supplier's own handler below APPENDS its trigger button
+    rather than replacing #tblMain's innerHTML, specifically so it
+    does not destroy this nested container.
+  -->
+  <div id="tblMain">
+    <div id="invoice-rows-container"></div>
+  </div>
+
+  <!--
+    Minimal medicine-creation dialog stub: "Mã thuốc" + "×" close + a
+    "Thêm mới" submit -- present but not conditionally revealed (the
+    exact reveal sequence is not what these tests are about; they only
+    need these elements reachable so the flow can get far enough to hit
+    its real, intended stop at the still-unconfirmed unit_display_label
+    value mapping, rather than an unrelated missing-element timeout).
+
+    "Đơn vị xuất lẻ"/"Tên thuốc" (2026-08, added for
+    TestMedicineResolutionMergedIntoPerLineLoop): only reachable at all
+    once a test-local registry override marks a unit_display_label
+    entry 'confirmed' (the real registry never does -- see that test
+    class's own docstring) -- exists purely to exercise the
+    create-then-reselect handoff, not to claim real evidence for the
+    still-unconfirmed real mapping.
+  -->
+  <div id="medicine-dialog">
+    <label>Nhóm thuốc
+      <select>
+        <option value="1">Thuốc kê đơn</option>
+        <option value="2">Thuốc không kê đơn</option>
+      </select>
+    </label>
+    <label>Mã thuốc <input type="text" id="medicine-code-input" /></label>
+    <label>Đơn vị xuất lẻ
+      <select id="medicine-unit-select">
+        <option value="1">Viên</option>
+      </select>
+    </label>
+    <label>Tên thuốc <input type="text" id="medicine-name-input" /></label>
+    <button type="button" id="close-medicine-dialog">×</button>
+    <button type="button" id="submit-medicine">Thêm mới</button>
+  </div>
+
+  <!--
+    Phase 1 (06_multi_line_items.py, PO-confirmed 2026-08): per-line
+    medicine search feeding a SHARED, reused quantity/price/VAT/discount
+    field set (not one per row -- an earlier per-row-suffix theory was
+    retracted after this recording), plus the "Thêm mới"-titled button
+    that confirms the current line and clears the shared fields for the
+    next one. The first line's search uses a "Đóng"-cell-scoped combobox
+    (medicine.search_input); every later line uses a stable
+    role=combobox name="Select box" nth=1 (a hidden decoy sits at nth=0,
+    matching this project's established decoy-at-index-0 pattern -- see
+    e.g. #open-login-decoy above). Both feed the same role=cell result
+    list (medicine.search_result_option). Each confirm-click's
+    quantity/price/VAT values are logged to #line-fill-log (by call
+    order) so a test can verify each item's values independently even
+    though the fields themselves are reused.
+
+    #add-row-button (bug fix, PO-confirmed 2026-08): a REAL Playwright
+    strict-mode-violation error from a live --dry-run run enumerated 4
+    real elements sharing title="Thêm mới" on the real site --
+    addSupplier(), onAddNewItem(gridItem) (this button, "Thêm dòng hóa
+    đơn"), onAddNew() (unidentified, not needed by any current
+    workflow), and addDrugGroup() (#tblMain). invoice_line.add_row_button
+    disambiguates via its real ng-click handler attribute, not position
+    (position-based nth was explicitly rejected here as too fragile,
+    per the add_new_trigger lesson -- see that entry's own registry
+    notes). BUG FIX #2 (2026-08, real --dry-run timeout): the real
+    ng-click value is longer than just the handler call -- Angular
+    appends its own inline event-handling suffix, giving the real,
+    full value modeled here verbatim:
+    "onAddNewItem(gridItem); $event.preventDefault(); $event.stopPropagation();".
+    An exact-match selector against just "onAddNewItem(gridItem)" never
+    matched on the real site because of this suffix -- the registry
+    entry now uses a CSS substring match ([ng-click*="onAddNewItem"])
+    instead, which this longer, real-shaped value is what actually
+    exercises/proves. The 3 decoy title="Thêm mới" spans near the top
+    of this fixture deliberately lack any ng-click attribute and are
+    left unhidden/unremoved in the Phase 1/2 tests below -- proving the
+    new selector's specificity against real-shaped imposters, not
+    merely their absence.
+  -->
+  <!--
+    invoice.number_field/invoice.date_field (bug fix, PO-confirmed
+    2026-08): registered/confirmed but never actually called by
+    fill_and_save_invoice() until now -- same "forgot to wire it up"
+    gap as supplier.default_tag_remove_button. Plain <input type="text">
+    already has an implicit role="textbox"; aria-label supplies the
+    accessible name the registry matches on.
+
+    BUG FIX #3 (2026-08, PO-confirmed via real hands-on testing --
+    CRITICAL, WRONG DATE on a real invoice, FULLY RESOLVED): PO
+    personally confirmed clicking directly into #invoice-date-input
+    does NOT open its calendar -- it is display-only here too (no
+    listener of its own), matching the real site. The real trigger is
+    a separate calendar-icon button (ng-click="onInvoiceDateClick",
+    real DOM snapshot copied verbatim by PO) bound to a single, page-
+    shared bootstrap-datepicker widget (also PO-confirmed real
+    structure: .datepicker-switch/.datepicker-months/.datepicker-years/
+    span.year/span.month/td.day, with ".old"/".new" marking greyed-out
+    adjacent-month overflow days). "?corrupt_invoice_date" now hooks
+    the FINAL day-selection step (not a plain fill()-triggered "input"
+    event any more, since nothing fills this field directly any more)
+    to model the same real misbehavior PO originally reported.
+  -->
+  <input type="text" aria-label="Số hóa đơn" id="invoice-number-input" />
+  <input type="text" aria-label="Ngày hóa đơn" id="invoice-date-input" readonly />
+  <button type="button" ng-click="onInvoiceDateClick(); $event.preventDefault(); $event.stopPropagation();" id="invoice-date-calendar-trigger">
+    <i class="fa-regular fa-calendar-days"></i>
+  </button>
+  <div class="datepicker datepicker-dropdown" id="shared-datepicker" hidden>
+    <div class="datepicker-days">
+      <div class="datepicker-switch">Tháng 8 2026</div>
+      <!--
+        Full 5x7 real-calendar-shaped grid (not just a partial range) --
+        several tests use date.today() as their invoice_date, so every
+        real day 1-31 must be a genuine, clickable, non-old/non-new
+        cell regardless of which day of the month the suite happens to
+        run on. Leading/trailing old/new cells kept minimal but real,
+        including a deliberate day="1" collision (row 1's real day 1
+        vs. row 5's ".new" day 1) to exercise the ":not(.old):not(.new)"
+        exclusion.
+      -->
+      <table>
+        <tbody>
+          <tr>
+            <td class="day old">29</td>
+            <td class="day old">30</td>
+            <td class="day old">31</td>
+            <td class="day">1</td>
+            <td class="day">2</td>
+            <td class="day">3</td>
+            <td class="day">4</td>
+          </tr>
+          <tr>
+            <td class="day">5</td>
+            <td class="day">6</td>
+            <td class="day">7</td>
+            <td class="day">8</td>
+            <td class="day">9</td>
+            <td class="day">10</td>
+            <td class="day">11</td>
+          </tr>
+          <tr>
+            <td class="day">12</td>
+            <td class="day">13</td>
+            <td class="day">14</td>
+            <td class="day">15</td>
+            <td class="day">16</td>
+            <td class="day">17</td>
+            <td class="day">18</td>
+          </tr>
+          <tr>
+            <td class="day">19</td>
+            <td class="day">20</td>
+            <td class="day">21</td>
+            <td class="day">22</td>
+            <td class="day">23</td>
+            <td class="day">24</td>
+            <td class="day">25</td>
+          </tr>
+          <tr>
+            <td class="day">26</td>
+            <td class="day">27</td>
+            <td class="day">28</td>
+            <td class="day">29</td>
+            <td class="day">30</td>
+            <td class="day">31</td>
+            <td class="day new">1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="datepicker-months" hidden>
+      <div class="datepicker-switch">2026</div>
+      <span class="month">Th1</span>
+      <span class="month">Th2</span>
+      <span class="month">Th3</span>
+      <span class="month">Th4</span>
+      <span class="month">Th5</span>
+      <span class="month">Th6</span>
+      <span class="month">Th7</span>
+      <span class="month">Th8</span>
+      <span class="month">Th9</span>
+      <span class="month">Th10</span>
+      <span class="month">Th11</span>
+      <span class="month">Th12</span>
+    </div>
+    <div class="datepicker-years" hidden>
+      <div class="datepicker-switch">2020-2029</div>
+      <span class="year">2020</span>
+      <span class="year">2021</span>
+      <span class="year">2022</span>
+      <span class="year">2023</span>
+      <span class="year">2024</span>
+      <span class="year">2025</span>
+      <span class="year">2026</span>
+      <span class="year">2027</span>
+      <span class="year">2028</span>
+      <span class="year">2029</span>
+    </div>
+  </div>
+
+  <!--
+    role="table"/"row"/"cell" divs, NOT literal <table>/<tbody>/<td> --
+    deliberately, so this section contributes no real <tbody> element
+    to the page. role=cell/role=row still work identically for
+    medicine.search_input's scope_role="cell" matching (verified
+    empirically against real Playwright/Chromium).
+
+    medicine.search_result_option (bug fix #2, 2026-08, PO-confirmed
+    via a real DOM snapshot -- CRITICAL, substring-collision selection
+    bug): each result's <b data-medicine-result="..."> models the real
+    site's own structure verbatim -- a clean "{code} - {tên thuốc}"
+    <b> tag, with the ever-changing price/stock info in a SEPARATE
+    sibling <span class="info-item">, exactly matching the real
+    snapshot PO copied from a live --dry-run session ('<b>893100160624
+    - <span class="bg-warning">Coldi</span>-B DNH</b><span
+    class="info-item">Giá nhập.../Tồn.../SĐK...</span>'). TH4/TH5
+    ("Coldi"/"Coldi-B DNH") specifically reproduce the real substring-
+    collision case that broke Phase 1 twice in a row on the live site
+    -- see TestMedicineSearchResultDisambiguation below.
+    data-medicine-result + the click-log script further down let a
+    test verify WHICH result actually got clicked, not just that some
+    click succeeded without error.
+  -->
+  <div role="table">
+    <div role="row">
+      <!--
+        aria-label overrides name-from-content so this cell's accessible
+        NAME stays exactly "Đóng" even once the combobox inside it is
+        filled with a medicine name -- otherwise the typed value leaks
+        into the cell's computed name (form-control values count toward
+        an ancestor's name-from-content) and collides with
+        medicine.search_result_option's own name-based, page-wide
+        role=cell query below. filter_has_text (used by
+        medicine.search_input's own scoping) matches on rendered TEXT
+        CONTENT, not accessible name, so the visible "Đóng" text is
+        still needed too -- this needs both.
+      -->
+      <div role="cell" aria-label="Đóng">Đóng<input type="text" role="combobox" id="first-line-search" /></div>
+    </div>
+  </div>
+  <input type="text" role="combobox" aria-label="Select box" disabled />
+  <input type="text" role="combobox" aria-label="Select box" id="subsequent-line-search" />
+  <div role="table" id="medicine-search-results-table">
+    <div role="row"><div role="cell"><b data-medicine-result="TH1">TH1 - Paracetamol 500mg</b><span class="info-item"> - Ton: 10 (Hop)</span></div></div>
+    <div role="row"><div role="cell"><b data-medicine-result="TH2">TH2 - Amoxicillin 500mg</b><span class="info-item"> - Ton: 5 (Hop)</span></div></div>
+    <div role="row"><div role="cell"><b data-medicine-result="TH3">TH3 - Vitamin C 500mg</b><span class="info-item"> - Ton: 8 (Hop)</span></div></div>
+    <div role="row"><div role="cell"><b data-medicine-result="TH4">TH4 - Coldi</b><span class="info-item"> - Ton: 12 (Hop)</span></div></div>
+    <div role="row"><div role="cell"><b data-medicine-result="TH5">TH5 - Coldi-B DNH</b><span class="info-item"> - Ton: 6 (Hop)</span></div></div>
+    <!--
+      TH6/TH7 (2026-08, added for TestMedicineSelectionByKnownWebsiteCatalogCode):
+      TWO rows sharing the IDENTICAL name text "Naphacogyl" (unlike
+      TH4/TH5's differing suffixes) -- models the real PO-confirmed
+      case of a name appearing on >= 4 distinct real catalog rows. A
+      plain name-suffix match cannot tell these two apart at all (both
+      end with "Naphacogyl"); only a code-anchored match
+      (medicine.search_result_option_by_code) can select the right one.
+    -->
+    <div role="row"><div role="cell"><b data-medicine-result="TH6">TH6 - Naphacogyl</b><span class="info-item"> - Ton: 20 (Hop)</span></div></div>
+    <div role="row"><div role="cell"><b data-medicine-result="TH7">TH7 - Naphacogyl</b><span class="info-item"> - Ton: 15 (Hop)</span></div></div>
+  </div>
+  <input type="text" id="tbxQuantityId" />
+  <input type="text" id="tbxPriceId" />
+  <input type="text" id="tbxVATId" />
+  <input type="text" id="tbxDiscountId" />
+
+  <!--
+    Row-specific persistent fields (table_structure.html, PO-confirmed
+    2026-08, real DOM snapshot -- REPLACES the abandoned tbody:nth-child(N)
+    approach): once a row is committed, its own Price/Quantity/VAT/
+    Discount fields are addressable at "{base id}{suffix}", suffix ""
+    for row 1 (same element as #tbxQuantityId above -- dual purpose:
+    Phase 1's shared active field AND row 1's own permanent one) and
+    str(row - 1) for rows 2-5. Only #tbxQuantityId's row-specific
+    siblings are modeled here (sufficient to prove the suffix formula
+    end to end via _fill_row_specific_field).
+  -->
+  <input type="text" id="tbxQuantityId1" />
+  <input type="text" id="tbxQuantityId2" />
+  <input type="text" id="tbxQuantityId3" />
+  <input type="text" id="tbxQuantityId4" />
+  <span title="Thêm mới" ng-click="onAddNewItem(gridItem); $event.preventDefault(); $event.stopPropagation();" id="add-row-button">Thêm mới</span>
+  <ol id="line-fill-log"></ol>
+
+  <!--
+    Real per-row <tbody> elements (table_structure.html, PO-confirmed
+    2026-08): each "Thêm mới" click (see #add-row-button's handler
+    below) appends one fresh <tbody> to #invoice-rows-container (now
+    nested inside #tblMain -- see that element's own comment), each
+    containing this row's batch/expiry ("Lo/Han") trigger -- a
+    calendar-icon button, visually identical on every row,
+    distinguishable only by which <tbody> it lives in (matching the
+    real site's ng-repeat="gridItem in viewModel.NoteItems" structure).
+    #txtBatchNumber/the "Hạn dùng:" row and "Cập nhật" are a SHARED
+    overlay that "attaches" to whichever row's trigger was last
+    clicked -- logged to #batch-fill-log (tagged by row) so a test can
+    verify no bleed between rows even though the overlay fields are
+    reused.
+  -->
+  <input type="text" id="txtBatchNumber" />
+  <div role="row" aria-label="Hạn dùng:">
+    <input type="text" placeholder="Nhập 010122 => 01/01/" id="expiry-date-input" />
+  </div>
+  <button type="button" id="confirm-row-button">Cập nhật</button>
+  <ol id="batch-fill-log"></ol>
+
+  <!--
+    Whole-invoice commercial discount ("Tra truoc/C.K.Don", PO-confirmed
+    2026-08 via direct DOM inspection): a page-level field near
+    invoice.save_button, filled once per invoice (never per line) right
+    before the first "Ghi Phieu" click -- distinct from #tbxDiscountId
+    above, which is the per-line-fill-set field.
+  -->
+  <input type="text" ng-model="viewModel.Discount" id="invoice-discount-field" />
+  <input type="text" ng-model="discountWithRatio" id="invoice-discount-ratio-field" />
+
+  <button type="button" id="save-invoice">Ghi Phiếu</button>
+  <a href="#" id="edit-invoice-link" hidden>Sửa</a>
+
+  <!--
+    Post-save medicine-price edit flow (PO amendment, 2026-08; confirmed
+    05_full_flow...py:146-151): clicking "Sửa" reveals one "Chỉnh sửa
+    thuốc" button per already-saved line item; clicking one reveals a
+    "Giá bán lẻ" field (shared/reused, not one persistent field per
+    item, since only one edit dialog is ever open at a time on the real
+    site either) plus 2 "Đóng" buttons -- a decoy at index 0 and the
+    real one at index 1, matching invoice_line.edit_dialog_close_button's
+    confirmed nth=1. Closing logs the field's value (by item index) to
+    #retail-price-log before clearing it, so a test can verify each
+    item's calculated price independently even though the field itself
+    is reused.
+  -->
+  <div id="edit-medicine-section" hidden>
+    <button type="button" title="Chỉnh sửa thuốc" data-item-index="0">Chỉnh sửa thuốc</button>
+    <button type="button" title="Chỉnh sửa thuốc" data-item-index="1">Chỉnh sửa thuốc</button>
+    <div id="retail-price-dialog" hidden>
+      <label>Giá bán lẻ <input type="text" id="retail-price" /></label>
+      <button type="button" disabled>Đóng</button>
+      <button type="button" id="close-retail-price-dialog">Đóng</button>
+    </div>
+  </div>
+  <ol id="retail-price-log"></ol>
+
+  <!--
+    Default "Hang nhap le" supplier tag (bug fix, PO-confirmed 2026-08):
+    supplier.default_tag_remove_button (".close.ui-select-match-close")
+    was already PO-confirmed required but never actually wired into any
+    orchestration call until now -- present here so a real test can
+    verify remove_default_supplier_tag() actually clicks it.
+  -->
+  <span class="close ui-select-match-close" id="default-supplier-tag-remove">&times;</span>
+
+  <script>
+    const loginPopupParams = new URLSearchParams(location.search);
+    if (loginPopupParams.has("show_login_popup")) {
+      document.getElementById("login-notification-popup-close").hidden = false;
+    }
+    // Bug fix #2 (2026-08, PO-confirmed via a real --dry-run run):
+    // models the popup appearing LATE (real Angular render delay, not
+    // instant) -- beyond _click_if_present's old, short
+    // _OPTIONAL_CLICK_TIMEOUT_MS (2s) but within
+    // _click_if_eventually_visible's new, dedicated
+    // _LOGIN_POPUP_VISIBLE_TIMEOUT_MS (8s), so a test can prove the fix
+    // actually catches a popup the old timeout would have missed.
+    const loginPopupDelayMs = Number(loginPopupParams.get("show_login_popup_delay_ms") || 0);
+    if (loginPopupDelayMs > 0) {
+      setTimeout(() => {
+        document.getElementById("login-notification-popup-close").hidden = false;
+      }, loginPopupDelayMs);
+    }
+    // invoice.date_field bug fix #3 (2026-08, PO-confirmed via real
+    // hands-on testing -- CRITICAL, WRONG DATE on a real invoice,
+    // FULLY RESOLVED): models the real bootstrap-datepicker widget PO
+    // described directly -- a single, page-shared instance, one
+    // .datepicker-switch header per view (days/months/years, only one
+    // visible at a time), auto-advancing to the next-finer view on
+    // year/month selection, with ".old"/".new" marking greyed-out
+    // adjacent-month overflow days that must never be selectable.
+    (() => {
+      const corruptInvoiceDate = loginPopupParams.has("corrupt_invoice_date");
+      let selectedYear = 2026;
+      let selectedMonth = 8;
+      const dropdown = document.getElementById("shared-datepicker");
+      const daysView = dropdown.querySelector(".datepicker-days");
+      const monthsView = dropdown.querySelector(".datepicker-months");
+      const yearsView = dropdown.querySelector(".datepicker-years");
+
+      const showView = (view) => {
+        daysView.hidden = view !== "days";
+        monthsView.hidden = view !== "months";
+        yearsView.hidden = view !== "years";
+      };
+
+      document
+        .getElementById("invoice-date-calendar-trigger")
+        .addEventListener("click", () => {
+          dropdown.hidden = false;
+          showView("days");
+          // PO's own explicit safety request: simulates a second,
+          // stray visible calendar (e.g. a real widget bug, or two
+          // fields somehow both open at once) to prove
+          // _verify_exactly_one_calendar_visible fails cleanly instead
+          // of navigating an ambiguous calendar.
+          if (loginPopupParams.has("duplicate_calendar")) {
+            const stray = document.createElement("div");
+            stray.className = "datepicker datepicker-dropdown";
+            stray.textContent = "stray duplicate calendar";
+            document.body.appendChild(stray);
+          }
+        });
+
+      // Real bootstrap-datepicker: one switch header per view --
+      // clicking whichever is currently visible advances days -> months
+      // -> years (years -> years again, harmless, not exercised here).
+      dropdown.querySelectorAll(".datepicker-switch").forEach((el) => {
+        el.addEventListener("click", () => {
+          if (!daysView.hidden) {
+            showView("months");
+          } else if (!monthsView.hidden) {
+            showView("years");
+          }
+        });
+      });
+
+      yearsView.querySelectorAll("span.year").forEach((el) => {
+        el.addEventListener("click", () => {
+          selectedYear = Number(el.textContent);
+          showView("months");
+        });
+      });
+
+      monthsView.querySelectorAll("span.month").forEach((el) => {
+        el.addEventListener("click", () => {
+          selectedMonth = Number(el.textContent.replace("Th", ""));
+          showView("days");
+        });
+      });
+
+      // .old/.new cells deliberately get NO click handler at all --
+      // if the automation's own ":not(.old):not(.new)" exclusion ever
+      // regresses and clicks one anyway, the date field is left
+      // unchanged/blank instead of silently "working", so
+      // _fill_invoice_date_and_verify's own roundtrip check still
+      // catches it.
+      daysView.querySelectorAll("td.day:not(.old):not(.new)").forEach((el) => {
+        el.addEventListener("click", () => {
+          const day = String(Number(el.textContent)).padStart(2, "0");
+          const month = String(selectedMonth).padStart(2, "0");
+          document.getElementById("invoice-date-input").value = corruptInvoiceDate
+            ? "19/01/2024"
+            : `${day}/${month}/${selectedYear}`;
+          dropdown.hidden = true;
+        });
+      });
+    })();
+    // medicine.search_result_option bug fix #2 (2026-08, PO-confirmed
+    // via a real DOM snapshot): logs WHICH result was actually
+    // clicked, so a test can prove the end-anchored match picked the
+    // right one -- not just that some click succeeded without error.
+    document.querySelectorAll("[data-medicine-result]").forEach((el) => {
+      el.addEventListener("click", () => {
+        window.medicineResultClickLog = window.medicineResultClickLog || [];
+        window.medicineResultClickLog.push(el.getAttribute("data-medicine-result"));
+      });
+    });
+    // 2026-08, added for TestMedicineResolutionMergedIntoPerLineLoop:
+    // create_medicine()'s real flow clicks #submit-medicine TWICE --
+    // once before "Tên thuốc" is filled (group/code submit), once
+    // after (the real, final creation submit, per its own docstring's
+    // real-recording order). Only the second click, detected here by
+    // the name field already having a value, appends a fresh matching
+    // result row -- modeling a newly-created medicine becoming
+    // searchable, so the merged per-line loop's re-check+select after
+    // create_medicine() has something real to find. New element gets
+    // its own click listener attached directly (same pattern as
+    // #open-medicine-dialog's dynamically-created trigger above),
+    // since the page-load-time querySelectorAll pass above cannot see
+    // an element that does not exist yet.
+    document.getElementById("submit-medicine").addEventListener("click", () => {
+      const nameInput = document.getElementById("medicine-name-input");
+      if (!nameInput || !nameInput.value) {
+        return;
+      }
+      const code = document.getElementById("medicine-code-input").value || "NEW";
+      const row = document.createElement("div");
+      row.setAttribute("role", "row");
+      const cell = document.createElement("div");
+      cell.setAttribute("role", "cell");
+      const b = document.createElement("b");
+      b.setAttribute("data-medicine-result", code);
+      b.textContent = code + " - " + nameInput.value;
+      b.addEventListener("click", () => {
+        window.medicineResultClickLog = window.medicineResultClickLog || [];
+        window.medicineResultClickLog.push(b.getAttribute("data-medicine-result"));
+      });
+      cell.appendChild(b);
+      row.appendChild(cell);
+      document.getElementById("medicine-search-results-table").appendChild(row);
+    });
+    document.getElementById("login-notification-popup-close").addEventListener("click", () => {
+      window.loginPopupCloseClicks = (window.loginPopupCloseClicks || 0) + 1;
+      document.getElementById("login-notification-popup-close").hidden = true;
+    });
+    document.getElementById("open-login").addEventListener("click", () => {
+      document.getElementById("login-form").hidden = false;
+      document.getElementById("open-login").hidden = true;
+      document.getElementById("open-login-decoy").hidden = true;
+    });
+    document.getElementById("submit-login").addEventListener("click", () => {
+      document.getElementById("session-indicator").hidden = false;
+    });
+    document.getElementById("open-supplier-dialog").addEventListener("click", () => {
+      document.getElementById("create-supplyer-dialog").hidden = false;
+      document.getElementById("open-supplier-dialog").hidden = true;
+    });
+    document.getElementById("default-supplier-tag-remove").addEventListener("click", () => {
+      window.defaultSupplierTagRemoveClicks = (window.defaultSupplierTagRemoveClicks || 0) + 1;
+      document.getElementById("default-supplier-tag-remove").remove();
+    });
+    document.getElementById("submit-supplier").addEventListener("click", () => {
+      // Appends rather than replacing #tblMain's innerHTML (bug fix,
+      // 2026-08) -- #tblMain now nests #invoice-rows-container (see
+      // that element's own comment); innerHTML replacement would have
+      // destroyed it.
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.title = "Thêm mới nếu chưa có";
+      trigger.id = "open-medicine-dialog";
+      trigger.textContent = "Thêm mới nếu chưa có";
+      trigger.addEventListener("click", () => {
+        trigger.hidden = true;
+      });
+      document.getElementById("tblMain").appendChild(trigger);
+    });
+    let currentBatchEditRow = null;
+    // _wait_for_row_settled (bug fix, PO-confirmed 2026-08 -- CRITICAL,
+    // silent data loss investigation): the real site's own Angular
+    // digest genuinely takes a non-instant amount of time to "settle"
+    // a row (PO's own manual, slow re-selection proved this) after
+    // add_row_button is clicked -- modeled here as a real, configurable
+    // delay before the new <tbody> is appended, rather than always
+    // appending it synchronously (which would never actually exercise
+    // the new wait/poll logic). "row_settle_delay_ms" simulates a slow-
+    // but-eventually-successful settle; "row_never_settles" simulates
+    // the site rejecting the row outright (PO's real "chưa nhập thông
+    // tin thuốc" error) -- no <tbody> is ever appended in that case,
+    // proving _wait_for_row_settled fails cleanly instead of hanging or
+    // silently continuing.
+    const rowSettleParams = new URLSearchParams(location.search);
+    const rowSettleDelayMs = Number(rowSettleParams.get("row_settle_delay_ms") || 0);
+    const rowNeverSettles = rowSettleParams.has("row_never_settles");
+    document.getElementById("add-row-button").addEventListener("click", () => {
+      const quantity = document.getElementById("tbxQuantityId").value;
+      const price = document.getElementById("tbxPriceId").value;
+      const vat = document.getElementById("tbxVATId").value;
+      const entry = document.createElement("li");
+      entry.textContent = quantity + "|" + price + "|" + vat;
+      document.getElementById("line-fill-log").appendChild(entry);
+      document.getElementById("tbxQuantityId").value = "";
+      document.getElementById("tbxPriceId").value = "";
+      document.getElementById("tbxVATId").value = "";
+
+      if (rowNeverSettles) {
+        return;
+      }
+      const appendSettledRow = () => {
+        const container = document.getElementById("invoice-rows-container");
+        const rowNumber = container.children.length + 1;
+        const tbody = document.createElement("tbody");
+        tbody.setAttribute("data-row", String(rowNumber));
+        tbody.innerHTML =
+          '<tr><td><button type="button" class="btn btn-primary">' +
+          '<i class="fa-calendar-days" style="display:inline-block;width:16px;height:16px">' +
+          "</i></button></td></tr>";
+        tbody.querySelector(".fa-calendar-days").addEventListener("click", () => {
+          currentBatchEditRow = rowNumber;
+        });
+        container.appendChild(tbody);
+      };
+      if (rowSettleDelayMs > 0) {
+        setTimeout(appendSettledRow, rowSettleDelayMs);
+      } else {
+        appendSettledRow();
+      }
+    });
+    document.getElementById("confirm-row-button").addEventListener("click", () => {
+      const batchNumber = document.getElementById("txtBatchNumber").value;
+      const expiry = document.getElementById("expiry-date-input").value;
+      const entry = document.createElement("li");
+      entry.textContent = currentBatchEditRow + "|" + batchNumber + "|" + expiry;
+      document.getElementById("batch-fill-log").appendChild(entry);
+      document.getElementById("txtBatchNumber").value = "";
+      document.getElementById("expiry-date-input").value = "";
+    });
+    document.getElementById("save-invoice").addEventListener("click", () => {
+      document.getElementById("edit-invoice-link").hidden = false;
+    });
+    document.getElementById("edit-invoice-link").addEventListener("click", (event) => {
+      event.preventDefault();
+      document.getElementById("edit-medicine-section").hidden = false;
+    });
+    let currentEditItemIndex = null;
+    document.querySelectorAll('[title="Chỉnh sửa thuốc"]').forEach((button) => {
+      button.addEventListener("click", () => {
+        currentEditItemIndex = button.getAttribute("data-item-index");
+        document.getElementById("retail-price").value = "";
+        document.getElementById("retail-price-dialog").hidden = false;
+      });
+    });
+    document.getElementById("close-retail-price-dialog").addEventListener("click", () => {
+      const value = document.getElementById("retail-price").value;
+      const entry = document.createElement("li");
+      entry.textContent = currentEditItemIndex + ":" + value;
+      entry.setAttribute("data-item-index", currentEditItemIndex);
+      document.getElementById("retail-price-log").appendChild(entry);
+      document.getElementById("retail-price-dialog").hidden = true;
+    });
+  </script>
+</body>
+</html>

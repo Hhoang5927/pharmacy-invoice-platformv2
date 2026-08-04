@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 from pharmacy_invoice_automation.domain.constants import VALID_STATUS_TRANSITIONS
 from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
@@ -42,6 +43,20 @@ class PurchaseInvoice:
     supplier_id: str | None = None
     items: list[PurchaseItem] = field(default_factory=list)
     ocr_confidence: float | None = None
+    commercial_discount_amount: Money | None = None
+    """
+    The whole-invoice commercial discount ("Giam Tru CKTM"/"Chiet khau
+    thuong mai", PO-confirmed 2026-08) some suppliers print as their own
+    summary row -- a deduction against the WHOLE invoice, not against
+    any one PurchaseItem's line_total. Populated by
+    pipeline.invoice_extraction_step.InvoiceExtractionStep from
+    OCRResult.raw_commercial_discount_amount, when present. None means
+    this invoice states no such discount -- never guessed. Deducted from
+    calculate_item_total_sum() by
+    services.invoice_calculation_service.InvoiceCalculationService when
+    reconciling against the invoice's stated grand total (see
+    calculate_reconciled_grand_total).
+    """
     version: int = 1
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -76,7 +91,7 @@ class PurchaseInvoice:
     def calculate_item_total_sum(self) -> Money:
         """Sum of every item's line_total. An empty invoice sums to zero VND."""
         currency = self.items[0].unit_price.currency if self.items else "VND"
-        total = Money(amount=0, currency=currency)
+        total = Money(amount=Decimal("0"), currency=currency)
         for item in self.items:
             total = total + item.line_total
         return total

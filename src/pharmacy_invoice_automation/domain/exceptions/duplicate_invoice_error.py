@@ -1,11 +1,13 @@
-"""
-Exception: DuplicateInvoiceError. Raised when an invoice number duplicate is detected.
+"""Exception: DuplicateInvoiceError."""
 
-This file is a scaffold only. No business logic, classes, or functions are
-defined here -- this is intentional. This prompt (Project Bootstrap & Skeleton
-Generation) creates project structure only.
+from __future__ import annotations
 
-Implemented in: Prompt 04
-Governing contract: docs/architecture/Implementation_Specification.md, Section 6
-(Module Contracts) and Section 3 (Folder Specification).
-"""
+from pharmacy_invoice_automation.domain.exceptions.domain_error import DomainError
+
+
+class DuplicateInvoiceError(DomainError):
+    """Raised when a PurchaseInvoice with the same invoice_number already exists."""
+
+    def __init__(self, invoice_number: str) -> None:
+        super().__init__(f"A purchase invoice numbered '{invoice_number}' already exists.")
+        self.invoice_number = invoice_number

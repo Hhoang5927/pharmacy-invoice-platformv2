@@ -8,10 +8,10 @@
 #   built-in defaults -> this file -> environment variables -> UI Settings Tab
 
 [ocr]
-gemini_model = "placeholder-model-id"     # pinned in Prompt 05
+gemini_model = "gemini-3.6-flash"         # confirmed current, vision-capable (2026-07)
 concurrency_limit = 5
 retry_count = 3
-timeout_seconds = 30
+timeout_seconds = 60                      # live-tested: a real structured-output OCR call took ~27s
 
 [automation]
 headless = true

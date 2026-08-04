@@ -14,10 +14,15 @@ Services pattern).
 
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Decimal
+
 from pharmacy_invoice_automation.domain.constants import (
     TOTAL_CONSISTENCY_RELATIVE_TOLERANCE,
 )
 from pharmacy_invoice_automation.domain.value_objects.money import Money
+
+_RETAIL_PRICE_MARKUP = Decimal("1.2")
+_RETAIL_PRICE_ROUNDING_STEP = Decimal("1000")
 
 
 class PricePolicy:
@@ -48,3 +53,21 @@ class PricePolicy:
         if ocr_extracted_price is not None:
             return ocr_extracted_price
         return catalog_lookup_price
+
+    def calculate_suggested_retail_price(self, purchase_price: Money) -> Money:
+        """
+        Suggested retail price = purchase price x 1.2, rounded to the
+        nearest 1,000 VND (PO-confirmed, 2026-08). Replaces the
+        originally-planned Long Chau price-lookup design for this figure
+        (see CLAUDE.md Deviation D3) -- this is now a pure calculation,
+        not an external lookup, and the operator retains final authority
+        to edit it on the website regardless.
+        """
+        raw_amount = purchase_price.amount * _RETAIL_PRICE_MARKUP
+        rounded_steps = (raw_amount / _RETAIL_PRICE_ROUNDING_STEP).quantize(
+            Decimal("1"), rounding=ROUND_HALF_UP
+        )
+        return Money(
+            amount=rounded_steps * _RETAIL_PRICE_ROUNDING_STEP,
+            currency=purchase_price.currency,
+        )

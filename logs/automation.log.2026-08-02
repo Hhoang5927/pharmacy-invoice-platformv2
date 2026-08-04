@@ -1,0 +1,23 @@
+2026-08-02 00:58:33 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-02 00:58:33 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-02 00:58:53 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-02 00:58:55 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-02 00:58:56 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-02 00:59:07 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Row 2 did not settle within 5000ms after clicking invoice_line.add_row_button -- expected 2 settled <tbody> row(s), found 1. Refusing to continue to the next line: filling its fields into the still-shared active-row fields before this row finishes settling would silently overwrite it instead of adding a new one.
+2026-08-02 02:05:42 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-02 02:05:42 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-02 02:06:30 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-02 02:06:30 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-02 02:07:03 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-02 02:07:04 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-02 02:07:05 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-02 02:21:49 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-02 02:21:49 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-02 02:22:11 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-02 02:22:12 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-02 02:22:13 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-02 17:22:50 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-02 17:22:50 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-02 17:23:05 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-02 17:23:06 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-02 17:23:08 | INFO | pharmacy_automation.automation | create_supplier succeeded.

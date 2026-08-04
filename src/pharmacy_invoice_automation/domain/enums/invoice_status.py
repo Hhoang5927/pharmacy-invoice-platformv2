@@ -1,11 +1,33 @@
 """
-Enum: InvoiceStatus. Pending, OcrInProgress, OcrDone, OcrFailed, UnderReview, ReadyForImport, ImportInProgress, Imported, ImportFailed.
+Enum: InvoiceStatus.
 
-This file is a scaffold only. No business logic, classes, or functions are
-defined here -- this is intentional. This prompt (Project Bootstrap & Skeleton
-Generation) creates project structure only.
-
-Implemented in: Prompt 04
-Governing contract: docs/architecture/Implementation_Specification.md, Section 6
-(Module Contracts) and Section 3 (Folder Specification).
+Represents an invoice's position in its lifecycle, from first
+discovering an image on disk through to a successfully saved website
+invoice (or a terminal failure at any stage). See
+docs/architecture/Technical_Design_Document.md Section 12.4 for the
+full state diagram this enum, together with
+domain.constants.VALID_STATUS_TRANSITIONS, implements.
 """
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class InvoiceStatus(str, Enum):
+    """Lifecycle status of an Invoice aggregate."""
+
+    PENDING = "pending"
+    OCR_IN_PROGRESS = "ocr_in_progress"
+    OCR_DONE = "ocr_done"
+    OCR_FAILED = "ocr_failed"
+    UNDER_REVIEW = "under_review"
+    READY_FOR_IMPORT = "ready_for_import"
+    IMPORT_IN_PROGRESS = "import_in_progress"
+    IMPORTED = "imported"
+    IMPORT_FAILED = "import_failed"
+
+    @property
+    def is_terminal(self) -> bool:
+        """True only for the one status that should never be re-entered (FR-15)."""
+        return self is InvoiceStatus.IMPORTED

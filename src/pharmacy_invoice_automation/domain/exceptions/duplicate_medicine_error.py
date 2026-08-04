@@ -1,11 +1,13 @@
-"""
-Exception: DuplicateMedicineError. Raised when a medicine duplicate is detected.
+"""Exception: DuplicateMedicineError."""
 
-This file is a scaffold only. No business logic, classes, or functions are
-defined here -- this is intentional. This prompt (Project Bootstrap & Skeleton
-Generation) creates project structure only.
+from __future__ import annotations
 
-Implemented in: Prompt 04
-Governing contract: docs/architecture/Implementation_Specification.md, Section 6
-(Module Contracts) and Section 3 (Folder Specification).
-"""
+from pharmacy_invoice_automation.domain.exceptions.domain_error import DomainError
+
+
+class DuplicateMedicineError(DomainError):
+    """Raised when a medicine with the same name or code already exists."""
+
+    def __init__(self, medicine_name: str) -> None:
+        super().__init__(f"A medicine named '{medicine_name}' already exists.")
+        self.medicine_name = medicine_name

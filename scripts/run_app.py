@@ -1,13 +1,18 @@
 """
 Developer convenience script: runs the application the same way
-`main.py` / the `pharmacy-invoice-automation` console script does.
-
-Scaffold only -- implemented once composition_root.bootstrap exists
-(Prompt 08).
+`main.py` / the `pharmacy-invoice-automation` console script does, but
+runnable directly from a repo checkout without an editable install.
 """
 
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
+
+from pharmacy_invoice_automation.composition_root.bootstrap import main  # noqa: E402
+
 if __name__ == "__main__":
-    raise NotImplementedError(
-        "Implemented in Prompt 08, once composition_root/bootstrap.py exists. "
-        "See docs/architecture/Implementation_Specification.md Section 14."
-    )
+    main()

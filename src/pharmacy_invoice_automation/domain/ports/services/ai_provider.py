@@ -16,17 +16,22 @@ before asking the pharmacist).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 
 class AIProvider(ABC):
     """Abstract contract for general-purpose text AI capabilities."""
 
     @abstractmethod
-    def classify_text(self, text: str, candidate_labels: list[str]) -> str:
+    def classify_text(self, text: str, candidate_labels: Sequence[str]) -> str:
         """
         Return whichever of ``candidate_labels`` best matches ``text``.
         Implementations should raise for a permanent failure (e.g. no
         usable response) rather than returning an arbitrary label.
+
+        Typed as Sequence rather than list: this parameter is read-only,
+        and Sequence's covariance lets callers pass a list, tuple, or
+        any other read-only sequence of labels.
         """
 
     @abstractmethod

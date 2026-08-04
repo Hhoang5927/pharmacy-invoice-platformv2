@@ -1,11 +1,13 @@
 """
-Application entry point. Calls composition_root.bootstrap.bootstrap() to wire and launch the app.
-
-This file is a scaffold only. No business logic, classes, or functions are
-defined here -- this is intentional. This prompt (Project Bootstrap & Skeleton
-Generation) creates project structure only.
-
-Implemented in: Prompt 08
-Governing contract: docs/architecture/Implementation_Specification.md, Section 6
-(Module Contracts) and Section 3 (Folder Specification).
+Application entry point. Delegates to composition_root.bootstrap.main(),
+the same function the 'pharmacy-invoice-automation' console script
+(pyproject.toml) resolves to -- so `python -m pharmacy_invoice_automation`
+and the installed console script behave identically.
 """
+
+from __future__ import annotations
+
+from pharmacy_invoice_automation.composition_root.bootstrap import main
+
+if __name__ == "__main__":
+    main()

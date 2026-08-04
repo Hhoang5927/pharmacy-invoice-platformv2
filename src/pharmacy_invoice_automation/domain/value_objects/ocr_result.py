@@ -38,6 +38,25 @@ class OCRLineItem:
     raw_quantity: Decimal | None
     raw_unit_price: Decimal | None
     raw_line_total: Decimal | None
+    raw_retail_units_per_purchase_unit: int | None = None
+    """
+    How many retail units (Vien) make up one purchase unit (e.g. Hop/Vi),
+    ONLY when the invoice itself states this unambiguously (e.g. "Hop 10
+    vi x 10 vien" = 100) -- None whenever the text is absent, or present
+    but insufficient to compute a definite count (e.g. "(1 vi)" alone
+    does not say how many Vien are in that Vi). See
+    infrastructure.ocr.prompt_templates.invoice_extraction_prompt_v1's
+    packaging-ratio rule for the exact extraction contract.
+    """
+    raw_vat_percentage: Decimal | None = None
+    """
+    The VAT/tax percentage printed for this line (e.g. Decimal("5") for
+    "5%"), ONLY when the invoice prints a VAT column/value for this
+    line -- None whenever it is absent, never computed or assumed
+    (Part 3.1, PO-confirmed 2026-08). Classified into a
+    enums.tax_type.TaxType downstream, via TaxType.from_raw_percentage,
+    once actually read.
+    """
 
 
 @dataclass(frozen=True)
@@ -56,6 +75,22 @@ class OCRResult:
     overall_confidence: float
     field_confidences: dict[str, float] = field(default_factory=dict)
     failure_reason: str | None = None
+    raw_commercial_discount_amount: Decimal | None = None
+    """
+    The whole-invoice commercial discount ("Giam Tru CKTM" / "Chiet khau
+    thuong mai" / "Giam tru...", PO-confirmed 2026-08), when the invoice
+    prints it as its own summary row rather than as a real medicine
+    line -- e.g. Traphaco invoices print a row like "Giam Tru CKTM TS 5%
+    (CKT: 28,198)" with its own pre-tax amount in the same "Thanh tien"
+    column every real line uses. This is the pre-tax amount from that
+    column (the same meaning as OCRLineItem.raw_line_total), NEVER the
+    tax-inclusive parenthetical annotation some suppliers also print,
+    and NEVER computed/inferred from a grand-total mismatch. None
+    whenever the invoice does not state this distinctly. This row is
+    NOT one of ``lines`` -- see
+    infrastructure.ocr.prompt_templates.invoice_extraction_prompt_v1's
+    extraction rule for how it is told apart from a real medicine line.
+    """
 
     @property
     def succeeded(self) -> bool:

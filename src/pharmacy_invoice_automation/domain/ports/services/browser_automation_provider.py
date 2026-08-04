@@ -45,6 +45,19 @@ class BrowserAutomationProvider(ABC):
         """Navigate to the invoice import form, per the Open Import Invoice workflow."""
 
     @abstractmethod
+    def remove_default_supplier_tag(self) -> AutomationOutcome:
+        """
+        Remove the invoice form's default "Hang nhap le" supplier tag
+        (bug fix, PO-confirmed 2026-08 -- a step already PO-confirmed as
+        required, only ever recorded in the Selector Registry but never
+        actually wired into any orchestration call until now). Must be
+        called before search_supplier()/select_supplier()/create_supplier()
+        on a freshly-opened invoice form -- while this default tag is
+        still present, the "Nha cung cap" row's own accessible name/
+        structure does not match what a supplier search expects.
+        """
+
+    @abstractmethod
     def search_supplier(self, name: str) -> bool:
         """True if a supplier matching ``name`` exists on the website."""
 
@@ -69,5 +82,15 @@ class BrowserAutomationProvider(ABC):
         """Create a new medicine via the website's popup, per the Create Medicine workflow."""
 
     @abstractmethod
-    def fill_and_save_invoice(self, invoice: PurchaseInvoice) -> AutomationOutcome:
-        """Fill every remaining field and save, per the Fill & Save Invoice workflow."""
+    def fill_and_save_invoice(
+        self, invoice: PurchaseInvoice, dry_run: bool = False
+    ) -> AutomationOutcome:
+        """
+        Fill every remaining field and save, per the Fill & Save Invoice
+        workflow. ``dry_run`` (Composition Root Stage D, PO-confirmed
+        2026-08): when True, every real fill/search/create step still
+        runs exactly as normal, but the final save ("Ghi Phieu") is
+        never clicked -- nothing is actually committed on the real
+        site. Lets an operator preview a fully-filled real invoice form
+        in a real browser before ever writing real business data.
+        """

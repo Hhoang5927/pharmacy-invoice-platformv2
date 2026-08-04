@@ -60,5 +60,11 @@ class InvoiceValidator:
                     f"Purchase item '{item.medicine_name}' has an unrecognized unit "
                     f"and needs manual confirmation."
                 )
+            if item.retail_units_per_purchase_unit is None:
+                issues.append(
+                    f"Purchase item '{item.medicine_name}' has no confirmed Vien-per-"
+                    f"purchase-unit packaging ratio and needs manual confirmation "
+                    f"before it can be imported."
+                )
 
         return Result.success(InvoiceValidationReport(issues=tuple(issues)))

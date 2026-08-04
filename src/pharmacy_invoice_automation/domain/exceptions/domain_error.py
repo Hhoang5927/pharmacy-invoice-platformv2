@@ -1,11 +1,19 @@
 """
-Base exception: DomainError. Every domain-level exception derives from this.
+Base exception: DomainError.
 
-This file is a scaffold only. No business logic, classes, or functions are
-defined here -- this is intentional. This prompt (Project Bootstrap & Skeleton
-Generation) creates project structure only.
-
-Implemented in: Prompt 04
-Governing contract: docs/architecture/Implementation_Specification.md, Section 6
-(Module Contracts) and Section 3 (Folder Specification).
+Every exception raised by the Domain layer derives from this, so
+calling code can catch broadly (``except DomainError``) or narrowly
+(``except DuplicateSupplierError``) as needed. Domain exceptions are
+reserved for true invariant violations; expected business outcomes are
+modeled as ``shared.result.Result`` instead (see domain.rules).
 """
+
+from __future__ import annotations
+
+
+class DomainError(Exception):
+    """Base class for every Domain-layer exception."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message

@@ -2,7 +2,117 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "invoice_extraction_schema_v1",
   "title": "InvoiceExtractionSchemaV1",
-  "description": "PLACEHOLDER. The real structured-output schema (matching Technical Design Document Section 7.4) is authored in Prompt 05.",
+  "description": "Structured-output schema passed to Gemini as response_json_schema, matching domain.value_objects.ocr_result.OCRResult/OCRLineItem field-for-field. Numeric values are emitted as strings (not JSON numbers) to preserve exact decimal precision through json.loads()+Decimal() rather than round-tripping through float. Every property is required so the model must explicitly emit null instead of omitting a field it could not read confidently -- omission and 'confidently absent' must not be conflated.",
   "type": "object",
-  "properties": {}
+  "properties": {
+    "raw_invoice_number": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }],
+      "description": "Invoice number exactly as printed -- never reformatted, never invented."
+    },
+    "raw_invoice_date": {
+      "anyOf": [{ "type": "string", "description": "ISO 8601 date, YYYY-MM-DD." }, { "type": "null" }]
+    },
+    "raw_supplier_name": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }],
+      "description": "Supplier name, original spelling preserved."
+    },
+    "raw_supplier_tax_code": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }]
+    },
+    "raw_supplier_address": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }]
+    },
+    "raw_prescription_classification_text": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }],
+      "description": "Verbatim text indicating prescription vs. over-the-counter status, if present on the invoice (e.g. 'Thuoc ke don'). Do not classify or normalize -- Domain does that from this raw text."
+    },
+    "raw_grand_total": {
+      "anyOf": [{ "type": "string", "description": "Decimal string, e.g. '1234567.00'. Extracted as printed -- never recalculated." }, { "type": "null" }]
+    },
+    "raw_commercial_discount_amount": {
+      "anyOf": [{ "type": "string", "description": "Decimal string. Extracted as printed -- never recalculated, never inferred." }, { "type": "null" }],
+      "description": "The whole-invoice commercial discount/rebate ('CKTM', 'Chiet khau thuong mai', 'Giam tru...'), ONLY when the invoice prints it as its own summary row (not tied to any one medicine). Extract the PRE-TAX amount from that row's own 'Thanh tien'/Amount column (same meaning as a line's raw_line_total) -- never the tax-inclusive figure some suppliers also print in parentheses next to it, and never null-guessed from a totals mismatch. Null when the invoice has no such row."
+    },
+    "lines": {
+      "type": "array",
+      "description": "One entry per medicine line item on the invoice, in reading order. Every line the invoice shows must appear here -- never omit a line and never invent one that is not on the invoice.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "raw_medicine_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "description": "Original spelling preserved."
+          },
+          "raw_batch_number": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "description": "Preserved exactly as printed, only leading/trailing whitespace trimmed -- never reformatted."
+          },
+          "raw_expiry_date": {
+            "anyOf": [{ "type": "string", "description": "ISO 8601 date, YYYY-MM-DD." }, { "type": "null" }]
+          },
+          "raw_unit_text": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "description": "Unit exactly as printed (e.g. 'vien', 'tuyp', 'hop') -- Domain normalizes this, not the model."
+          },
+          "raw_quantity": {
+            "anyOf": [{ "type": "string", "description": "Decimal string." }, { "type": "null" }]
+          },
+          "raw_unit_price": {
+            "anyOf": [{ "type": "string", "description": "Decimal string." }, { "type": "null" }]
+          },
+          "raw_line_total": {
+            "anyOf": [{ "type": "string", "description": "Decimal string. Extracted as printed -- never recalculated." }, { "type": "null" }]
+          },
+          "raw_retail_units_per_purchase_unit": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "description": "How many Vien (retail tablets) make up one purchase unit, ONLY when the invoice text states this completely enough to compute a definite count (e.g. 'Hop 10 vi x 10 vien' = 100). Null whenever absent or incomplete (e.g. '(1 vi)' alone) -- never a guessed typical value."
+          },
+          "raw_vat_percentage": {
+            "anyOf": [{ "type": "string", "description": "Decimal string, e.g. '5.00'. Extracted as printed -- never computed, inferred, or defaulted." }, { "type": "null" }],
+            "description": "This line's VAT/tax percentage, ONLY when the invoice prints a VAT value/column for it. Null when absent -- never guessed."
+          }
+        },
+        "required": [
+          "raw_medicine_name",
+          "raw_batch_number",
+          "raw_expiry_date",
+          "raw_unit_text",
+          "raw_quantity",
+          "raw_unit_price",
+          "raw_line_total",
+          "raw_retail_units_per_purchase_unit",
+          "raw_vat_percentage"
+        ]
+      }
+    },
+    "overall_confidence": {
+      "type": "number",
+      "description": "Overall confidence for the whole extraction, 0.00-1.00."
+    },
+    "field_confidences": {
+      "type": "object",
+      "description": "Per-area confidence, 0.00-1.00, per TS-002 Sec. 10 (Invoice, Supplier, Medicine, Batch, Totals).",
+      "properties": {
+        "invoice": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "supplier": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "medicine": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "batch": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "totals": { "anyOf": [{ "type": "number" }, { "type": "null" }] }
+      },
+      "required": ["invoice", "supplier", "medicine", "batch", "totals"]
+    }
+  },
+  "required": [
+    "raw_invoice_number",
+    "raw_invoice_date",
+    "raw_supplier_name",
+    "raw_supplier_tax_code",
+    "raw_supplier_address",
+    "raw_prescription_classification_text",
+    "raw_grand_total",
+    "raw_commercial_discount_amount",
+    "lines",
+    "overall_confidence",
+    "field_confidences"
+  ]
 }
