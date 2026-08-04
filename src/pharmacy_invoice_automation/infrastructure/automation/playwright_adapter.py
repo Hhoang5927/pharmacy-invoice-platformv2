@@ -884,6 +884,18 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         return value or None
 
     _HUMAN_SELECTION_POLL_INTERVAL_MS = 200
+    # TEMPORARY DIAGNOSTIC (2026-08): PO ruled out the race-condition
+    # theory via a real dry-run -- clicked the correct --dry-run browser
+    # window, waited the full 180s (a genuine timeout, not an early
+    # false alarm), and it still failed. Next real suspect: the two
+    # registry entries (medicine.selected_match_chip/its own
+    # aria-expanded read) may simply not match the LIVE site's actual
+    # DOM, even though they match this project's own local fixture.
+    # Logs the raw per-tick values below (throttled to avoid flooding)
+    # so the next real dry-run run tells us directly which of the two
+    # conditions is really the problem, instead of guessing from a
+    # static snapshot again. Remove this block once root-caused.
+    _HUMAN_SELECTION_DIAGNOSTIC_LOG_INTERVAL_MS = 2_000
 
     def _wait_for_human_medicine_selection(self, search_key: str) -> None:
         """
@@ -926,10 +938,17 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         input_locator = self._locate(entry)
         chip_locator = self._selected_match_chip_locator(input_locator)
         deadline = time.monotonic() + (self._config.human_disambiguation_timeout_ms / 1000)
+        next_diagnostic_log_at = time.monotonic()
         while True:
             if self._human_medicine_selection_is_complete(input_locator, chip_locator):
                 return
-            if time.monotonic() >= deadline:
+            now = time.monotonic()
+            if now >= next_diagnostic_log_at:
+                self._log_human_medicine_selection_diagnostic(input_locator, chip_locator)
+                next_diagnostic_log_at = now + (
+                    self._HUMAN_SELECTION_DIAGNOSTIC_LOG_INTERVAL_MS / 1000
+                )
+            if now >= deadline:
                 raise VerificationFailedError(
                     "Part 3: timed out waiting "
                     f"{self._config.human_disambiguation_timeout_ms}ms for a human to "
@@ -940,6 +959,30 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                     "done."
                 )
             self._page.wait_for_timeout(self._HUMAN_SELECTION_POLL_INTERVAL_MS)
+
+    def _log_human_medicine_selection_diagnostic(
+        self, input_locator: Locator, chip_locator: Locator
+    ) -> None:
+        """TEMPORARY DIAGNOSTIC -- see _HUMAN_SELECTION_DIAGNOSTIC_LOG_INTERVAL_MS's own comment."""
+        try:
+            aria_expanded = input_locator.get_attribute("aria-expanded")
+        except Exception as exc:  # noqa: BLE001
+            aria_expanded = f"<error reading attribute: {exc}>"
+        try:
+            chip_count = chip_locator.count()
+        except Exception as exc:  # noqa: BLE001
+            chip_count = f"<error counting: {exc}>"  # type: ignore[assignment]
+        try:
+            chip_visible = chip_locator.is_visible() if chip_count == 1 else False
+        except Exception as exc:  # noqa: BLE001
+            chip_visible = f"<error checking visibility: {exc}>"  # type: ignore[assignment]
+        self._logger.info(
+            "Part 3 DIAGNOSTIC: aria-expanded=%r, chip_locator matched %r element(s), "
+            "chip_visible=%r",
+            aria_expanded,
+            chip_count,
+            chip_visible,
+        )
 
     @staticmethod
     def _human_medicine_selection_is_complete(
