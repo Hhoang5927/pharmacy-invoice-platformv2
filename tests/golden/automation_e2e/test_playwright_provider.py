@@ -1734,6 +1734,44 @@ class TestMedicineDisambiguationByHumanSelection:
         assert len(medicine_repository.updated) == 1
         assert medicine_repository.updated[0].website_catalog_code == "TH7"
 
+    def test_waits_through_the_real_gap_between_aria_expanded_and_the_chip_rendering(
+        self, page: Page
+    ) -> None:
+        """
+        BUG FIX (2026-08, PO-confirmed via a real dry-run -- CRITICAL,
+        race condition): PO reported the run failing within seconds of
+        a real, decisive click -- not a timeout issue, since PO's own
+        180s budget was nowhere close to exhausted. Root cause: the
+        original implementation checked aria-expanded='false' and the
+        chip's visibility as two SEPARATE sequential waits, so a real
+        (short) AngularJS digest-cycle gap between the two -- aria-
+        expanded flips immediately, the chip renders slightly later --
+        could fail the second, independently-and-more-tightly-bounded
+        check even though the human selection had genuinely completed.
+        chip_render_delay_ms models that exact real gap (aria-expanded
+        flips on click; the chip is inserted 400ms later, on its own
+        timer, independent of the click) -- proves the combined poll
+        waits through it instead of failing early.
+        """
+        config = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=5_000
+        )
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        disambiguation_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=200"
+            "&chip_render_delay_ms=400"
+        )
+
+        disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item(), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH6"]
+
     def test_logs_a_suggestion_for_the_row_whose_manufacturer_matches_the_supplier(
         self, page: Page, caplog: pytest.LogCaptureFixture
     ) -> None:

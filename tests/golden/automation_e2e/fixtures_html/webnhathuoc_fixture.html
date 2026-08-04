@@ -647,6 +647,19 @@
         el.setAttribute("aria-expanded", "true");
       });
     });
+    // chip_render_delay_ms (2026-08, PO-confirmed via a real dry-run --
+    // CRITICAL race condition, added for
+    // TestMedicineDisambiguationByHumanSelection): PO's own real
+    // selection flipped aria-expanded to 'false' almost instantly but
+    // the run still failed seconds later trying to read the chip --
+    // AngularJS needs a real, non-instant digest cycle between the two.
+    // This delays ONLY the chip's own insertion (never aria-expanded,
+    // which the real site flips immediately on click) so a test can
+    // model that exact real gap, independent of auto_select_medicine_after_ms
+    // above (which controls WHEN the click itself happens).
+    const chipRenderDelayMs = Number(
+      new URLSearchParams(location.search).get("chip_render_delay_ms") || 0
+    );
     document.querySelectorAll("[data-medicine-result]").forEach((el) => {
       el.addEventListener("click", () => {
         const inputId = window.lastMedicineSearchInputId || "first-line-search";
@@ -655,14 +668,21 @@
           return;
         }
         input.setAttribute("aria-expanded", "false");
-        const chip = document.createElement("span");
-        chip.className = "ui-select-match-item btn btn-default btn-xs";
-        chip.innerHTML =
-          '<span class="close ui-select-match-close">&times;</span>' +
-          '<span><span class="ng-binding ng-scope">' +
-          el.textContent +
-          "</span></span>";
-        input.parentNode.insertBefore(chip, input);
+        const insertChip = () => {
+          const chip = document.createElement("span");
+          chip.className = "ui-select-match-item btn btn-default btn-xs";
+          chip.innerHTML =
+            '<span class="close ui-select-match-close">&times;</span>' +
+            '<span><span class="ng-binding ng-scope">' +
+            el.textContent +
+            "</span></span>";
+          input.parentNode.insertBefore(chip, input);
+        };
+        if (chipRenderDelayMs > 0) {
+          setTimeout(insertChip, chipRenderDelayMs);
+        } else {
+          insertChip();
+        }
       });
     });
     // Test-only simulation of a human's real-time pick (2026-08, added

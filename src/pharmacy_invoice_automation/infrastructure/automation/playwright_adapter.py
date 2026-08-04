@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
@@ -882,50 +883,85 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         value = value.strip()
         return value or None
 
+    _HUMAN_SELECTION_POLL_INTERVAL_MS = 200
+
     def _wait_for_human_medicine_selection(self, search_key: str) -> None:
         """
         Part 3 (2026-08, PO-approved, PO-supplied real DOM evidence for
-        medicine.selected_match_chip): waits for the PO-confirmed
-        "human has finished picking" signal -- this row's own search-box
-        input's 'aria-expanded' attribute flipping from 'true' to
-        'false' -- via Playwright's own expect().to_have_attribute()
-        (polls the real DOM, same mechanism _wait_for_row_settled already
-        established for this project's other "genuinely needs real,
-        human-paced time" cases), up to
-        PlaywrightAutomationConfig.human_disambiguation_timeout_ms (a
-        few minutes, per PO's own words -- externally configurable, see
-        AppSettings.automation_human_disambiguation_timeout_seconds).
+        medicine.selected_match_chip): waits for BOTH PO-confirmed
+        "human has finished picking" signals -- this row's own search-box
+        input's 'aria-expanded' attribute flipping to 'false', AND the
+        selected-match chip becoming visible -- to be true AT THE SAME
+        TIME, up to PlaywrightAutomationConfig.human_disambiguation_timeout_ms
+        (a few minutes, per PO's own words -- externally configurable,
+        see AppSettings.automation_human_disambiguation_timeout_seconds).
+
+        BUG FIX (2026-08, PO-confirmed via a real dry-run -- CRITICAL,
+        race condition): the original implementation checked these as
+        TWO SEPARATE, SEQUENTIAL expect() calls -- aria-expanded first
+        (its own full timeout budget), THEN the chip's visibility
+        (a much shorter, independently-bounded follow-up wait). PO's own
+        decisive, real click made the first check resolve almost
+        instantly, but the run then failed within seconds on the SECOND
+        check -- the exact same root-cause class already fixed for
+        _wait_for_row_settled and the Phase 1 medicine-selection settle
+        wait (_MEDICINE_SELECTION_SETTLE_MS's own docstring): AngularJS
+        needs a real, non-instant digest cycle between updating
+        aria-expanded and actually rendering the chip into the DOM, and
+        a second check bounded by its own SHORT, independent timeout
+        (rather than sharing the full remaining budget) can time out on
+        exactly that real, human-paced gap even though the selection
+        genuinely completed. Fixed the same way as those precedents:
+        both conditions are polled TOGETHER, every tick, across the
+        FULL configured timeout -- success requires observing both true
+        in the SAME tick, never short-circuiting into a second,
+        independently-bounded wait once the first condition alone is
+        satisfied.
+
         Raises VerificationFailedError -- never silently continues, never
-        guesses a row -- if no human completes the selection in time, or
-        if aria-expanded flips but the expected chip element still is not
-        actually visible (an unexpected DOM shape this method refuses to
-        second-guess).
+        guesses a row -- if both conditions are never observed true
+        together within the timeout.
         """
         entry = self._registry.require_usable(search_key)
         input_locator = self._locate(entry)
-        try:
-            expect(input_locator).to_have_attribute(
-                "aria-expanded",
-                "false",
-                timeout=self._config.human_disambiguation_timeout_ms,
-            )
-        except AssertionError as exc:
-            raise VerificationFailedError(
-                "Part 3: timed out waiting "
-                f"{self._config.human_disambiguation_timeout_ms}ms for a human to manually "
-                "resolve an ambiguous medicine search result (search box's own "
-                "'aria-expanded' never flipped to 'false'). Refusing to guess a row -- "
-                "resolve the selection directly on the live site, or re-run once it is done."
-            ) from exc
         chip_locator = self._selected_match_chip_locator(input_locator)
+        deadline = time.monotonic() + (self._config.human_disambiguation_timeout_ms / 1000)
+        while True:
+            if self._human_medicine_selection_is_complete(input_locator, chip_locator):
+                return
+            if time.monotonic() >= deadline:
+                raise VerificationFailedError(
+                    "Part 3: timed out waiting "
+                    f"{self._config.human_disambiguation_timeout_ms}ms for a human to "
+                    "manually resolve an ambiguous medicine search result -- the search "
+                    "box's own 'aria-expanded'='false' and the selected-match chip becoming "
+                    "visible were never observed together. Refusing to guess a row -- "
+                    "resolve the selection directly on the live site, or re-run once it is "
+                    "done."
+                )
+            self._page.wait_for_timeout(self._HUMAN_SELECTION_POLL_INTERVAL_MS)
+
+    @staticmethod
+    def _human_medicine_selection_is_complete(
+        input_locator: Locator, chip_locator: Locator
+    ) -> bool:
+        """
+        One atomic-enough tick of Part 3's combined poll -- both checks
+        are plain, non-waiting Playwright reads (no auto-retry of their
+        own), so there is no gap in which one could be re-evaluated
+        against a DOM state the other has already moved past. A
+        transient Playwright error (e.g. the input briefly detached
+        mid-digest) is treated as "not complete yet, keep polling"
+        rather than a hard failure -- this is exactly the kind of
+        momentary DOM churn the whole combined-poll fix exists to
+        tolerate.
+        """
         try:
-            expect(chip_locator).to_be_visible(timeout=self._OPTIONAL_CLICK_TIMEOUT_MS)
-        except AssertionError as exc:
-            raise VerificationFailedError(
-                "Part 3: search box's 'aria-expanded' flipped to 'false' but the expected "
-                "'.ui-select-match-item' chip is not visible -- cannot read back which row "
-                "was actually selected. Refusing to guess."
-            ) from exc
+            return input_locator.get_attribute("aria-expanded") == "false" and (
+                chip_locator.is_visible()
+            )
+        except Exception:  # noqa: BLE001
+            return False
 
     def _selected_match_chip_locator(self, input_locator: Locator) -> Locator:
         """
