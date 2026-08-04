@@ -160,11 +160,29 @@
     _line_items_table_locator/_line_item_rows genuinely exclude it by
     content, not merely because this fixture never modeled a decoy
     sharing the 'Mặt hàng' prefix.
+
+    BUG FIX (2026-08, PO-confirmed via real hands-on inspection --
+    CRITICAL, _wait_for_row_settled's own expected-count formula was
+    off by one): a fresh invoice form is NOT empty -- it already has
+    ONE real <tbody> present from page load (row 1, ready for input),
+    confirmed by PO's own real tBodies.length check taken right after
+    the FIRST add_row_button click ("1 dòng Naphacogyl đã được điền, 1
+    dòng mới chưa điền gì" = 2 real <tbody>, not 1). This pre-seeded
+    tbody#1 below models that baseline row -- every later
+    "Thêm mới"/#add-row-button click (see that element's own handler)
+    then commits whichever row is currently active and pushes exactly
+    ONE new <tbody> for the next one, so the real invariant holds
+    uniformly: tbody count after N clicks = N + 1.
   -->
   <table id="real-line-items-table" class="table table-condensed table-responsive display dataTable no-footer">
     <thead>
       <tr><th role="columnheader">Mặt hàng  [Mã-Tên]</th></tr>
     </thead>
+    <tbody data-row="1">
+      <tr><td><button type="button" class="btn btn-primary">
+        <i class="fa-calendar-days" style="display:inline-block;width:16px;height:16px"></i>
+      </button></td></tr>
+    </tbody>
   </table>
   <table id="table-id-trans-details-by-object-note">
     <thead>
@@ -806,6 +824,15 @@
       document.getElementById("tblMain").appendChild(trigger);
     });
     let currentBatchEditRow = null;
+    // Pre-seeded row 1 (see #real-line-items-table's own comment for
+    // why a fresh invoice form already has one real <tbody>) needs the
+    // same click-to-select-this-row wiring #add-row-button's own
+    // dynamically-created rows get below.
+    document
+      .querySelector('#real-line-items-table tbody[data-row="1"] .fa-calendar-days')
+      .addEventListener("click", () => {
+        currentBatchEditRow = 1;
+      });
     // _wait_for_row_settled (bug fix, PO-confirmed 2026-08 -- CRITICAL,
     // silent data loss investigation): the real site's own Angular
     // digest genuinely takes a non-instant amount of time to "settle"

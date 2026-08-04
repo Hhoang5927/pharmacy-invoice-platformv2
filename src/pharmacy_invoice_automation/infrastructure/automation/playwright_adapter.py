@@ -568,7 +568,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 if item.tax_type is not None:
                     self._fill("invoice_line.vat_field", item.tax_type.value)
                 self._click("invoice_line.add_row_button")
-                self._wait_for_row_settled(index + 1)
+                self._wait_for_row_settled(index + 2)
 
             for index, item in enumerate(invoice.items):
                 if item.batch_id is None:
@@ -1318,7 +1318,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
     _ROW_SETTLE_TIMEOUT_MS = 5_000
 
-    def _wait_for_row_settled(self, expected_row_count: int) -> None:
+    def _wait_for_row_settled(self, expected_tbody_count: int) -> None:
         """
         Bug fix (2026-08, PO-confirmed via real hands-on inspection --
         CRITICAL, silent data loss, see fill_and_save_invoice's own
@@ -1328,11 +1328,9 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         -- Playwright only sees a normal, successful click either way.
         table_structure.html already confirmed the real, distinguishing
         fact this leans on: each SETTLED row is genuinely its own real
-        <tbody> (ng-repeat="gridItem in viewModel.NoteItems"), while an
-        actively-editing, not-yet-settled row shares the page's one
-        unsuffixed field set with every other not-yet-settled row --
-        so _line_item_rows().count() is real, already-established
-        evidence of how many rows have actually settled, not a new,
+        <tbody> (ng-repeat="gridItem in viewModel.NoteItems") -- so
+        _line_item_rows().count() is real, already-established evidence
+        of how many such <tbody> elements actually exist, not a new,
         unconfirmed selector.
 
         BUG FIX (2026-08, PO-confirmed via a real --dry-run run): this
@@ -1344,6 +1342,32 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         own comment for the full anchor history -- #tblMain, then
         invoice_line.table_root's content-based fix).
 
+        BUG FIX #2 (2026-08, PO-confirmed via direct real hands-on
+        browser inspection, live during a --dry-run: "1 dòng Naphacogyl
+        đã được điền, 1 dòng mới chưa điền gì" -- CRITICAL, this
+        method's own expected count was off by one): clicking
+        invoice_line.add_row_button does TWO things, not one -- it
+        commits the just-filled line into its OWN new <tbody> (as
+        already understood), AND it ALSO immediately spawns a SECOND,
+        separate, still-empty <tbody> for the next line -- "thêm dòng
+        nghĩa là giữ dòng cũ, thêm 1 dòng mới" (PO's own words). PO
+        verified directly via a real DOM query (tBodies.length) at the
+        exact moment this second, empty <tbody> first appears: 2 real
+        <tbody> elements, not 1. Previously this method's caller passed
+        the number of lines FILLED so far (index + 1) as
+        expected_tbody_count -- always one short of the real total,
+        which had been silently tolerated only because
+        _ROW_SETTLE_TIMEOUT_MS's own poll would keep retrying past the
+        transient moment .to_have_count() briefly saw the "off by one"
+        (real) count match by coincidence on a fast page, not because
+        the expectation was actually correct. fill_and_save_invoice now
+        passes index + 2 -- the number of lines filled so far, PLUS the
+        one fresh, still-empty <tbody> this very click also creates.
+        Confirmed against a real 3-line invoice, PO checking the real
+        tbody count after each of the 3 add_row_button clicks in turn:
+        2, then 3, then 4 -- the "+1 trailing empty row" holds uniformly
+        after every click, not just the first.
+
         Uses Playwright's own expect().to_have_count() -- polls the
         real DOM until it matches or the timeout elapses -- rather than
         checking .count() once immediately (which would defeat the
@@ -1353,24 +1377,25 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         just a guess at "long enough" when it is not).
 
         Raises VerificationFailedError -- never silently continues --
-        if the count never reaches ``expected_row_count`` in time: per
-        the PO's own explicit instruction, an unverifiable row must
+        if the count never reaches ``expected_tbody_count`` in time:
+        per the PO's own explicit instruction, an unverifiable row must
         stop the run with a clear diagnostic rather than silently
         proceeding to overwrite it with the next line's data.
         """
         try:
             expect(self._line_item_rows()).to_have_count(
-                expected_row_count, timeout=self._ROW_SETTLE_TIMEOUT_MS
+                expected_tbody_count, timeout=self._ROW_SETTLE_TIMEOUT_MS
             )
         except AssertionError as exc:
             actual = self._line_item_rows().count()
             raise VerificationFailedError(
-                f"Row {expected_row_count} did not settle within "
+                f"Row <tbody> count did not reach {expected_tbody_count} within "
                 f"{self._ROW_SETTLE_TIMEOUT_MS}ms after clicking invoice_line.add_row_button "
-                f"-- expected {expected_row_count} settled <tbody> row(s), found {actual}. "
-                "Refusing to continue to the next line: filling its fields into the still-"
-                "shared active-row fields before this row finishes settling would silently "
-                "overwrite it instead of adding a new one."
+                f"-- expected {expected_tbody_count} real <tbody> row(s) (every line filled so "
+                "far, PLUS the one fresh, still-empty row this click also creates), found "
+                f"{actual}. Refusing to continue to the next line: proceeding without this "
+                "settling first risks filling the next line's fields into a row that has not "
+                "actually finished being created yet."
             ) from exc
 
     _CALENDAR_VISIBLE_TIMEOUT_MS = 5_000

@@ -1067,8 +1067,12 @@ class TestRowSettleVerification:
         # <table><tbody> (day grid) is a second, unrelated, ALWAYS-present
         # stray tbody elsewhere on the page now (see _line_item_rows's
         # own invoice_line.table_root-scoping fix and its "why" for this
-        # exact class of page-wide-count pitfall).
-        assert page.locator("#real-line-items-table tbody").count() == 1
+        # exact class of page-wide-count pitfall). 2, not 1 -- one real
+        # <tbody> already exists before any click (see that element's
+        # own comment), and this 1-item invoice's own add_row_button
+        # click pushes exactly one more (see _wait_for_row_settled's
+        # own "+1 trailing empty row" bug fix).
+        assert page.locator("#real-line-items-table tbody").count() == 2
 
     def test_fails_cleanly_when_a_row_never_settles(self, page: Page) -> None:
         # Simulates the real site rejecting the row outright (PO's real
@@ -1090,8 +1094,8 @@ class TestRowSettleVerification:
         outcome = real_provider.fill_and_save_invoice(invoice)
 
         assert outcome.success is False
-        assert "did not settle" in (outcome.failure_reason or "")
-        assert "expected 1" in (outcome.failure_reason or "")
+        assert "did not reach" in (outcome.failure_reason or "")
+        assert "expected 2" in (outcome.failure_reason or "")
         # The second line's fields must never have been touched --
         # proof this stopped immediately rather than plowing ahead and
         # overwriting anything.
@@ -1126,8 +1130,9 @@ class TestRowSettleVerification:
         # test_waits_for_a_delayed_row_to_settle_before_continuing's own
         # comment for why a bare page-wide "tbody" count is no longer
         # safe (the calendar widget's own real day-grid <tbody> is a
-        # second, unrelated stray one now).
-        assert page.locator("#real-line-items-table tbody").count() == 3
+        # second, unrelated stray one now). 4, not 3 -- see
+        # #real-line-items-table's own "+1 trailing empty row" comment.
+        assert page.locator("#real-line-items-table tbody").count() == 4
         log_entries = page.locator("#line-fill-log li").all_text_contents()
         assert log_entries == ["5|10000|", "5|20000|", "5|5000|"]
 
@@ -1178,7 +1183,9 @@ class TestRowSettleVerification:
         # AND the permanent decoy table's own real tbody -- exactly the
         # real symptom (24 page-wide vs. 3 real rows).
         assert page.locator("tbody").count() >= 22
-        assert page.locator("#real-line-items-table tbody").count() == 1
+        # 2, not 1 -- see #real-line-items-table's own "+1 trailing
+        # empty row" comment.
+        assert page.locator("#real-line-items-table tbody").count() == 2
         assert page.locator("#table-id-trans-details-by-object-note tbody").count() == 1
 
 
@@ -2224,7 +2231,12 @@ class TestBatchEditButtonRowScoping:
         self._remove_supplier_dialog_tbody(page)
         for _ in range(5):
             page.click("#add-row-button")
-        assert page.locator("#real-line-items-table tbody").count() == 5
+        # 6, not 5 -- one real <tbody> already exists before any click
+        # (see #real-line-items-table's own "+1 trailing empty row"
+        # comment); positions 1-5 (checked below) are still the first 5
+        # of these 6, in order -- the 6th is the extra trailing row this
+        # test's own loop never touches.
+        assert page.locator("#real-line-items-table tbody").count() == 6
 
         for position in range(1, 6):
             provider._click_batch_edit_button_for_row(position)  # noqa: SLF001
@@ -2246,11 +2258,13 @@ class TestBatchEditButtonRowScoping:
     def test_unknown_row_position_times_out_not_a_silent_wrong_click(
         self, registry: SelectorRegistry, page: Page
     ) -> None:
-        # Only 2 rows exist -- position 5 must not silently resolve to
-        # some other element (e.g. Playwright's .nth() clamping or
-        # wrapping); it should fail to find a matching row at all. A
-        # short custom timeout keeps this test fast rather than waiting
-        # out the provider fixture's real 15s default.
+        # Only 3 rows exist (1 pre-seeded + 2 clicks -- see
+        # #real-line-items-table's own "+1 trailing empty row" comment)
+        # -- position 5 must not silently resolve to some other element
+        # (e.g. Playwright's .nth() clamping or wrapping); it should
+        # fail to find a matching row at all. A short custom timeout
+        # keeps this test fast rather than waiting out the provider
+        # fixture's real 15s default.
         from pharmacy_invoice_automation.application.exceptions import (
             TransientInfrastructureError,
         )
