@@ -37,6 +37,9 @@ _TOML_KEY_TO_FIELD: dict[str, str] = {
     "automation.timeout_seconds": "automation_timeout_seconds",
     "automation.retry_count": "automation_retry_count",
     "automation.navigation_timeout_seconds": "automation_navigation_timeout_seconds",
+    "automation.human_disambiguation_timeout_seconds": (
+        "automation_human_disambiguation_timeout_seconds"
+    ),
     "price_lookup.cache_ttl_hours": "price_cache_ttl_hours",
     "logging.level": "log_level",
     "logging.retention_days": "log_retention_days",

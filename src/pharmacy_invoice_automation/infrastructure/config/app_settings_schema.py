@@ -44,6 +44,11 @@ class AppSettings:
     automation_timeout_seconds: float = 30.0
     automation_retry_count: int = 3
     automation_navigation_timeout_seconds: float = 30.0
+    # How long a run pauses for a human to manually resolve an ambiguous
+    # medicine-name search result (Part 3 of the multi-result-
+    # disambiguation feature, PO-confirmed 2026-08: "vài phút", a few
+    # minutes) before failing cleanly instead of hanging forever.
+    automation_human_disambiguation_timeout_seconds: float = 180.0
 
     # --- Price lookup ---
     price_cache_ttl_hours: float = 24.0
@@ -71,6 +76,8 @@ class AppSettings:
             raise ValueError("automation_retry_count must be at least 1.")
         if self.automation_navigation_timeout_seconds <= 0:
             raise ValueError("automation_navigation_timeout_seconds must be positive.")
+        if self.automation_human_disambiguation_timeout_seconds <= 0:
+            raise ValueError("automation_human_disambiguation_timeout_seconds must be positive.")
         if self.price_cache_ttl_hours < 0:
             raise ValueError("price_cache_ttl_hours cannot be negative.")
         if self.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):

@@ -389,11 +389,11 @@
         CONTENT, not accessible name, so the visible "Đóng" text is
         still needed too -- this needs both.
       -->
-      <div role="cell" aria-label="Đóng">Đóng<input type="text" role="combobox" id="first-line-search" /></div>
+      <div role="cell" aria-label="Đóng">Đóng<input type="text" role="combobox" id="first-line-search" aria-expanded="true" /></div>
     </div>
   </div>
   <input type="text" role="combobox" aria-label="Select box" disabled />
-  <input type="text" role="combobox" aria-label="Select box" id="subsequent-line-search" />
+  <input type="text" role="combobox" aria-label="Select box" id="subsequent-line-search" aria-expanded="true" />
   <div role="table" id="medicine-search-results-table">
     <div role="row"><div role="cell"><b data-medicine-result="TH1">TH1 - Paracetamol 500mg</b><span class="info-item"> - Ton: 10 (Hop)</span></div></div>
     <div role="row"><div role="cell"><b data-medicine-result="TH2">TH2 - Amoxicillin 500mg</b><span class="info-item"> - Ton: 5 (Hop)</span></div></div>
@@ -401,16 +401,24 @@
     <div role="row"><div role="cell"><b data-medicine-result="TH4">TH4 - Coldi</b><span class="info-item"> - Ton: 12 (Hop)</span></div></div>
     <div role="row"><div role="cell"><b data-medicine-result="TH5">TH5 - Coldi-B DNH</b><span class="info-item"> - Ton: 6 (Hop)</span></div></div>
     <!--
-      TH6/TH7 (2026-08, added for TestMedicineSelectionByKnownWebsiteCatalogCode):
+      TH6/TH7 (2026-08, added for TestMedicineSelectionByKnownWebsiteCatalogCode;
+      info-item manufacturer text added 2026-08 for
+      TestMedicineDisambiguationByHumanSelection, Parts 2/3):
       TWO rows sharing the IDENTICAL name text "Naphacogyl" (unlike
       TH4/TH5's differing suffixes) -- models the real PO-confirmed
       case of a name appearing on >= 4 distinct real catalog rows. A
       plain name-suffix match cannot tell these two apart at all (both
       end with "Naphacogyl"); only a code-anchored match
-      (medicine.search_result_option_by_code) can select the right one.
+      (medicine.search_result_option_by_code) can select the right one,
+      or -- before any code is known yet -- a human's own real-time
+      pick (Parts 2/3). Each row's own <span class="info-item"> models
+      medicine.search_result_info_item's real, PO-confirmed shape
+      ('<b>Nhãn: </b>Giá trị' pairs separated by ' - ') with a distinct
+      "Hãng sản xuất" per row, so a test can prove Part 2's suggestion
+      logic distinguishes them.
     -->
-    <div role="row"><div role="cell"><b data-medicine-result="TH6">TH6 - Naphacogyl</b><span class="info-item"> - Ton: 20 (Hop)</span></div></div>
-    <div role="row"><div role="cell"><b data-medicine-result="TH7">TH7 - Naphacogyl</b><span class="info-item"> - Ton: 15 (Hop)</span></div></div>
+    <div role="row"><div role="cell"><b data-medicine-result="TH6">TH6 - Naphacogyl</b><span class="info-item"><b>Tồn: </b>20 (Hộp) - <b>Hãng sản xuất: </b>Công ty cổ phần dược phẩm Nam Hà - <b>QCĐG: </b>Hộp</span></div></div>
+    <div role="row"><div role="cell"><b data-medicine-result="TH7">TH7 - Naphacogyl</b><span class="info-item"><b>Tồn: </b>15 (Hộp) - <b>Hãng sản xuất: </b>Công ty TNHH Dược phẩm Trung ương 3 - <b>QCĐG: </b>Hộp</span></div></div>
   </div>
   <input type="text" id="tbxQuantityId" />
   <input type="text" id="tbxPriceId" />
@@ -616,6 +624,71 @@
         window.medicineResultClickLog.push(el.getAttribute("data-medicine-result"));
       });
     });
+    // Parts 2/3 of the multi-result-disambiguation feature (2026-08,
+    // PO-approved, PO-supplied real DOM evidence): models the real
+    // site's own ui-select "chip" + input aria-expanded signals
+    // (medicine.selected_match_chip's own registry notes) so
+    // TestMedicineDisambiguationByHumanSelection can exercise
+    // _wait_for_human_medicine_selection/_read_selected_medicine_code
+    // against something real, not a stub. Tracks which row's own
+    // search input last received real user input (Playwright's fill()
+    // dispatches a real 'input' event), since the results dropdown is
+    // shared across rows in this fixture the same way it already is
+    // for medicine.search_result_option -- a click's chip must attach
+    // to THAT row's own input, never a hardcoded one, or a multi-item
+    // test would silently signal the wrong row as "done".
+    ["first-line-search", "subsequent-line-search"].forEach((inputId) => {
+      const el = document.getElementById(inputId);
+      if (!el) {
+        return;
+      }
+      el.addEventListener("input", () => {
+        window.lastMedicineSearchInputId = inputId;
+        el.setAttribute("aria-expanded", "true");
+      });
+    });
+    document.querySelectorAll("[data-medicine-result]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const inputId = window.lastMedicineSearchInputId || "first-line-search";
+        const input = document.getElementById(inputId);
+        if (!input || !input.parentNode) {
+          return;
+        }
+        input.setAttribute("aria-expanded", "false");
+        const chip = document.createElement("span");
+        chip.className = "ui-select-match-item btn btn-default btn-xs";
+        chip.innerHTML =
+          '<span class="close ui-select-match-close">&times;</span>' +
+          '<span><span class="ng-binding ng-scope">' +
+          el.textContent +
+          "</span></span>";
+        input.parentNode.insertBefore(chip, input);
+      });
+    });
+    // Test-only simulation of a human's real-time pick (2026-08, added
+    // for TestMedicineDisambiguationByHumanSelection) -- same
+    // "URLSearchParams-driven delayed action" pattern already used by
+    // row_settle_delay_ms above. Clicking a [data-medicine-result] via
+    // Playwright directly (bypassing this) would let a test prove the
+    // click path works, but not that _wait_for_human_medicine_selection
+    // genuinely POLLS a real, non-instant DOM change rather than
+    // checking once -- this fires the same click from a real JS timer,
+    // independent of Playwright's own call stack.
+    const disambiguationParams = new URLSearchParams(location.search);
+    const autoSelectCode = disambiguationParams.get("auto_select_medicine_code");
+    const autoSelectDelayMs = Number(
+      disambiguationParams.get("auto_select_medicine_after_ms") || 0
+    );
+    if (autoSelectCode) {
+      setTimeout(() => {
+        const target = document.querySelector(
+          '[data-medicine-result="' + autoSelectCode + '"]'
+        );
+        if (target) {
+          target.click();
+        }
+      }, autoSelectDelayMs);
+    }
     // 2026-08, added for TestMedicineResolutionMergedIntoPerLineLoop:
     // create_medicine()'s real flow clicks #submit-medicine TWICE --
     // once before "Tên thuốc" is filled (group/code submit), once

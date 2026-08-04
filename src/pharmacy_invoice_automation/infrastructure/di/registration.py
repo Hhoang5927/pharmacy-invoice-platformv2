@@ -208,6 +208,9 @@ def register_infrastructure_services(
             username=username,
             password=password,
             default_timeout_ms=int(settings.automation_timeout_seconds * 1000),
+            human_disambiguation_timeout_ms=int(
+                settings.automation_human_disambiguation_timeout_seconds * 1000
+            ),
         )
         return PlaywrightBrowserAutomationProvider(
             page,
@@ -217,6 +220,7 @@ def register_infrastructure_services(
             batch_repository=container.resolve(BatchRepository),
             price_policy=PricePolicy(),
             medicine_repository=container.resolve(MedicineRepository),
+            supplier_repository=container.resolve(SupplierRepository),
         )
 
     container.register_factory(BrowserAutomationProvider, _build_browser_automation_provider)

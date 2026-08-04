@@ -18,6 +18,7 @@ headless = true
 timeout_seconds = 30
 retry_count = 3
 navigation_timeout_seconds = 30
+human_disambiguation_timeout_seconds = 180  # a few minutes for a human to resolve an ambiguous medicine match
 
 [price_lookup]
 cache_ttl_hours = 24

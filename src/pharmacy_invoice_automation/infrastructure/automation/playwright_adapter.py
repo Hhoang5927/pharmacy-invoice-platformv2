@@ -37,6 +37,9 @@ from pharmacy_invoice_automation.domain.ports.repositories.batch_repository impo
 from pharmacy_invoice_automation.domain.ports.repositories.medicine_repository import (
     MedicineRepository,
 )
+from pharmacy_invoice_automation.domain.ports.repositories.supplier_repository import (
+    SupplierRepository,
+)
 from pharmacy_invoice_automation.domain.ports.services.browser_automation_provider import (
     AutomationOutcome,
     BrowserAutomationProvider,
@@ -69,6 +72,13 @@ class PlaywrightAutomationConfig:
     username: str
     password: str
     default_timeout_ms: int = 15_000
+    # Part 3 of the multi-result-disambiguation feature (2026-08,
+    # PO-approved): how long a run pauses for a human to manually resolve
+    # an ambiguous medicine-name search result ("vài phút", PO's own
+    # words) before failing cleanly instead of hanging forever. Externally
+    # configurable per the Business Rules Configuration section -- see
+    # AppSettings.automation_human_disambiguation_timeout_seconds.
+    human_disambiguation_timeout_ms: int = 180_000
 
 
 class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
@@ -83,6 +93,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         batch_repository: BatchRepository | None = None,
         price_policy: PricePolicy | None = None,
         medicine_repository: MedicineRepository | None = None,
+        supplier_repository: SupplierRepository | None = None,
     ) -> None:
         self._page = page
         self._registry = registry
@@ -90,6 +101,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         self._logger = logger
         self._batch_repository = batch_repository
         self._medicine_repository = medicine_repository
+        self._supplier_repository = supplier_repository
         # PricePolicy is a pure, stateless Domain service (no ports, no
         # I/O) -- defaulting it here is not hiding a real dependency the
         # way batch_repository would be.
@@ -545,9 +557,10 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         def _do() -> None:
             self._fill("invoice.number_field", invoice.invoice_number)
             self._fill_invoice_date_and_verify(invoice.invoice_date)
+            supplier = self._resolve_invoice_supplier(invoice)
 
             for index, item in enumerate(invoice.items):
-                self._search_and_select_medicine_for_line(item, index)
+                self._search_and_select_medicine_for_line(item, index, supplier)
                 retail_quantity, retail_unit_price = self._convert_to_retail_units(item)
                 self._fill("invoice_line.quantity_field", str(retail_quantity))
                 self._fill("invoice_line.unit_price_field", str(retail_unit_price.amount))
@@ -609,7 +622,9 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
     # upgrade this to a proper poll.
     _MEDICINE_SELECTION_SETTLE_MS = 2_500
 
-    def _search_and_select_medicine_for_line(self, item: PurchaseItem, index: int) -> None:
+    def _search_and_select_medicine_for_line(
+        self, item: PurchaseItem, index: int, supplier: Supplier | None = None
+    ) -> None:
         """
         Phase 1's medicine search+select (06_multi_line_items.py,
         PO-confirmed 2026-08): the FIRST line item on a fresh invoice
@@ -668,10 +683,23 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         Medicine.website_catalog_code's own docstring), this method
         skips the ambiguous name-based match/create path entirely and
         selects that exact row by its unique code instead -- see
-        _select_medicine_by_known_code. Parts 2 (auto-narrow by
-        manufacturer) and 3 (pause for a human pick, then remember it)
-        are what populate website_catalog_code in the first place; not
-        implemented by this method.
+        _select_medicine_by_known_code.
+
+        PARTS 2+3 (2026-08, PO-approved, PO-supplied real DOM evidence):
+        when no website_catalog_code is known yet AND the name match is
+        genuinely ambiguous (more than one real result row), this method
+        never guesses or auto-clicks a row. It logs a best-effort
+        suggestion per candidate row (Part 2: this row's own "Hãng sản
+        xuất" compared against the invoice's Supplier -- see
+        _log_manufacturer_suggestions/_extract_manufacturer), then pauses
+        for a human to make the actual selection directly in the live
+        browser and waits for it via two PO-confirmed real DOM signals
+        (Part 3: see _wait_for_human_medicine_selection), reads the now-
+        selected row's own SDK code back from the site's own "chip"
+        element, and persists it onto Medicine.website_catalog_code so
+        every later invoice for this Medicine takes the Part 1 fast path
+        instead ("hoc 1 lan, nho mai mai" -- see
+        _disambiguate_via_human_selection).
         """
         search_key = (
             "medicine.search_input"
@@ -695,8 +723,26 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                     "no matching search result immediately after create_medicine() -- cannot "
                     "select it for this invoice line."
                 )
+
+        result_entry = self._registry.require_usable("medicine.search_result_option")
+        matches = self._locate_parameterized(result_entry, search_name)
+        if matches.count() > 1:
+            self._disambiguate_via_human_selection(search_key, matches, item, supplier)
+            return
+
         self._click_parameterized("medicine.search_result_option", search_name)
         self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+
+    def _resolve_invoice_supplier(self, invoice: PurchaseInvoice) -> Supplier | None:
+        """
+        Best-effort lookup for Part 2's manufacturer-vs-supplier
+        suggestion -- returns None (never raises) if no repository is
+        configured or the invoice has no resolved supplier_id yet, same
+        "optional, informational only" contract as _lookup_known_medicine.
+        """
+        if self._supplier_repository is None or invoice.supplier_id is None:
+            return None
+        return self._supplier_repository.get_by_id(invoice.supplier_id)
 
     def _lookup_known_medicine(self, item: PurchaseItem) -> Medicine | None:
         """
@@ -736,6 +782,230 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
             )
         self._click_parameterized("medicine.search_result_option_by_code", website_catalog_code)
         self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+
+    def _disambiguate_via_human_selection(
+        self,
+        search_key: str,
+        matches: Locator,
+        item: PurchaseItem,
+        supplier: Supplier | None,
+    ) -> None:
+        """
+        Parts 2+3 of the multi-result-disambiguation feature (2026-08,
+        PO-approved, PO-supplied real DOM evidence for both parts).
+        Never clicks any of ``matches`` itself -- an ambiguous name match
+        is exactly the case this project's "never guess" rule exists
+        for. Logs a per-row manufacturer suggestion (Part 2, purely
+        informational -- the human may pick a different row than the
+        suggestion, and this method does not second-guess that choice),
+        then waits for the human to complete the real selection directly
+        in the browser (Part 3), reads the now-confirmed SDK code back,
+        and persists it onto Medicine.website_catalog_code so this exact
+        ambiguity never has to be re-resolved for this Medicine again.
+        """
+        self._log_manufacturer_suggestions(matches, supplier)
+        self._wait_for_human_medicine_selection(search_key)
+        code = self._read_selected_medicine_code(search_key)
+        self._persist_website_catalog_code(item, code)
+
+    def _log_manufacturer_suggestions(self, matches: Locator, supplier: Supplier | None) -> None:
+        """
+        Part 2 (2026-08, PO-approved, PO-supplied real DOM evidence for
+        medicine.search_result_info_item): reads each ambiguous result
+        row's own "Hãng sản xuất" (manufacturer) and compares it,
+        case-insensitively and best-effort (a simple two-way substring
+        check -- Vietnamese company names on the site and on an invoice's
+        resolved Supplier are not guaranteed to be byte-identical, e.g.
+        "cổ phần" vs "CP"), against the invoice's own Supplier name.
+        Purely a logged HINT for whoever performs the real selection --
+        never clicks, never auto-selects, never blocks on the comparison
+        itself.
+        """
+        info_item_entry = self._registry.require_usable("medicine.search_result_info_item")
+        assert info_item_entry.strategy == "css" and info_item_entry.value is not None
+        supplier_name = supplier.name.strip().lower() if supplier is not None else None
+        count = matches.count()
+        for position in range(count):
+            row = matches.nth(position)
+            row_text = row.inner_text()
+            info_text = row.locator("xpath=..").locator(info_item_entry.value).inner_text()
+            manufacturer = self._extract_manufacturer(info_text)
+            if manufacturer is not None and supplier_name is not None:
+                manufacturer_lower = manufacturer.lower()
+                is_suggested = (
+                    manufacturer_lower in supplier_name or supplier_name in manufacturer_lower
+                )
+            else:
+                is_suggested = False
+            if is_suggested:
+                self._logger.info(
+                    "Ambiguous medicine match %d/%d: '%s' -- manufacturer '%s' MATCHES "
+                    "invoice supplier '%s'. Suggested, not auto-selected -- waiting for a "
+                    "human to confirm the correct row in the browser.",
+                    position + 1,
+                    count,
+                    row_text,
+                    manufacturer,
+                    supplier.name if supplier is not None else None,
+                )
+            else:
+                self._logger.info(
+                    "Ambiguous medicine match %d/%d: '%s' -- manufacturer '%s'.",
+                    position + 1,
+                    count,
+                    row_text,
+                    manufacturer,
+                )
+
+    @staticmethod
+    def _extract_manufacturer(info_text: str) -> str | None:
+        """
+        Parses "Hãng sản xuất: X" out of a medicine.search_result_info_item's
+        own text (see that registry entry's own 'source' for the two real
+        DOM snapshots this is grounded in). Field count/order is NOT
+        fixed across real rows (one real snapshot had 3 fields, another
+        had 5 plus a <br>) -- located by the "Hãng sản xuất:" label text
+        itself, never by position, so it is robust to that variation.
+        Returns None if this row's info text has no such label at all
+        (never invented).
+        """
+        marker = "Hãng sản xuất:"
+        marker_index = info_text.find(marker)
+        if marker_index == -1:
+            return None
+        remainder = info_text[marker_index + len(marker) :]
+        # The next field starts after " - " (both confirmed real
+        # snapshots use this exact separator) or a line break (the <br>
+        # snapshot) -- whichever comes first ends this field's value.
+        end_match = re.search(r"\s-\s|\r?\n", remainder)
+        value = remainder[: end_match.start()] if end_match else remainder
+        value = value.strip()
+        return value or None
+
+    def _wait_for_human_medicine_selection(self, search_key: str) -> None:
+        """
+        Part 3 (2026-08, PO-approved, PO-supplied real DOM evidence for
+        medicine.selected_match_chip): waits for the PO-confirmed
+        "human has finished picking" signal -- this row's own search-box
+        input's 'aria-expanded' attribute flipping from 'true' to
+        'false' -- via Playwright's own expect().to_have_attribute()
+        (polls the real DOM, same mechanism _wait_for_row_settled already
+        established for this project's other "genuinely needs real,
+        human-paced time" cases), up to
+        PlaywrightAutomationConfig.human_disambiguation_timeout_ms (a
+        few minutes, per PO's own words -- externally configurable, see
+        AppSettings.automation_human_disambiguation_timeout_seconds).
+        Raises VerificationFailedError -- never silently continues, never
+        guesses a row -- if no human completes the selection in time, or
+        if aria-expanded flips but the expected chip element still is not
+        actually visible (an unexpected DOM shape this method refuses to
+        second-guess).
+        """
+        entry = self._registry.require_usable(search_key)
+        input_locator = self._locate(entry)
+        try:
+            expect(input_locator).to_have_attribute(
+                "aria-expanded",
+                "false",
+                timeout=self._config.human_disambiguation_timeout_ms,
+            )
+        except AssertionError as exc:
+            raise VerificationFailedError(
+                "Part 3: timed out waiting "
+                f"{self._config.human_disambiguation_timeout_ms}ms for a human to manually "
+                "resolve an ambiguous medicine search result (search box's own "
+                "'aria-expanded' never flipped to 'false'). Refusing to guess a row -- "
+                "resolve the selection directly on the live site, or re-run once it is done."
+            ) from exc
+        chip_locator = self._selected_match_chip_locator(input_locator)
+        try:
+            expect(chip_locator).to_be_visible(timeout=self._OPTIONAL_CLICK_TIMEOUT_MS)
+        except AssertionError as exc:
+            raise VerificationFailedError(
+                "Part 3: search box's 'aria-expanded' flipped to 'false' but the expected "
+                "'.ui-select-match-item' chip is not visible -- cannot read back which row "
+                "was actually selected. Refusing to guess."
+            ) from exc
+
+    def _selected_match_chip_locator(self, input_locator: Locator) -> Locator:
+        """
+        Locates medicine.selected_match_chip RELATIONALLY to an already-
+        resolved row-aware search-input locator -- its own immediately
+        preceding sibling matching that registry entry's css class --
+        mirroring the PO-confirmed real snapshot's own immediate-sibling
+        structure (chip directly followed by the input). Deliberately
+        not a standalone page-wide lookup: with multiple line items,
+        each row has its own such chip once selected, and only THIS
+        row's is wanted.
+        """
+        chip_entry = self._registry.require_usable("medicine.selected_match_chip")
+        assert chip_entry.strategy == "css" and chip_entry.value is not None
+        class_name = chip_entry.value.lstrip(".")
+        return input_locator.locator(
+            f"xpath=preceding-sibling::*[contains(concat(' ', normalize-space(@class), ' '), "
+            f"' {class_name} ')][1]"
+        )
+
+    def _read_selected_medicine_code(self, search_key: str) -> str:
+        """
+        Reads the real site's own SDK code back from the now-visible
+        selected-match chip's own nested code-label element
+        (medicine.selected_match_chip_code_label -- deliberately NOT the
+        chip's own inner_text(), which also contains its close button's
+        '×'), whose text is '{code} - {tên thuốc}' (PO-confirmed real
+        snapshot -- same shape medicine.search_result_option_by_code
+        already relies on) -- the part before the first ' - '.
+        """
+        entry = self._registry.require_usable(search_key)
+        input_locator = self._locate(entry)
+        chip_locator = self._selected_match_chip_locator(input_locator)
+        code_label_entry = self._registry.require_usable("medicine.selected_match_chip_code_label")
+        assert code_label_entry.strategy == "css" and code_label_entry.value is not None
+        chip_text = chip_locator.locator(code_label_entry.value).inner_text().strip()
+        code = chip_text.split(" - ", 1)[0].strip()
+        if not code:
+            raise VerificationFailedError(
+                f"Part 3: could not parse a website catalog code from the selected chip's own "
+                f"text ('{chip_text}')."
+            )
+        return code
+
+    def _persist_website_catalog_code(self, item: PurchaseItem, code: str) -> None:
+        """
+        Saves the human-confirmed code onto Medicine.website_catalog_code
+        ("hoc 1 lan, nho mai mai") so every later invoice for this exact
+        Medicine takes Part 1's fast path instead of re-disambiguating.
+        Best-effort, same "optimization on top of an already-completed
+        real selection" contract as _lookup_known_medicine -- the human
+        has already made the real, correct choice directly on the live
+        site by this point, so a failure to persist here never undoes
+        that; it only means this ambiguity is not remembered for next
+        time.
+        """
+        if self._medicine_repository is None or item.medicine_id is None:
+            self._logger.warning(
+                "Part 3: human selection confirmed (code '%s') but cannot persist it -- "
+                "no medicine_repository configured or item.medicine_id is not resolved.",
+                code,
+            )
+            return
+        medicine = self._medicine_repository.get_by_id(item.medicine_id)
+        if medicine is None:
+            self._logger.warning(
+                "Part 3: human selection confirmed (code '%s') but Medicine '%s' was not "
+                "found -- cannot persist website_catalog_code.",
+                code,
+                item.medicine_id,
+            )
+            return
+        medicine.assign_website_catalog_code(code)
+        self._medicine_repository.update(medicine)
+        self._logger.info(
+            "Part 3: persisted website_catalog_code='%s' onto Medicine '%s' -- future "
+            "invoices for this medicine will skip disambiguation.",
+            code,
+            item.medicine_id,
+        )
 
     def _fill_and_check_medicine_result(self, search_key: str, search_name: str) -> bool:
         """Fill one line's own search box once and report whether a name-anchored match exists."""

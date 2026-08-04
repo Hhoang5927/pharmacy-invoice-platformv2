@@ -1404,6 +1404,35 @@ class TestMedicineSearchStripsPackagingDescription:
         assert strip("Name (first) (second)") == "Name"
         assert strip("  Padded Name  ") == "Padded Name"
 
+    def test_extract_manufacturer_handles_both_real_po_confirmed_snapshots(self) -> None:
+        extract = PlaywrightBrowserAutomationProvider._extract_manufacturer  # noqa: SLF001
+
+        # Real snapshot 1 (2026-08, PO-supplied): 3 fields, no <br>.
+        # inner_text() renders each "<b>Label: </b>Value" pair as plain
+        # text with the tags stripped, ' - ' still separating fields.
+        snapshot_1 = "Giá nhập: .../- Hãng sản xuất: Công ty cổ phần dược phẩm Nam Hà - QCĐG: Lọ"
+        assert extract(snapshot_1) == "Công ty cổ phần dược phẩm Nam Hà"
+
+        # Real snapshot 2 (2026-08, PO-supplied): 5 fields, plus a <br>
+        # right before "Hãng sản xuất" -- inner_text() renders that as a
+        # line break, not a ' - ' separator.
+        snapshot_2 = (
+            "Giá nhập: 0/Lọ - Tồn: 0.00 (Lọ) - SĐK: 893100160624 - Hoạt chất: "
+            "Oxymetazolin hydroclorid -\nHãng sản xuất: Công ty cổ phần dược phẩm Nam Hà - "
+            "QCĐG: Lọ"
+        )
+        assert extract(snapshot_2) == "Công ty cổ phần dược phẩm Nam Hà"
+
+        # No "Hãng sản xuất" label at all -- never invented.
+        assert extract("Giá nhập: 100 - Tồn: 5 (Hộp)") is None
+
+    def test_extract_manufacturer_ignores_the_final_field_with_no_trailing_separator(
+        self,
+    ) -> None:
+        extract = PlaywrightBrowserAutomationProvider._extract_manufacturer  # noqa: SLF001
+
+        assert extract("Hãng sản xuất: Công ty ABC") == "Công ty ABC"
+
 
 class TestMedicineResolutionMergedIntoPerLineLoop:
     """
@@ -1546,13 +1575,13 @@ class TestMedicineSelectionByKnownWebsiteCatalogCode:
     catalog rows -- a plain name-suffix match cannot disambiguate that
     (Playwright refuses, in strict mode, to click a locator matching
     more than one element). Once a real selection has been confirmed
-    once (Parts 2/3, not built by this change) and its exact
-    website_catalog_code (SDK) saved onto Medicine, this class proves
-    _search_and_select_medicine_for_line skips the ambiguous name match
-    entirely and goes straight to the right row by that code -- the
-    fixture's TH6/TH7 rows share the IDENTICAL name "Naphacogyl" on
-    purpose, unlike TH4/TH5's differing suffixes, to model this exact
-    real case.
+    once -- by Parts 2/3 (see TestMedicineDisambiguationByHumanSelection)
+    or by a prior run -- and its exact website_catalog_code (SDK) saved
+    onto Medicine, this class proves _search_and_select_medicine_for_line
+    skips the ambiguous name match entirely and goes straight to the
+    right row by that code -- the fixture's TH6/TH7 rows share the
+    IDENTICAL name "Naphacogyl" on purpose, unlike TH4/TH5's differing
+    suffixes, to model this exact real case.
     """
 
     def test_selects_the_exact_row_by_code_ignoring_the_ambiguous_name(self, page: Page) -> None:
@@ -1609,26 +1638,35 @@ class TestMedicineSelectionByKnownWebsiteCatalogCode:
         # picked -- not just that some click succeeded.
         assert page.evaluate("window.medicineResultClickLog") == ["TH7"]
 
-    def test_without_a_known_code_the_ambiguous_name_fails_cleanly_not_a_silent_guess(
-        self, provider: PlaywrightBrowserAutomationProvider, page: Page
-    ) -> None:
+
+class TestMedicineDisambiguationByHumanSelection:
+    """
+    Parts 2+3 of the multi-result-disambiguation feature (2026-08,
+    PO-approved, PO-supplied real DOM evidence for both parts --
+    superseding the old "an ambiguous name with no known code always
+    fails cleanly via Playwright strict mode" behavior this class used
+    to cover, back when Parts 2/3 were not yet built). Reuses TH6/TH7's
+    identically-named "Naphacogyl" rows (see
+    TestMedicineSelectionByKnownWebsiteCatalogCode's own docstring), now
+    with a distinct "Hãng sản xuất" per row (medicine.search_result_info_item)
+    so Part 2's suggestion logic has something real to compare against an
+    invoice's Supplier. Never asserts that the suggested row is the one
+    actually selected -- Part 2 is an informational hint only; the real,
+    binding choice is always whatever a human (simulated here via the
+    fixture's auto_select_medicine_code/auto_select_medicine_after_ms
+    query params -- see that script block's own comment) actually clicks.
+    """
+
+    @staticmethod
+    def _make_item():
         from decimal import Decimal
 
         from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
         from pharmacy_invoice_automation.domain.value_objects.money import Money
         from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
         from pharmacy_invoice_automation.domain.value_objects.unit import Unit
-        from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
-            AutomationError,
-        )
 
-        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
-
-        # No medicine_repository injected -- this provider has no way to
-        # know a website_catalog_code even if one existed, so it must
-        # take today's existing ambiguous-name path and fail loudly
-        # (Playwright strict mode) rather than silently pick TH6 or TH7.
-        item = PurchaseItem(
+        return PurchaseItem(
             id="item-1",
             medicine_name="Naphacogyl",
             unit=Unit(code="vien"),
@@ -1638,8 +1676,115 @@ class TestMedicineSelectionByKnownWebsiteCatalogCode:
             retail_units_per_purchase_unit=1,
         )
 
-        with pytest.raises(AutomationError, match="strict mode"):
-            provider._search_and_select_medicine_for_line(item, 0)  # noqa: SLF001
+    def test_waits_for_a_real_later_dom_change_then_persists_whichever_row_was_picked(
+        self, page: Page
+    ) -> None:
+        from pharmacy_invoice_automation.domain.entities.medicine import Medicine
+        from pharmacy_invoice_automation.domain.enums.medicine_type import MedicineType
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        class _StubMedicineRepository:
+            def __init__(self, medicine: Medicine) -> None:
+                self._medicine = medicine
+                self.updated: list[Medicine] = []
+
+            def get_by_id(self, medicine_id: str) -> Medicine | None:
+                return self._medicine if medicine_id == self._medicine.id else None
+
+            def update(self, medicine: Medicine) -> None:
+                self.updated.append(medicine)
+
+        medicine = Medicine(
+            id="med-naphacogyl",
+            medicine_code="TH-NAP",
+            name="Naphacogyl",
+            medicine_type=MedicineType.OVER_THE_COUNTER,
+            unit=Unit(code="vien"),
+        )
+        medicine_repository = _StubMedicineRepository(medicine)
+        # This row's own manufacturer does NOT match the supplier below
+        # (TH6's does) -- proving Part 2's suggestion never overrides
+        # whatever the human actually picked.
+        supplier = Supplier(id="sup-1", name="Công ty cổ phần dược phẩm Nam Hà")
+        config = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=8_000
+        )
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        disambiguation_provider = PlaywrightBrowserAutomationProvider(
+            page,
+            real_registry,
+            config,
+            logging.getLogger("test"),
+            medicine_repository=medicine_repository,
+        )
+        # 3500ms is deliberately AFTER _wait_for_human_medicine_selection
+        # has already started polling (_MEDICINE_SELECTION_SETTLE_MS's
+        # own fixed 2500ms fill-settle wait runs first) -- proves this
+        # genuinely polls for a later DOM change, not just checking once.
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?auto_select_medicine_code=TH7&auto_select_medicine_after_ms=3500"
+        )
+
+        disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item(), 0, supplier
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH7"]
+        assert len(medicine_repository.updated) == 1
+        assert medicine_repository.updated[0].website_catalog_code == "TH7"
+
+    def test_logs_a_suggestion_for_the_row_whose_manufacturer_matches_the_supplier(
+        self, page: Page, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        supplier = Supplier(id="sup-1", name="Công ty cổ phần dược phẩm Nam Hà")
+        config = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=8_000
+        )
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        logger_name = "test.medicine_disambiguation_suggestion"
+        disambiguation_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger(logger_name)
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=500"
+        )
+
+        with caplog.at_level(logging.INFO, logger=logger_name):
+            disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
+                self._make_item(), 0, supplier
+            )
+
+        messages = "\n".join(record.getMessage() for record in caplog.records)
+        # TH6's own manufacturer is exactly the supplier's name; TH7's is
+        # a different, unrelated company -- proves the suggestion picks
+        # out the right row and does not flag the wrong one too.
+        assert "MATCHES" in messages
+        assert "Công ty cổ phần dược phẩm Nam Hà" in messages
+        assert "Công ty TNHH Dược phẩm Trung ương 3" in messages
+
+    def test_no_human_selection_within_the_timeout_fails_cleanly_not_a_silent_guess(
+        self, page: Page
+    ) -> None:
+        from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
+            VerificationFailedError,
+        )
+
+        config = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=300
+        )
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        disambiguation_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        # No auto_select_medicine_code -- nobody ever completes the pick.
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+
+        with pytest.raises(VerificationFailedError, match="Part 3"):
+            disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
+                self._make_item(), 0
+            )
 
 
 class TestUpdateRetailPricesAfterSave:
