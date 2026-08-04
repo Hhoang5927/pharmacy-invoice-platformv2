@@ -706,6 +706,20 @@
     const chipRenderDelayMs = Number(
       new URLSearchParams(location.search).get("chip_render_delay_ms") || 0
     );
+    // inject_decoy_chip_on_selection (2026-08, added for
+    // TestMedicineDisambiguationByHumanSelection's own
+    // "more than one chip at once" test): injects a decoy chip into
+    // whichever OTHER row's box is NOT the one just resolved, tied
+    // DIRECTLY to the real chip's own insertion (same synchronous call,
+    // no separate timer) -- guarantees both exist simultaneously
+    // regardless of how fast/slow the surrounding search/settle
+    // pipeline happens to be, unlike an independently-timed setTimeout
+    // decoy, which would need re-tuning every time that pipeline's own
+    // speed changes (as it did after _fill_medicine_search_until_matched's
+    // own poll-based bug fix made it meaningfully faster).
+    const injectDecoyChipOnSelection = new URLSearchParams(location.search).has(
+      "inject_decoy_chip_on_selection"
+    );
     document.querySelectorAll("[data-medicine-result]").forEach((el) => {
       el.addEventListener("click", () => {
         const inputId = window.lastMedicineSearchInputId || "first-line-search";
@@ -714,15 +728,27 @@
           return;
         }
         input.setAttribute("aria-expanded", "false");
-        const insertChip = () => {
+        const makeChip = (text) => {
           const chip = document.createElement("span");
           chip.className = "ui-select-match-item btn btn-default btn-xs";
           chip.innerHTML =
             '<span class="close ui-select-match-close">&times;</span>' +
             '<span><span class="ng-binding ng-scope">' +
-            el.textContent +
+            text +
             "</span></span>";
-          input.parentNode.insertBefore(chip, input);
+          return chip;
+        };
+        const insertChip = () => {
+          input.parentNode.insertBefore(makeChip(el.textContent), input);
+          if (injectDecoyChipOnSelection) {
+            const otherInputId =
+              inputId === "first-line-search" ? "subsequent-line-search" : "first-line-search";
+            const otherInput = document.getElementById(otherInputId);
+            if (otherInput && otherInput.parentNode) {
+              otherInput.setAttribute("aria-expanded", "false");
+              otherInput.parentNode.insertBefore(makeChip("DECOY - Other Row"), otherInput);
+            }
+          }
         };
         if (chipRenderDelayMs > 0) {
           setTimeout(insertChip, chipRenderDelayMs);
@@ -767,6 +793,21 @@
     // them) so their own click listeners (data-medicine-result log,
     // Part 3's chip simulation) stay intact across repeated toggles --
     // a naive innerHTML swap would silently lose them.
+    // search_dropdown_delay_ms (2026-08, PO-confirmed via real hands-on
+    // testing -- CRITICAL, race condition): PO directly observed the
+    // automation correctly retyping a shorter fallback candidate, but
+    // no dropdown ever appeared -- while PO's own SLOWER, manual typing
+    // of the exact same text did produce one. Playwright's fill() sets
+    // the whole string virtually instantly (a single 'input' event),
+    // unlike a human typing character by character, and the real site's
+    // own search-as-you-type genuinely needs real, non-instant time
+    // (Angular digest/debounce) to populate results afterward -- models
+    // that real gap by delaying only the "results become visible again"
+    // transition, never the "results disappear" one (PO's own report
+    // never suggested the disappearance itself was slow).
+    const searchDropdownDelayMs = Number(
+      new URLSearchParams(location.search).get("search_dropdown_delay_ms") || 0
+    );
     const searchLengthLimitParam = new URLSearchParams(location.search).get(
       "search_length_limit"
     );
@@ -774,11 +815,14 @@
     if (searchLengthLimit !== null) {
       const resultsTable = document.getElementById("medicine-search-results-table");
       const allResultRows = [...resultsTable.children];
+      const showResults = () => allResultRows.forEach((row) => resultsTable.appendChild(row));
       const applySearchLengthGate = (value) => {
         if (value.length > searchLengthLimit) {
           allResultRows.forEach((row) => row.remove());
+        } else if (searchDropdownDelayMs > 0) {
+          setTimeout(showResults, searchDropdownDelayMs);
         } else {
-          allResultRows.forEach((row) => resultsTable.appendChild(row));
+          showResults();
         }
       };
       ["first-line-search", "subsequent-line-search"].forEach((inputId) => {

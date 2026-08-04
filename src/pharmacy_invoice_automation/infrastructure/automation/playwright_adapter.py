@@ -1115,39 +1115,59 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
             candidates.append(" ".join(words[:word_count]))
         return candidates
 
+    _MEDICINE_SEARCH_CANDIDATE_TIMEOUT_MS = 5_000
+
     def _fill_medicine_search_until_matched(
-        self, search_key: str, search_name: str, is_match: Callable[[], bool]
+        self, search_key: str, search_name: str, match_locator: Locator
     ) -> bool:
         """
         Fills ``search_key`` with progressively shorter candidates (see
         _medicine_search_fill_candidates's own docstring) until
-        ``is_match()`` reports a real result against the resulting
-        dropdown, or every candidate has been tried. Whichever candidate
-        last succeeds is left typed into the box -- the caller's own
-        subsequent lookup/click against the FULL, untruncated
-        ``search_name`` (never the possibly-truncated candidate that
-        merely triggered the dropdown) is what actually determines which
-        row is correct, so a truncated search surfacing multiple
-        unrelated candidates is still resolved to the exact right one
-        (or correctly flagged ambiguous) -- never a guess based on the
-        truncated text alone.
+        ``match_locator`` reports at least one real result against the
+        resulting dropdown, or every candidate has been tried. Whichever
+        candidate last succeeds is left typed into the box -- the
+        caller's own subsequent lookup/click against the FULL,
+        untruncated ``search_name`` (never the possibly-truncated
+        candidate that merely triggered the dropdown) is what actually
+        determines which row is correct, so a truncated search
+        surfacing multiple unrelated candidates is still resolved to
+        the exact right one (or correctly flagged ambiguous) -- never a
+        guess based on the truncated text alone.
+
+        BUG FIX (2026-08, PO-confirmed via real hands-on testing --
+        CRITICAL, race condition): PO directly observed the automation
+        correctly typing the shorter fallback candidate ("Coldi-B"),
+        but no dropdown ever appeared -- even though PO's own SLOWER,
+        manual typing of the exact same text did produce one. Root
+        cause: this originally waited a FIXED _MEDICINE_SELECTION_SETTLE_MS
+        then checked ONCE -- Playwright's fill() sets the whole string
+        virtually instantly (a single 'input' event), unlike a human
+        typing character by character, and the site's own search-as-
+        you-type (Angular digest cycle and/or debounce) can genuinely
+        need more real, non-instant time than one fixed wait gives it --
+        the same root-cause class already fixed for _wait_for_row_settled
+        and Part 3's combined poll. Each candidate now gets its own real
+        poll (Playwright's own expect().not_to_have_count(0), up to
+        _MEDICINE_SEARCH_CANDIDATE_TIMEOUT_MS) instead of a fixed wait
+        followed by a single immediate check.
         """
         for candidate in self._medicine_search_fill_candidates(search_name):
             self._fill(search_key, candidate)
-            self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
-            if is_match():
+            try:
+                expect(match_locator).not_to_have_count(
+                    0, timeout=self._MEDICINE_SEARCH_CANDIDATE_TIMEOUT_MS
+                )
                 return True
+            except AssertionError:
+                continue
         return False
 
     def _fill_and_check_medicine_result(self, search_key: str, search_name: str) -> bool:
         """Fill one line's own search box and report whether a name-anchored match exists,
         retrying with shorter prefixes if the full name alone finds nothing."""
         result_entry = self._registry.require_usable("medicine.search_result_option")
-        return self._fill_medicine_search_until_matched(
-            search_key,
-            search_name,
-            lambda: self._locate_parameterized(result_entry, search_name).count() > 0,
-        )
+        match_locator = self._locate_parameterized(result_entry, search_name)
+        return self._fill_medicine_search_until_matched(search_key, search_name, match_locator)
 
     def _fill_and_check_medicine_result_by_code(
         self, search_key: str, search_name: str, website_catalog_code: str
@@ -1155,11 +1175,8 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         """Fill one line's own search box (by name) and report whether a code-anchored match
         exists, retrying with shorter prefixes if the full name alone finds nothing."""
         result_entry = self._registry.require_usable("medicine.search_result_option_by_code")
-        return self._fill_medicine_search_until_matched(
-            search_key,
-            search_name,
-            lambda: self._locate_parameterized(result_entry, website_catalog_code).count() > 0,
-        )
+        match_locator = self._locate_parameterized(result_entry, website_catalog_code)
+        return self._fill_medicine_search_until_matched(search_key, search_name, match_locator)
 
     def _create_medicine_for_line(self, item: PurchaseItem) -> None:
         """

@@ -1542,6 +1542,38 @@ class TestMedicineSearchLengthFallback:
 
         assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
 
+    def test_waits_through_a_real_delay_before_the_fallback_dropdown_appears(
+        self, page: Page
+    ) -> None:
+        """
+        BUG FIX (2026-08, PO-confirmed via real hands-on testing --
+        CRITICAL, race condition): PO directly observed the automation
+        correctly retyping the shorter fallback candidate ("Coldi-B"),
+        but no dropdown ever appeared -- even though PO's own SLOWER,
+        manual typing of the exact same text did produce one.
+        search_dropdown_delay_ms=3500 models that real gap -- deliberately
+        LONGER than the old, now-removed fixed _MEDICINE_SELECTION_SETTLE_MS
+        wait (2500ms) that would have failed here, but well within
+        _MEDICINE_SEARCH_CANDIDATE_TIMEOUT_MS's real poll budget (5000ms)
+        -- proving _fill_medicine_search_until_matched genuinely polls
+        for each candidate instead of checking once after a fixed wait.
+        """
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?search_length_limit=9&search_dropdown_delay_ms=3500"
+        )
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Coldi-B DNH"), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
+
     def test_name_missing_even_after_every_fallback_still_creates_a_new_one(
         self, page: Page
     ) -> None:
@@ -2033,8 +2065,18 @@ class TestMedicineDisambiguationByHumanSelection:
         ever finds MORE than one drug_search_box simultaneously containing
         a chip (an unexpected state -- not the normal "still waiting"
         one), it must raise a clear error instead of arbitrarily picking
-        one. Simulated by injecting a second, decoy chip into the OTHER
-        (normally empty) drug_search_box right as the real one appears.
+        one. inject_decoy_chip_on_selection (see that fixture script
+        block's own comment) ties the decoy's own appearance DIRECTLY to
+        the real chip's insertion event, not an independently-timed
+        setTimeout -- BUG FIX (2026-08): an earlier version of this test
+        used a fixed 400ms decoy delay, timed against how long the
+        overall search+settle pipeline used to take before
+        _fill_medicine_search_until_matched's own poll-based bug fix
+        made it meaningfully faster -- the decoy then arrived AFTER
+        _wait_for_human_medicine_selection had already observed the
+        real chip alone and returned successfully, making this test
+        flaky-by-design against any future timing change. Tying the two
+        together removes that dependency entirely.
         """
         from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
             VerificationFailedError,
@@ -2050,24 +2092,7 @@ class TestMedicineDisambiguationByHumanSelection:
         page.goto(
             f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
             "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=200"
-        )
-        # Decoy: injects a second chip into subsequent-line-search's own
-        # (otherwise empty) drug_search_box shortly after the real
-        # selection, simulating two rows simultaneously showing a chip.
-        page.evaluate(
-            """
-            () => {
-              setTimeout(() => {
-                const decoyBox = document.getElementById("subsequent-line-search").parentNode;
-                const chip = document.createElement("span");
-                chip.className = "ui-select-match-item btn btn-default btn-xs";
-                chip.innerHTML =
-                  '<span class="close ui-select-match-close">&times;</span>' +
-                  '<span><span class="ng-binding ng-scope">DECOY - Other Row</span></span>';
-                decoyBox.insertBefore(chip, document.getElementById("subsequent-line-search"));
-              }, 400);
-            }
-            """
+            "&inject_decoy_chip_on_selection"
         )
 
         with pytest.raises(VerificationFailedError, match="Part 3"):
