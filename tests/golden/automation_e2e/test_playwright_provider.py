@@ -648,15 +648,17 @@ class TestTwoPhaseFillAndSaveInvoice:
 
     @staticmethod
     def _remove_supplier_dialog_tbody(page: Page) -> None:
-        # The supplier-creation dialog's field table is the fixture's
-        # one remaining real <tbody> outside of #invoice-rows-container
-        # (needed elsewhere for supplier.name_field's exact CSS nth-
-        # child path -- cannot be restructured away like the medicine-
-        # search sections were). invoice_line.select_row_for_batch_button
-        # scopes via a PAGE-WIDE page.locator("tbody"), so this stray
-        # tbody would shift the count by 1; fill_and_save_invoice never
-        # touches the supplier dialog, so removing it here is safe and
-        # scoped to this test's own isolated Page instance only.
+        # The supplier-creation dialog's field table is a real <tbody>
+        # outside #real-line-items-table (needed elsewhere for
+        # supplier.name_field's exact CSS nth-child path -- cannot be
+        # restructured away like the medicine-search sections were).
+        # Only affects tests asserting a PAGE-WIDE page.locator("tbody")
+        # count (e.g. test_ignores_stray_tbody_elements_outside_the_line_items_table's
+        # own >= 21 check) -- _line_item_rows() itself is scoped via
+        # invoice_line.table_root's content-based anchor and already
+        # ignores this stray tbody on its own; removed here anyway to
+        # keep page-wide counts exact, scoped to this test's own
+        # isolated Page instance only.
         page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
 
     def test_phase_1_searches_and_fills_every_line_via_confirmed_selectors(
@@ -995,7 +997,9 @@ class TestRowSettleVerification:
     message ("expected 1... found 24") revealed the settle-check itself
     was counting <tbody> elements PAGE-WIDE, not scoped to the invoice
     line-items table -- test_ignores_stray_tbody_elements_outside_the_line_items_table
-    below proves the #tblMain-scoped fix.
+    below proves the fix, now scoped via invoice_line.table_root's
+    content-based anchor (originally #tblMain -- see that entry's own
+    registry notes for why that was later found to be wrong).
     """
 
     def _make_item(self, medicine_name: str, unit_price: str, **overrides: object):
@@ -1029,13 +1033,14 @@ class TestRowSettleVerification:
 
     @staticmethod
     def _remove_supplier_dialog_tbody(page: Page) -> None:
-        # The supplier-creation dialog's field table is the fixture's
-        # one remaining real <tbody> outside of #invoice-rows-container.
-        # _wait_for_row_settled scopes via a PAGE-WIDE
-        # page.locator("tbody"), so this stray tbody would shift the
-        # count by 1; fill_and_save_invoice never touches the supplier
-        # dialog, so removing it here is safe and scoped to this test's
-        # own isolated Page instance only.
+        # The supplier-creation dialog's field table is a real <tbody>
+        # outside #real-line-items-table -- _wait_for_row_settled itself
+        # is scoped via invoice_line.table_root's content-based anchor
+        # and already ignores it, but this test also asserts a
+        # PAGE-WIDE page.locator("tbody") count in one place, which this
+        # stray tbody would shift; fill_and_save_invoice never touches
+        # the supplier dialog, so removing it here is safe and scoped to
+        # this test's own isolated Page instance only.
         page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
 
     def test_waits_for_a_delayed_row_to_settle_before_continuing(self, page: Page) -> None:
@@ -1057,13 +1062,13 @@ class TestRowSettleVerification:
         outcome = real_provider.fill_and_save_invoice(invoice)
 
         assert outcome == AutomationOutcome(success=True)
-        # Scoped to #tblMain (not a bare page-wide "tbody") -- the
-        # invoice.date_field calendar widget's own real <table><tbody>
-        # (day grid) is a second, unrelated, ALWAYS-present stray tbody
-        # elsewhere on the page now (see _line_item_rows's own
-        # #tblMain-scoping fix and its "why" for this exact class of
-        # page-wide-count pitfall).
-        assert page.locator("#tblMain tbody").count() == 1
+        # Scoped to #real-line-items-table (not a bare page-wide
+        # "tbody") -- the invoice.date_field calendar widget's own real
+        # <table><tbody> (day grid) is a second, unrelated, ALWAYS-present
+        # stray tbody elsewhere on the page now (see _line_item_rows's
+        # own invoice_line.table_root-scoping fix and its "why" for this
+        # exact class of page-wide-count pitfall).
+        assert page.locator("#real-line-items-table tbody").count() == 1
 
     def test_fails_cleanly_when_a_row_never_settles(self, page: Page) -> None:
         # Simulates the real site rejecting the row outright (PO's real
@@ -1117,11 +1122,12 @@ class TestRowSettleVerification:
         outcome = real_provider.fill_and_save_invoice(invoice, dry_run=True)
 
         assert outcome == AutomationOutcome(success=True)
-        # Scoped to #tblMain -- see test_waits_for_a_delayed_row_to_settle_before_continuing's
-        # own comment for why a bare page-wide "tbody" count is no
-        # longer safe (the calendar widget's own real day-grid <tbody>
-        # is a second, unrelated stray one now).
-        assert page.locator("#tblMain tbody").count() == 3
+        # Scoped to #real-line-items-table -- see
+        # test_waits_for_a_delayed_row_to_settle_before_continuing's own
+        # comment for why a bare page-wide "tbody" count is no longer
+        # safe (the calendar widget's own real day-grid <tbody> is a
+        # second, unrelated stray one now).
+        assert page.locator("#real-line-items-table tbody").count() == 3
         log_entries = page.locator("#line-fill-log li").all_text_contents()
         assert log_entries == ["5|10000|", "5|20000|", "5|5000|"]
 
@@ -1132,11 +1138,20 @@ class TestRowSettleVerification:
         # real 3-item invoice found page.locator("tbody") returning 24
         # matches PAGE-WIDE (other real tables elsewhere on the live
         # page, never modeled by this local fixture). Injects a pile of
-        # stray <tbody> elements OUTSIDE #tblMain here to prove
-        # _wait_for_row_settled/_click_batch_edit_button_for_row (both
-        # now scoped via _line_item_rows(), "#tblMain tbody") genuinely
-        # ignore them -- not merely passing because the fixture never
-        # had any stray tbody of its own.
+        # stray <tbody> elements OUTSIDE #real-line-items-table here to
+        # prove _wait_for_row_settled/_click_batch_edit_button_for_row
+        # (both now scoped via _line_item_rows(), invoice_line.table_root's
+        # content-based anchor -- originally #tblMain, later found wrong,
+        # see that registry entry's own notes) genuinely ignore them --
+        # not merely passing because the fixture never had any stray
+        # tbody of its own.
+        #
+        # Also proves exclusion by CONTENT, not just "no columnheader at
+        # all" -- the fixture's own permanent decoy
+        # (#table-id-trans-details-by-object-note, PO-confirmed real:
+        # the 'Lịch sử giao dịch' dialog's table, sharing the 'Mặt hàng'
+        # column-header PREFIX but not '[Mã-Tên]') has its own real
+        # <tbody> too, and must also be excluded.
         real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
@@ -1159,16 +1174,18 @@ class TestRowSettleVerification:
         outcome = real_provider.fill_and_save_invoice(invoice, dry_run=True)
 
         assert outcome == AutomationOutcome(success=True)
-        # Page-wide count is inflated by the 20 stray tbody elements --
-        # exactly the real symptom (24 page-wide vs. 3 real rows).
-        assert page.locator("tbody").count() >= 21
-        assert page.locator("#tblMain tbody").count() == 1
+        # Page-wide count is inflated by the 20 stray tbody elements
+        # AND the permanent decoy table's own real tbody -- exactly the
+        # real symptom (24 page-wide vs. 3 real rows).
+        assert page.locator("tbody").count() >= 22
+        assert page.locator("#real-line-items-table tbody").count() == 1
+        assert page.locator("#table-id-trans-details-by-object-note tbody").count() == 1
 
 
 class TestMedicineSelectionSettleWait:
     """
     Bug fix (2026-08, PO-confirmed via the same real --dry-run run that
-    surfaced the "#tblMain" scoping bug above -- see
+    surfaced the line-items-table-scoping bug above -- see
     _search_and_select_medicine_for_line's own
     _MEDICINE_SELECTION_SETTLE_MS comment): a real site error, "Hãy
     chọn thuốc để thêm vào phiếu" (rejecting add_row_button), occurred
@@ -2194,10 +2211,10 @@ class TestBatchEditButtonRowScoping:
 
     @staticmethod
     def _remove_supplier_dialog_tbody(page: Page) -> None:
-        # See TestTwoPhaseFillAndSaveInvoice's identical helper: the
-        # supplier dialog's field table is the fixture's one remaining
-        # real <tbody> outside of #invoice-rows-container, which would
-        # otherwise shift the page-wide page.locator("tbody") count.
+        # See TestRowSettleVerification's identical helper: the supplier
+        # dialog's field table is a real <tbody> outside
+        # #real-line-items-table, which would otherwise shift a
+        # page-wide page.locator("tbody") count.
         page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
 
     def test_attaches_batch_and_expiry_to_the_correct_row_for_all_5_rows(
@@ -2207,7 +2224,7 @@ class TestBatchEditButtonRowScoping:
         self._remove_supplier_dialog_tbody(page)
         for _ in range(5):
             page.click("#add-row-button")
-        assert page.locator("#invoice-rows-container tbody").count() == 5
+        assert page.locator("#real-line-items-table tbody").count() == 5
 
         for position in range(1, 6):
             provider._click_batch_edit_button_for_row(position)  # noqa: SLF001

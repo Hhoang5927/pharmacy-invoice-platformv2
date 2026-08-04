@@ -121,41 +121,57 @@
   </div>
 
   <!--
-    #tblMain (the invoice line-item table itself, confirmed by
-    medicine.add_new_trigger's own registry notes: "#tblMain is the
-    invoice line-item table") is only POPULATED (its own
-    medicine/drug-group trigger button) after the supplier step
-    completes, mirroring the real invoice form's own sequencing.
-    REVISED (2026-08, PO-confirmed, final): no longer load-bearing for
-    avoiding a collision with supplier.add_new_trigger -- that trigger
-    is now correctly scoped to #receiptNoteViewId, which a REAL
-    strict-mode-violation error proved does not contain #tblMain (see
-    #receiptNoteViewId's own comment). Kept deferred anyway since it
-    still matches the real invoice form's actual sequencing, not
-    because it is required for disambiguation any more.
-    test_playwright_provider.py's
-    test_supplier_add_new_trigger_does_not_collide_with_the_tblmain_trigger
-    populates #tblMain directly (bypassing this deferred injection)
-    specifically to prove the scoping itself, independent of sequencing.
-
-    BUG FIX (2026-08, PO-confirmed via a real --dry-run run):
-    #invoice-rows-container (see its own comment below) is nested
-    INSIDE #tblMain here, not a sibling of it -- a real dry-run run
-    found page.locator("tbody") returning 24 matches page-wide for a
-    3-item invoice (other real tables elsewhere on the live page, not
-    modeled in this fixture at all), when only 1-3 were ever expected.
-    _wait_for_row_settled/_click_batch_edit_button_for_row now both
-    scope their own tbody counting to "#tblMain tbody" instead of a
-    page-wide "tbody" -- #tblMain is real, already-confirmed evidence
-    (not a new guess) for exactly this container, so this nesting
-    models the real site's structure this fix now relies on.
-    submit-supplier's own handler below APPENDS its trigger button
-    rather than replacing #tblMain's innerHTML, specifically so it
-    does not destroy this nested container.
+    #tblMain: ONLY the create-medicine ("Thêm mới thuốc") dialog's own
+    inner table -- PO-CORRECTED 2026-08 via real DOM inspection (see
+    medicine.add_new_trigger's own registry notes for the full
+    correction; it was originally, WRONGLY, believed to be the invoice
+    line-item table itself). Populated here (its own medicine/drug-group
+    trigger button) only after the supplier step completes, mirroring
+    the real invoice form's own sequencing -- kept for
+    medicine.add_new_trigger's own scoping tests, which are independent
+    of the line-item-table-scoping fix below. Does NOT hold any line-item
+    <tbody> rows any more -- see #real-line-items-table below for those.
   -->
-  <div id="tblMain">
-    <div id="invoice-rows-container"></div>
-  </div>
+  <div id="tblMain"></div>
+
+  <!--
+    invoice_line.table_root (PO-confirmed 2026-08 via a real Console
+    query comparing 2 real tables that both happen to have a "Mặt
+    hàng"-prefixed column header): the REAL invoice line-item table has
+    NO id/distinguishing class of its own on the live site -- header
+    text 'Mặt hàng  [Mã-Tên]' (note the real double space), class
+    'table table-condensed table-responsive display dataTable no-footer'
+    (a generic Bootstrap/DataTable combination PO suspects is reused
+    elsewhere too). id="real-line-items-table" here exists PURELY for
+    this fixture's own Python test assertions (page.locator('#real-
+    line-items-table tbody').count() etc.) -- production code
+    (PlaywrightBrowserAutomationProvider._line_items_table_locator)
+    never references this id, matching the real site having none.
+    <tbody> rows are appended directly as children of this <table> by
+    #add-row-button's own click handler below (see rowSettleDelayMs),
+    matching the real ng-repeat's own per-row <tbody> structure
+    (table_structure.html, PO-confirmed 2026-08).
+
+    DECOY (immediately below): the real 'Lịch sử giao dịch' (transaction
+    history) dialog's own table -- PO-confirmed real header text 'Mặt
+    hàng' alone (no '[Mã-Tên]' suffix), WITH its own real id
+    ('table-id-trans-details-by-object-note'). Always present with its
+    own real <tbody> so tests can prove
+    _line_items_table_locator/_line_item_rows genuinely exclude it by
+    content, not merely because this fixture never modeled a decoy
+    sharing the 'Mặt hàng' prefix.
+  -->
+  <table id="real-line-items-table" class="table table-condensed table-responsive display dataTable no-footer">
+    <thead>
+      <tr><th role="columnheader">Mặt hàng  [Mã-Tên]</th></tr>
+    </thead>
+  </table>
+  <table id="table-id-trans-details-by-object-note">
+    <thead>
+      <tr><th role="columnheader">Mặt hàng</th></tr>
+    </thead>
+    <tbody><tr><td>Decoy transaction-history row -- must never be counted as a line item</td></tr></tbody>
+  </table>
 
   <!--
     Minimal medicine-creation dialog stub: "Mã thuốc" + "×" close + a
@@ -458,8 +474,8 @@
   <!--
     Real per-row <tbody> elements (table_structure.html, PO-confirmed
     2026-08): each "Thêm mới" click (see #add-row-button's handler
-    below) appends one fresh <tbody> to #invoice-rows-container (now
-    nested inside #tblMain -- see that element's own comment), each
+    below) appends one fresh <tbody> directly to #real-line-items-table
+    (see that element's own comment), each
     containing this row's batch/expiry ("Lo/Han") trigger -- a
     calendar-icon button, visually identical on every row,
     distinguishable only by which <tbody> it lives in (matching the
@@ -776,10 +792,9 @@
       document.getElementById("default-supplier-tag-remove").remove();
     });
     document.getElementById("submit-supplier").addEventListener("click", () => {
-      // Appends rather than replacing #tblMain's innerHTML (bug fix,
-      // 2026-08) -- #tblMain now nests #invoice-rows-container (see
-      // that element's own comment); innerHTML replacement would have
-      // destroyed it.
+      // Appends rather than replacing #tblMain's innerHTML (harmless
+      // now that #tblMain holds nothing else, kept for parity with the
+      // real invoice form's own sequencing).
       const trigger = document.createElement("button");
       trigger.type = "button";
       trigger.title = "Thêm mới nếu chưa có";
@@ -822,8 +837,8 @@
         return;
       }
       const appendSettledRow = () => {
-        const container = document.getElementById("invoice-rows-container");
-        const rowNumber = container.children.length + 1;
+        const container = document.getElementById("real-line-items-table");
+        const rowNumber = container.tBodies.length + 1;
         const tbody = document.createElement("tbody");
         tbody.setAttribute("data-row", String(rowNumber));
         tbody.innerHTML =

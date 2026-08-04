@@ -1232,32 +1232,45 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
     # page.locator("tbody") page-wide returned 24 matches for a 3-item
     # real invoice -- other real tables elsewhere on the live page, not
     # modeled at all by this project's local test fixture, which only
-    # ever had at most 1 stray <tbody> (the supplier dialog). #tblMain
-    # is real, already-confirmed evidence for exactly the right scope
-    # (medicine.add_new_trigger's own registry notes: "#tblMain is the
-    # invoice line-item table") -- not a new guess.
+    # ever had at most 1 stray <tbody> (the supplier dialog). Originally
+    # scoped via "#tblMain" (medicine.add_new_trigger's own registry
+    # notes claimed "#tblMain is the invoice line-item table").
     #
-    # FLAGGED, NOT YET FIXED (2026-08, PO-confirmed via direct real DOM
-    # inspection while chasing an UNRELATED medicine.selected_match_chip
-    # bug): the claim above ("#tblMain is the invoice line-item table")
-    # is WRONG -- #tblMain is actually the "Thêm mới thuốc" (create-
-    # medicine) DIALOG's own inner table (has "Nhóm thuốc"/"Mã thuốc"
-    # fields), a long-standing mislabeling, not a new regression. Every
-    # real --dry-run run so far has happened to pass anyway (PO's own
-    # words: "may mắn không gây hậu quả nghiêm trọng... tình cờ đúng
-    # ngữ cảnh") -- consistent with #tblMain being a real but LARGER
-    # container that also happens to wrap the true line-item table as a
-    # descendant, not proof this scope is actually correct/safe in
-    # every case. DO NOT silently "fix" this by guessing a replacement
-    # -- needs the real line-item table's own container id/class from a
-    # fresh PO DOM snapshot first (same standard as every other anchor
-    # in this file). Tracked for a follow-up pass; left unchanged here
-    # since real --dry-run evidence has not yet shown this scope
-    # actually failing for _wait_for_row_settled's own purpose.
-    _LINE_ITEMS_TABLE_SCOPE = "#tblMain"
+    # BUG FIX #2 (2026-08, PO-confirmed via direct real DOM inspection
+    # while chasing an unrelated medicine.selected_match_chip bug): that
+    # claim was WRONG -- #tblMain is actually the "Thêm mới thuốc"
+    # (create-medicine) DIALOG's own inner table (has "Nhóm thuốc"/"Mã
+    # thuốc" fields), a long-standing mislabeling. Every real dry-run
+    # had coincidentally passed anyway (PO: "tình cờ đúng ngữ cảnh" --
+    # #tblMain being a real, LARGER container that also happened to
+    # wrap the true line-item table as a descendant).
+    #
+    # RESOLVED (2026-08, PO-confirmed via a real Console query comparing
+    # the two real tables on the live page that both happen to have a
+    # "Mặt hàng"-prefixed column header): the real line-item table has
+    # NO id and NO distinguishing class of its own -- PO's own words,
+    # "không phải chọn nhầm ID -- là không có ID đúng nào tồn tại cho
+    # bảng này" (its class, 'table table-condensed table-responsive
+    # display dataTable no-footer', is a generic Bootstrap/DataTable
+    # combination PO suspects is reused elsewhere too, same pattern as
+    # itemSearchId/drugSearchBoxId). Content-based anchoring via
+    # invoice_line.table_root (its own column header's accessible name,
+    # 'Mã-Tên' -- see that registry entry's own notes for the full real
+    # comparison against the transaction-history dialog's decoy table,
+    # which shares the 'Mặt hàng' prefix but not '[Mã-Tên]') replaces
+    # the id/class-based scope entirely.
+    def _line_items_table_locator(self) -> Locator:
+        header_entry = self._registry.require_usable("invoice_line.table_root")
+        assert header_entry.strategy == "role" and header_entry.role is not None
+        header_locator = self._page.get_by_role(
+            header_entry.role,  # type: ignore[arg-type]
+            name=header_entry.name,
+            exact=bool(header_entry.exact),
+        )
+        return self._page.locator("table").filter(has=header_locator)
 
     def _line_item_rows(self) -> Locator:
-        return self._page.locator(f"{self._LINE_ITEMS_TABLE_SCOPE} tbody")
+        return self._line_items_table_locator().locator("tbody")
 
     def _click_batch_edit_button_for_row(self, position: int) -> None:
         """
@@ -1279,9 +1292,10 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         was the root cause of the earlier, abandoned tbody:nth-child(N)
         investigation's failure. Locator.nth() counts only within the
         already-filtered 'tbody' set, so it is not affected by that.
-        Scoped to _line_item_rows() (#tblMain), not a page-wide 'tbody'
-        -- see that method's own comment for why (real dry-run evidence
-        of stray tbody elements elsewhere on the live page).
+        Scoped to _line_item_rows() (invoice_line.table_root), not a
+        page-wide 'tbody' -- see that method's own comment for why
+        (real dry-run evidence of stray tbody elements elsewhere on the
+        live page, and the #tblMain mislabeling that scope replaced).
 
         Clicking this reveals the SAME shared
         invoice_line.batch_number_field/expiry_date_field overlay,
@@ -1327,8 +1341,8 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         invoice -- other real tables elsewhere on the live page (never
         modeled by this project's local fixture, which only ever had 1
         stray tbody at most). Now scoped via _line_item_rows() (see its
-        own comment for why #tblMain is the right, already-confirmed
-        scope).
+        own comment for the full anchor history -- #tblMain, then
+        invoice_line.table_root's content-based fix).
 
         Uses Playwright's own expect().to_have_count() -- polls the
         real DOM until it matches or the timeout elapses -- rather than

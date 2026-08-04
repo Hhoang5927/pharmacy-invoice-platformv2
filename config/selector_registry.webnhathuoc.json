@@ -435,6 +435,15 @@
       "source": "05_full_flow...py:64-65,121-122",
       "notes": "'Hệ số' (conversion factor/coefficient). Appeared for medicines 1 and 3 in the recording but not medicine 2 -- appears conditional (likely on the selected unit/category), not always present. Business meaning not confirmed -- do not assume a specific formula without PO confirmation."
     },
+    "invoice_line.table_root": {
+      "strategy": "role",
+      "status": "confirmed",
+      "role": "columnheader",
+      "name": "Mã-Tên",
+      "exact": false,
+      "source": "PO-confirmed 2026-08 via a real Console query across the live site's DOM, run specifically to compare the two real tables that both happen to have a 'Mặt hàng'-prefixed column header: (1) the REAL invoice line-item table -- header text='Mặt hàng  [Mã-Tên]' (note the real double space between 'hàng' and '['), a plain <table>, no id of its own, class='table table-condensed table-responsive display dataTable no-footer'; (2) a DECOY -- the 'Lịch sử giao dịch' (transaction history) dialog's own table, header text='Mặt hàng' alone (no '[Mã-Tên]' suffix), which DOES have its own id ('table-id-trans-details-by-object-note').",
+      "notes": "REPLACES #tblMain as PlaywrightBrowserAutomationProvider._line_item_rows's anchor (2026-08, PO-confirmed real DOM inspection -- see medicine.add_new_trigger's own correction: #tblMain is actually the create-medicine dialog's table, unrelated to line items). No id/class distinguishes the real line-item table from other real tables on the page (PO's own words: 'không phải chọn nhầm ID -- là không có ID đúng nào tồn tại cho bảng này') -- content-based anchoring via this column header's own accessible name is the only stable option found so far. Matches by SUBSTRING ('Mã-Tên', not the full 'Mặt hàng  [Mã-Tên]' string) specifically so real whitespace variance (the confirmed double space) can never cause a false negative, and specifically EXCLUDES the transaction-history decoy (whose own header lacks '[Mã-Tên]' entirely) without needing to also check for the decoy's id. _line_items_table_locator() resolves this via page.locator('table').filter(has=page.get_by_role('columnheader', name='Mã-Tên')) -- the table containing this header, not the header itself -- then _line_item_rows() calls '.locator(\"tbody\")' on that result."
+    },
     "invoice_line.add_row_button": {
       "strategy": "css",
       "status": "confirmed",
