@@ -53,16 +53,21 @@ items' total before comparing -- not compare the remaining-items total
 directly against the untouched stated total.
 
 Retail-unit-conversion "learn once, remember forever" (Part 3, PO-
-confirmed 2026-08): invoices are usually denominated in a purchase unit
-(Hop/Vi/Tui) but the site always retails by Vien (tablet). Every
-resolved item's retail_units_per_purchase_unit is set here, in priority
-order: (1) this invoice's own OCR reading, if present -- also learned
-onto the Medicine catalog record when it did not already have one; (2)
-else the Medicine's already-remembered value, if any; (3) else this is
-a genuine gap -- an ``issue`` routes just this line to review, per the
-same issues/notes distinction as everywhere else in this step. An item
-whose own unit is already Vien needs no conversion and is resolved to
-1 directly, never routed to review over a non-existent gap.
+confirmed 2026-08; STRATEGY CHANGE 2026-08 -- see
+_resolve_packaging_ratio's own docstring): invoices are usually
+denominated in a purchase unit (Hop/Vi/Tui). Every resolved item's
+retail_units_per_purchase_unit is opportunistically set here, in
+priority order: (1) this invoice's own OCR reading, if present -- also
+learned onto the Medicine catalog record when it did not already have
+one; (2) else the Medicine's already-remembered value, if any; (3)
+else left unresolved. An item whose own unit is already an atomic
+dispensing form (Vien, or a liquid/cream/injectable container) needs
+no conversion and is resolved to 1 directly. Automation itself no
+longer converts through this ratio at all (it fills each item's own
+original invoice quantity/unit_price verbatim, gated by verifying the
+site's own displayed unit for real instead) -- so as of the strategy
+change, an unresolved ratio (3) is no longer a blocking ``issue``; it
+never forces human review over this alone.
 
 Root-cause fix alongside this (flagged for the record, not silently
 folded in): a newly-created Medicine's ``unit`` is now always Vien --
@@ -332,7 +337,7 @@ class PartyMatchingStep:
                 assert outcome.existing_medicine is not None
                 item.assign_medicine(outcome.existing_medicine.id)
                 self._resolve_packaging_ratio(
-                    item, outcome.existing_medicine, issues, notes, persist=True
+                    item, outcome.existing_medicine, notes, persist=True
                 )
                 continue
 
@@ -351,7 +356,7 @@ class PartyMatchingStep:
             )
             new_medicines_reserved_so_far += 1
             item.assign_medicine(new_medicine.id)
-            self._resolve_packaging_ratio(item, new_medicine, issues, notes, persist=False)
+            self._resolve_packaging_ratio(item, new_medicine, notes, persist=False)
             new_medicines.append(new_medicine)
             # Keep this new medicine visible to any later item on the same invoice.
             by_name[new_medicine.name.strip().lower()] = new_medicine
@@ -502,7 +507,7 @@ class PartyMatchingStep:
             existing_medicine = outcome.existing_medicine
             had_ratio_before = existing_medicine.retail_units_per_purchase_unit is not None
             item.assign_medicine(existing_medicine.id)
-            self._resolve_packaging_ratio(item, existing_medicine, issues, notes, persist=False)
+            self._resolve_packaging_ratio(item, existing_medicine, notes, persist=False)
             learned_now = (
                 not had_ratio_before
                 and existing_medicine.retail_units_per_purchase_unit is not None
@@ -518,7 +523,7 @@ class PartyMatchingStep:
             item, medicine_type, retail_unit_override, sequence_offset=sequence_offset
         )
         item.assign_medicine(new_medicine.id)
-        self._resolve_packaging_ratio(item, new_medicine, issues, notes, persist=False)
+        self._resolve_packaging_ratio(item, new_medicine, notes, persist=False)
         notes.append(
             f"New medicine '{new_medicine.name}' ({new_medicine.medicine_code}) created "
             f"during review (reviewer-confirmed classification: {medicine_type.value})."
@@ -534,7 +539,6 @@ class PartyMatchingStep:
         self,
         item: PurchaseItem,
         medicine: Medicine,
-        issues: list[str],
         notes: list[str],
         *,
         persist: bool,
@@ -543,13 +547,29 @@ class PartyMatchingStep:
         Resolve ``item``'s retail_units_per_purchase_unit in priority
         order: already an atomic/no-conversion-needed unit, else this
         invoice's own OCR reading, else the Medicine's already-
-        remembered value, else a review-routing ``issue`` (see this
-        module's docstring). ``persist`` is False for a newly-created
-        Medicine not yet in the repository (its learned value reaches
-        storage later, via
+        remembered value, else left unresolved (see STRATEGY CHANGE
+        below). ``persist`` is False for a newly-created Medicine not
+        yet in the repository (its learned value reaches storage
+        later, via
         pipeline.invoice_persistence_step.InvoicePersistenceStep's
         ``medicine_repository.add()``) and True for one already
         persisted, which needs an explicit ``update()`` here instead.
+
+        STRATEGY CHANGE (2026-08, PO decision -- REPLACES the Vien
+        retail-unit-conversion design entirely): automation
+        (infrastructure.automation.playwright_adapter) no longer
+        converts through this ratio at all -- it now fills each item's
+        own original invoice quantity/unit_price verbatim, gated by
+        verifying the site's own displayed unit matches item.unit for
+        real, never by a looked-up/assumed conversion factor. This
+        value is therefore no longer required to automate an invoice;
+        an unresolved packaging ratio no longer forces human review
+        (previously an ``issue`` here, per this module's own issues-
+        vs-notes docstring) -- it is simply left None. Still opportunistically
+        resolved/learned above when the data happens to be available
+        (this field's Domain/persistence plumbing is intentionally left
+        in place for now, per an explicit PO decision not to remove it
+        tonight), just never blocking.
         """
         if item.unit.code in _NO_CONVERSION_NEEDED_UNIT_CODES:
             # Already the final dispensing form -- Vien, or a
@@ -576,13 +596,6 @@ class PartyMatchingStep:
 
         if medicine.retail_units_per_purchase_unit is not None:
             item.assign_retail_units_per_purchase_unit(medicine.retail_units_per_purchase_unit)
-            return
-
-        issues.append(
-            f"Medicine '{medicine.name}': packaging ratio (so vien tren 1 don vi mua "
-            f"'{item.unit.code}') is not known and this invoice does not state it -- "
-            f"needs manual confirmation (xac nhan quy cach dong goi) before automation."
-        )
 
     def _classify_new_medicine(
         self,

@@ -92,6 +92,9 @@ from pharmacy_invoice_automation.domain.services.supplement_classification_servi
     SupplementClassificationService,
 )
 from pharmacy_invoice_automation.domain.validators.invoice_validator import InvoiceValidator
+from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
+    UnitMismatchError,
+)
 from pharmacy_invoice_automation.infrastructure.di.service_container import ServiceContainer
 
 _INVOICE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".pdf")
@@ -305,9 +308,11 @@ _REVIEW_PROMPT = (
 _CORRECTION_FIELD_HINT = (
     "    Tên trường (vd: invoice_number, invoice_date [YYYY-MM-DD], "
     "item.<item_id>.retail_units_per_purchase_unit, "
-    "item.<item_id>.medicine_type [prescription/over_the_counter/otc], hoặc "
+    "item.<item_id>.medicine_type [prescription/over_the_counter/otc], "
     "item.<item_id>.retail_unit_override [1 trong 39 mã đơn vị, vd lo/chai/tuyp/ong -- "
-    "dùng khi ĐVT ghi Hộp/Thùng nhưng thực chất là 1 đơn vị bán ra hoàn chỉnh]): "
+    "dùng khi ĐVT ghi Hộp/Thùng nhưng thực chất là 1 đơn vị bán ra hoàn chỉnh], hoặc "
+    "item.<item_id>.confirmed_website_unit_ratio [số dương, vd 1 -- xác nhận tỉ lệ quy đổi "
+    "khi automate báo đơn vị trên web khác đơn vị trên hóa đơn cho dòng này]): "
 )
 
 
@@ -375,10 +380,16 @@ def _review_one_invoice(
             if item.retail_units_per_purchase_unit is not None
             else "?"
         )
+        website_unit_ratio_label = (
+            item.confirmed_website_unit_ratio
+            if item.confirmed_website_unit_ratio is not None
+            else "chưa xác nhận"
+        )
         _print(
             f"    [item_id={item.id}] {item.medicine_name}: SL={item.quantity} "
             f"Đơn giá={item.unit_price} VAT={tax_label} "
-            f"Hệ số quy đổi Viên={ratio_label}"
+            f"Hệ số quy đổi Viên={ratio_label} "
+            f"Tỉ lệ đơn vị web={website_unit_ratio_label}"
         )
 
     issues = InvoiceValidator().validate(invoice).unwrap().issues
@@ -665,6 +676,24 @@ def _automate_one_invoice(
             )
 
         fill_outcome = provider.fill_and_save_invoice(invoice, dry_run=dry_run)
+    except UnitMismatchError as exc:
+        # Distinguished from the generic Exception handler below
+        # (PO decision, 2026-08 -- "Coldi-B DNH" 1 Hop = 1 Lọ proved a
+        # unit-label mismatch is sometimes a genuine, correct
+        # site-vs-invoice naming difference, not a bug): this invoice
+        # still stops safely here, exactly like any other automation
+        # failure, but the operator is pointed at the specific fix --
+        # confirming a ratio via the review step -- instead of a
+        # generic "unexpected error" message.
+        _print(f"  LỖI LỆCH ĐƠN VỊ: {exc}")
+        _print(
+            f"  -> Xác nhận tỉ lệ quy đổi qua bước 'review' (item.{exc.purchase_item_id}."
+            "confirmed_website_unit_ratio) trước khi chạy lại automate cho hóa đơn này."
+        )
+        fill_outcome = AutomationOutcome(success=False, failure_reason=str(exc))
+        return _finish_automation_attempt(
+            invoice, purchase_invoice_repository, fill_outcome, dry_run
+        )
     except Exception as exc:  # noqa: BLE001 -- must not leave status ambiguous either way
         _print(f"  LỖI KHÔNG MONG ĐỢI: {exc}")
         fill_outcome = AutomationOutcome(success=False, failure_reason=str(exc))

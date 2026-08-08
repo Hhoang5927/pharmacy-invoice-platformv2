@@ -222,7 +222,20 @@ def use_case(
 
 
 class TestPackagingRatioConfirmation:
-    def test_confirming_the_ratio_unblocks_the_invoice(
+    """
+    STRATEGY CHANGE (2026-08, PO decision, explicit Domain change):
+    InvoiceValidator no longer requires retail_units_per_purchase_unit
+    to be resolved at all (see that validator's own docstring) -- a
+    packaging-ratio correction is no longer needed to unblock an
+    invoice. The reviewer-correction mechanism itself
+    ("item.<id>.retail_units_per_purchase_unit") is untouched and still
+    applies/learns exactly as before, for whatever legitimately still
+    uses this data (Medicine catalog metadata) -- these tests prove
+    both halves: the correction still works, AND its absence no longer
+    blocks the invoice.
+    """
+
+    def test_confirming_the_ratio_still_applies_and_the_invoice_succeeds(
         self,
         use_case: SubmitInvoiceReviewUseCase,
         repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
@@ -293,7 +306,7 @@ class TestPackagingRatioConfirmation:
         # ...but the catalog's already-known value is never silently overwritten.
         assert medicine.retail_units_per_purchase_unit == 50
 
-    def test_non_numeric_correction_is_ignored_not_a_crash(
+    def test_non_numeric_correction_is_ignored_and_no_longer_blocks_the_invoice(
         self,
         use_case: SubmitInvoiceReviewUseCase,
         repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
@@ -312,12 +325,14 @@ class TestPackagingRatioConfirmation:
             )
         )
 
+        # The bad correction itself is still ignored, not a crash --
+        # but nothing about it being unresolved blocks the invoice
+        # anymore (InvoiceValidator no longer checks this at all).
         assert item.retail_units_per_purchase_unit is None
-        # Still unresolved -> InvoiceValidator keeps it out of ReadyForImport.
-        assert result.is_success is False
-        assert invoice.status is InvoiceStatus.UNDER_REVIEW
+        assert result.is_success
+        assert invoice.status is InvoiceStatus.READY_FOR_IMPORT
 
-    def test_missing_confirmation_leaves_invoice_in_review(
+    def test_no_confirmation_at_all_no_longer_blocks_the_invoice(
         self,
         use_case: SubmitInvoiceReviewUseCase,
         repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
@@ -334,8 +349,9 @@ class TestPackagingRatioConfirmation:
             )
         )
 
-        assert result.is_success is False
-        assert invoice.status is InvoiceStatus.UNDER_REVIEW
+        assert item.retail_units_per_purchase_unit is None
+        assert result.is_success
+        assert invoice.status is InvoiceStatus.READY_FOR_IMPORT
 
 
 class TestMedicineTypeCorrection:
@@ -608,15 +624,21 @@ class TestRetailUnitOverride:
         assert result.is_success
         assert invoice.status is InvoiceStatus.READY_FOR_IMPORT
 
-    def test_without_the_override_the_same_invoice_stays_blocked_on_packaging_ratio(
+    def test_without_the_override_the_invoice_still_succeeds_but_the_medicine_defaults_to_vien(
         self,
         use_case: SubmitInvoiceReviewUseCase,
         repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
     ) -> None:
-        # Sanity check on the fixture: proves the fix above is really
-        # due to the override, not coincidental -- without it, the same
-        # invoice must still fail on the packaging-ratio gap.
-        invoice_repository, _ = repositories
+        # STRATEGY CHANGE (2026-08, PO decision, explicit Domain change):
+        # InvoiceValidator no longer requires retail_units_per_purchase_unit
+        # to be resolved at all (see that validator's own docstring) --
+        # retail_unit_override is no longer needed to UNBLOCK this
+        # invoice (this test used to assert the opposite: that omitting
+        # it left the invoice blocked on the packaging-ratio gap). It
+        # still matters for a genuinely NEW Medicine's own catalog unit
+        # though: without it, "hop" (not an atomic dispensing form)
+        # still defaults to Vien, exactly as before this change.
+        invoice_repository, medicine_repository = repositories
         item = _make_item(medicine_id=None, medicine_name="Coldi", unit=Unit(code="hop"))
         invoice = _make_invoice(item)
         invoice_repository.add(invoice)
@@ -629,9 +651,13 @@ class TestRetailUnitOverride:
             )
         )
 
-        assert result.is_success is False
-        assert any("packaging ratio" in error.lower() for error in result.errors)
-        assert invoice.status is InvoiceStatus.UNDER_REVIEW
+        assert result.is_success
+        assert invoice.status is InvoiceStatus.READY_FOR_IMPORT
+        assert item.medicine_id is not None
+        created = medicine_repository.get_by_id(item.medicine_id)
+        assert created is not None
+        assert created.unit.code == "vien"
+        assert item.retail_units_per_purchase_unit is None
 
     def test_override_learns_onto_an_already_resolved_medicine_without_changing_its_unit(
         self,
@@ -679,9 +705,129 @@ class TestRetailUnitOverride:
             )
         )
 
+        # The bad override itself is still ignored, not a crash -- but
+        # (STRATEGY CHANGE, 2026-08) it being unresolved no longer
+        # blocks the invoice (InvoiceValidator no longer checks this).
         assert item.retail_units_per_purchase_unit is None
-        assert result.is_success is False
-        assert invoice.status is InvoiceStatus.UNDER_REVIEW
+        assert result.is_success
+        assert invoice.status is InvoiceStatus.READY_FOR_IMPORT
+
+
+class TestConfirmedWebsiteUnitRatio:
+    """
+    PO decision (2026-08): "Coldi-B DNH" 1 Hop trên hóa đơn = 1 Lọ trên
+    web is a genuine, correct site-vs-invoice naming difference (not a
+    bug) that infrastructure.automation.playwright_adapter's own
+    _verify_unit_matches_invoice can only discover at automation time.
+    A reviewer confirms the ratio here so a later automate run can
+    trust it instead of raising UnitMismatchError again.
+    """
+
+    def test_confirms_ratio_directly_onto_the_item(
+        self,
+        use_case: SubmitInvoiceReviewUseCase,
+        repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
+    ) -> None:
+        invoice_repository, _ = repositories
+        item = _make_item(medicine_id="med-1", unit=Unit(code="hop"))
+        invoice = _make_invoice(item)
+        invoice_repository.add(invoice)
+
+        result = use_case.execute(
+            SubmitInvoiceReviewCommand(
+                invoice_id="inv-1",
+                corrected_fields={f"item.{item.id}.confirmed_website_unit_ratio": "1"},
+                reviewer_approved=True,
+            )
+        )
+
+        assert item.confirmed_website_unit_ratio == Decimal("1")
+        assert result.is_success
+        assert invoice.status is InvoiceStatus.READY_FOR_IMPORT
+
+    def test_non_integer_ratio_is_accepted(
+        self,
+        use_case: SubmitInvoiceReviewUseCase,
+        repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
+    ) -> None:
+        invoice_repository, _ = repositories
+        item = _make_item(medicine_id="med-1", unit=Unit(code="hop"))
+        invoice = _make_invoice(item)
+        invoice_repository.add(invoice)
+
+        use_case.execute(
+            SubmitInvoiceReviewCommand(
+                invoice_id="inv-1",
+                corrected_fields={f"item.{item.id}.confirmed_website_unit_ratio": "10"},
+                reviewer_approved=False,
+            )
+        )
+
+        assert item.confirmed_website_unit_ratio == Decimal("10")
+
+    def test_non_numeric_ratio_is_ignored_not_a_crash(
+        self,
+        use_case: SubmitInvoiceReviewUseCase,
+        repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
+    ) -> None:
+        invoice_repository, _ = repositories
+        item = _make_item(medicine_id="med-1", unit=Unit(code="hop"))
+        invoice = _make_invoice(item)
+        invoice_repository.add(invoice)
+
+        result = use_case.execute(
+            SubmitInvoiceReviewCommand(
+                invoice_id="inv-1",
+                corrected_fields={f"item.{item.id}.confirmed_website_unit_ratio": "not-a-number"},
+                reviewer_approved=True,
+            )
+        )
+
+        assert item.confirmed_website_unit_ratio is None
+        assert result.is_success
+
+    def test_zero_or_negative_ratio_is_ignored_not_a_crash(
+        self,
+        use_case: SubmitInvoiceReviewUseCase,
+        repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
+    ) -> None:
+        invoice_repository, _ = repositories
+        item = _make_item(medicine_id="med-1", unit=Unit(code="hop"))
+        invoice = _make_invoice(item)
+        invoice_repository.add(invoice)
+
+        use_case.execute(
+            SubmitInvoiceReviewCommand(
+                invoice_id="inv-1",
+                corrected_fields={f"item.{item.id}.confirmed_website_unit_ratio": "0"},
+                reviewer_approved=False,
+            )
+        )
+
+        assert item.confirmed_website_unit_ratio is None
+
+    def test_ratio_is_not_learned_onto_the_resolved_medicine(
+        self,
+        use_case: SubmitInvoiceReviewUseCase,
+        repositories: tuple[_FakePurchaseInvoiceRepository, _FakeMedicineRepository],
+    ) -> None:
+        invoice_repository, medicine_repository = repositories
+        medicine = _make_medicine(name="Coldi-B DNH", unit=Unit(code="hop"))
+        medicine_repository.add(medicine)
+        item = _make_item(medicine_id="med-1", medicine_name="Coldi-B DNH", unit=Unit(code="hop"))
+        invoice = _make_invoice(item)
+        invoice_repository.add(invoice)
+
+        use_case.execute(
+            SubmitInvoiceReviewCommand(
+                invoice_id="inv-1",
+                corrected_fields={f"item.{item.id}.confirmed_website_unit_ratio": "1"},
+                reviewer_approved=False,
+            )
+        )
+
+        assert item.confirmed_website_unit_ratio == Decimal("1")
+        assert not medicine_repository.update_calls
 
 
 class TestBaselineApproveRejectFlows:

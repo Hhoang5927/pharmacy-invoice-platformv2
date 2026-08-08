@@ -1,0 +1,151 @@
+2026-08-06 16:12:19 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-06 16:12:19 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-06 16:12:27 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-06 16:12:28 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-06 16:12:30 | INFO | pharmacy_automation.automation | DIAG poll [search_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 16:12:30 | INFO | pharmacy_automation.automation | DIAG poll [select_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 0ms elapsed, 1 check(s).
+2026-08-06 16:12:30 | INFO | pharmacy_automation.automation | select_supplier succeeded.
+2026-08-06 16:12:31 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Naphacogyl (Thùng x 300 hộp x 2 vỉ x 10 viên), website_catalog_code hien co (neu co): None
+2026-08-06 16:12:32 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogyl' (goc 'Naphacogyl')]: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 16:12:32 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogyl' (goc: 'Naphacogyl') -> matched=True
+2026-08-06 16:12:32 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 16:12:32 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 16:12:32 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 16:12:34 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-06 16:12:34 | INFO | pharmacy_automation.automation | DIAG: persist xong cho Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' (code='TH1') -- dong log tiep theo se cho biet dang resolve dong hang nao.
+2026-08-06 16:12:34 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-06 16:12:36 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi' (goc 'Coldi')]: matched=True after 1000ms elapsed, 5 check(s).
+2026-08-06 16:12:36 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi' (goc: 'Coldi') -> matched=True
+2026-08-06 16:12:38 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi-B DNH (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-06 16:12:47 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-B DNH' (goc 'Coldi-B DNH')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 16:12:47 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-B DNH' (goc: 'Coldi-B DNH') -> matched=False
+2026-08-06 16:12:56 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-B' (goc 'Coldi-B DNH')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 16:12:56 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-B' (goc: 'Coldi-B DNH') -> matched=False
+2026-08-06 16:12:57 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-' (goc 'Coldi-B DNH')]: matched=True after 1000ms elapsed, 5 check(s).
+2026-08-06 16:12:57 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-' (goc: 'Coldi-B DNH') -> matched=True
+2026-08-06 16:13:00 | INFO | pharmacy_automation.automation | fill_and_save_invoice: dry_run=True -- every field filled for real, but 'Ghi Phieu' was never clicked. Nothing was saved.
+2026-08-06 16:13:00 | INFO | pharmacy_automation.automation | fill_and_save_invoice succeeded.
+2026-08-06 16:34:53 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-06 16:34:53 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-06 16:35:00 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-06 16:35:01 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-06 16:35:02 | INFO | pharmacy_automation.automation | DIAG poll [search_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 16:35:03 | INFO | pharmacy_automation.automation | DIAG poll [select_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 0ms elapsed, 1 check(s).
+2026-08-06 16:35:03 | INFO | pharmacy_automation.automation | select_supplier succeeded.
+2026-08-06 16:35:04 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Naphacogyl (Thùng x 300 hộp x 2 vỉ x 10 viên), website_catalog_code hien co (neu co): None
+2026-08-06 16:35:05 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogyl' (goc 'Naphacogyl')]: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 16:35:05 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogyl' (goc: 'Naphacogyl') -> matched=True
+2026-08-06 16:35:05 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 16:35:05 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 16:35:05 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 16:35:07 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 16:35:09 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-06 16:35:09 | INFO | pharmacy_automation.automation | DIAG: persist xong cho Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' (code='TH1') -- dong log tiep theo se cho biet dang resolve dong hang nao.
+2026-08-06 16:35:09 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-06 16:35:10 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi' (goc 'Coldi')]: matched=True after 1000ms elapsed, 5 check(s).
+2026-08-06 16:35:10 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi' (goc: 'Coldi') -> matched=True
+2026-08-06 16:35:13 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi-B DNH (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-06 16:35:21 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-B DNH' (goc 'Coldi-B DNH')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 16:35:21 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-B DNH' (goc: 'Coldi-B DNH') -> matched=False
+2026-08-06 16:35:30 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-B' (goc 'Coldi-B DNH')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 16:35:30 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-B' (goc: 'Coldi-B DNH') -> matched=False
+2026-08-06 16:35:31 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-' (goc 'Coldi-B DNH')]: matched=True after 1000ms elapsed, 5 check(s).
+2026-08-06 16:35:31 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-' (goc: 'Coldi-B DNH') -> matched=True
+2026-08-06 16:35:34 | INFO | pharmacy_automation.automation | fill_and_save_invoice: dry_run=True -- every field filled for real, but 'Ghi Phieu' was never clicked. Nothing was saved.
+2026-08-06 16:35:34 | INFO | pharmacy_automation.automation | fill_and_save_invoice succeeded.
+2026-08-06 20:43:13 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-06 20:43:13 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-06 20:43:18 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-06 20:43:19 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-06 20:43:21 | INFO | pharmacy_automation.automation | DIAG poll [search_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 20:43:21 | INFO | pharmacy_automation.automation | DIAG poll [select_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 0ms elapsed, 1 check(s).
+2026-08-06 20:43:21 | INFO | pharmacy_automation.automation | select_supplier succeeded.
+2026-08-06 20:43:22 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Naphacogyl (Thùng x 300 hộp x 2 vỉ x 10 viên), website_catalog_code hien co (neu co): None
+2026-08-06 20:43:30 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogyl' (goc 'Naphacogyl')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 20:43:30 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogyl' (goc: 'Naphacogyl') -> matched=False
+2026-08-06 20:43:39 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogy' (goc 'Naphacogyl')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 20:43:39 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogy' (goc: 'Naphacogyl') -> matched=False
+2026-08-06 20:43:40 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacog' (goc 'Naphacogyl')]: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 20:43:40 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacog' (goc: 'Naphacogyl') -> matched=True
+2026-08-06 20:43:40 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 20:43:40 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 20:43:40 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 20:43:42 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', drug_search_box elements containing a chip=0
+2026-08-06 20:43:43 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-06 20:43:43 | INFO | pharmacy_automation.automation | DIAG: persist xong cho Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' (code='TH1') -- dong log tiep theo se cho biet dang resolve dong hang nao.
+2026-08-06 20:43:43 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Selector 'invoice_line.unit_display' for site 'webnhathuoc.com' has status 'needs_verification' and is not yet usable -- it must be verified against the live site before automation code may rely on it.
+2026-08-06 20:44:24 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-06 20:44:24 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-06 20:44:37 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-06 20:44:38 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-06 20:44:40 | INFO | pharmacy_automation.automation | DIAG poll [search_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 20:44:40 | INFO | pharmacy_automation.automation | DIAG poll [select_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 0ms elapsed, 1 check(s).
+2026-08-06 20:44:40 | INFO | pharmacy_automation.automation | select_supplier succeeded.
+2026-08-06 20:44:41 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Naphacogyl (Thùng x 300 hộp x 2 vỉ x 10 viên), website_catalog_code hien co (neu co): None
+2026-08-06 20:44:49 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogyl' (goc 'Naphacogyl')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 20:44:49 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogyl' (goc: 'Naphacogyl') -> matched=False
+2026-08-06 20:44:51 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogy' (goc 'Naphacogyl')]: matched=True after 1000ms elapsed, 5 check(s).
+2026-08-06 20:44:51 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogy' (goc: 'Naphacogyl') -> matched=True
+2026-08-06 20:44:51 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 20:44:51 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 20:44:51 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 20:44:53 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 20:44:55 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 20:44:57 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 20:44:58 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-06 20:44:58 | INFO | pharmacy_automation.automation | DIAG: persist xong cho Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' (code='TH1') -- dong log tiep theo se cho biet dang resolve dong hang nao.
+2026-08-06 20:44:58 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Selector 'invoice_line.unit_display' for site 'webnhathuoc.com' has status 'needs_verification' and is not yet usable -- it must be verified against the live site before automation code may rely on it.
+2026-08-06 21:32:13 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-06 21:32:13 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-06 21:32:18 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-06 21:32:20 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-06 21:32:22 | INFO | pharmacy_automation.automation | DIAG poll [search_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 21:32:22 | INFO | pharmacy_automation.automation | DIAG poll [select_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 0ms elapsed, 1 check(s).
+2026-08-06 21:32:22 | INFO | pharmacy_automation.automation | select_supplier succeeded.
+2026-08-06 21:32:23 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Naphacogyl (Thùng x 300 hộp x 2 vỉ x 10 viên), website_catalog_code hien co (neu co): None
+2026-08-06 21:32:31 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogyl' (goc 'Naphacogyl')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 21:32:31 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogyl' (goc: 'Naphacogyl') -> matched=False
+2026-08-06 21:32:32 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogy' (goc 'Naphacogyl')]: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 21:32:32 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogy' (goc: 'Naphacogyl') -> matched=True
+2026-08-06 21:32:32 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 21:32:32 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 21:32:32 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 21:32:34 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 21:32:37 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 21:32:38 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-06 21:32:38 | INFO | pharmacy_automation.automation | DIAG: persist xong cho Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' (code='TH1') -- dong log tiep theo se cho biet dang resolve dong hang nao.
+2026-08-06 21:32:39 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-06 21:32:48 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi' (goc 'Coldi')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 21:32:48 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi' (goc: 'Coldi') -> matched=False
+2026-08-06 21:32:57 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Cold' (goc 'Coldi')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 21:32:57 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Cold' (goc: 'Coldi') -> matched=False
+2026-08-06 21:42:06 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-06 21:42:06 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-06 21:42:13 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-06 21:42:15 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-06 21:42:16 | INFO | pharmacy_automation.automation | DIAG poll [search_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 21:42:17 | INFO | pharmacy_automation.automation | DIAG poll [select_supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ']: matched=True after 0ms elapsed, 1 check(s).
+2026-08-06 21:42:17 | INFO | pharmacy_automation.automation | select_supplier succeeded.
+2026-08-06 21:42:17 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Naphacogyl (Thùng x 300 hộp x 2 vỉ x 10 viên), website_catalog_code hien co (neu co): None
+2026-08-06 21:42:18 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Naphacogyl' (goc 'Naphacogyl')]: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 21:42:18 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Naphacogyl' (goc: 'Naphacogyl') -> matched=True
+2026-08-06 21:42:18 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 21:42:18 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-06 21:42:18 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 21:42:20 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 21:42:22 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-06 21:42:25 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-06 21:42:25 | INFO | pharmacy_automation.automation | DIAG: persist xong cho Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' (code='TH1') -- dong log tiep theo se cho biet dang resolve dong hang nao.
+2026-08-06 21:42:25 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-06 21:42:26 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi' (goc 'Coldi')]: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 21:42:26 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi' (goc: 'Coldi') -> matched=True
+2026-08-06 21:42:29 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi-B DNH (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-06 21:42:37 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-B DNH' (goc 'Coldi-B DNH')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 21:42:37 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-B DNH' (goc: 'Coldi-B DNH') -> matched=False
+2026-08-06 21:42:46 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-B' (goc 'Coldi-B DNH')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 21:42:46 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-B' (goc: 'Coldi-B DNH') -> matched=False
+2026-08-06 21:42:55 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi-' (goc 'Coldi-B DNH')]: matched=False, gave up after the full 8000ms budget, 33 check(s) total.
+2026-08-06 21:42:55 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi-' (goc: 'Coldi-B DNH') -> matched=False
+2026-08-06 21:42:56 | INFO | pharmacy_automation.automation | DIAG poll [candidate 'Coldi' (goc 'Coldi-B DNH')]: matched=True after 750ms elapsed, 4 check(s).
+2026-08-06 21:42:56 | INFO | pharmacy_automation.automation | DIAG: candidate rut ngan 'Coldi' (goc: 'Coldi-B DNH') -> matched=True
+2026-08-06 21:42:58 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Đơn vị trên web ('Lọ') khác với đơn vị trên hóa đơn ('Hộp') cho thuốc 'Coldi-B DNH (Thùng x 160 hộp x 1 lọ x 15ml)' -- cần xác nhận thủ công trước khi điền số lượng/giá. Không tự động quy đổi hay đoán.

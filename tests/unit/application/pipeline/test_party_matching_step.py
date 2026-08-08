@@ -496,9 +496,14 @@ class TestPackagingRatioResolution:
         assert item.retail_units_per_purchase_unit == 50
         assert outcome.issues == ()
 
-    def test_neither_ocr_nor_catalog_known_routes_to_review_not_a_guess(
+    def test_neither_ocr_nor_catalog_known_is_left_unresolved_not_routed_to_review(
         self, step: tuple[PartyMatchingStep, _FakeSupplierRepository, _FakeMedicineRepository]
     ) -> None:
+        # STRATEGY CHANGE (2026-08, PO decision): automation no longer
+        # converts through retail_units_per_purchase_unit at all (it
+        # verifies the site's own displayed unit directly instead), so
+        # an unresolved packaging ratio no longer blocks automation via
+        # a forced review issue -- it is simply left None.
         party_matching_step, _, _ = step
         item = _make_item("Amoxicillin 500mg", retail_units_per_purchase_unit=None)
         invoice = _make_invoice(item)
@@ -506,7 +511,7 @@ class TestPackagingRatioResolution:
         outcome = party_matching_step.execute(invoice, _make_ocr_result())
 
         assert item.retail_units_per_purchase_unit is None
-        assert any("packaging ratio" in issue.lower() for issue in outcome.issues)
+        assert outcome.issues == ()
 
     def test_an_item_already_denominated_in_vien_needs_no_conversion(
         self, step: tuple[PartyMatchingStep, _FakeSupplierRepository, _FakeMedicineRepository]
@@ -568,9 +573,14 @@ class TestAtomicDispensingUnitsNoConversionNeeded:
 
         assert outcome.new_medicines[0].unit.code == unit_code
 
-    def test_goi_is_not_treated_as_atomic_still_needs_confirmation(
+    def test_goi_is_not_treated_as_atomic_and_stays_unresolved_without_blocking(
         self, step: tuple[PartyMatchingStep, _FakeSupplierRepository, _FakeMedicineRepository]
     ) -> None:
+        # STRATEGY CHANGE (2026-08): same reasoning as
+        # test_neither_ocr_nor_catalog_known_is_left_unresolved_not_routed_to_review
+        # -- "goi" still correctly falls outside _NO_CONVERSION_NEEDED_UNIT_CODES
+        # (a sachet can contain multiple tablets), but an unresolved
+        # ratio no longer blocks automation.
         party_matching_step, _, _ = step
         item = _make_item(
             "Some Sachet Product", unit=Unit(code="goi"), retail_units_per_purchase_unit=None
@@ -580,7 +590,7 @@ class TestAtomicDispensingUnitsNoConversionNeeded:
         outcome = party_matching_step.execute(invoice, _make_ocr_result())
 
         assert item.retail_units_per_purchase_unit is None
-        assert any("packaging ratio" in issue.lower() for issue in outcome.issues)
+        assert outcome.issues == ()
 
 
 class TestResolveItemWithExplicitClassification:

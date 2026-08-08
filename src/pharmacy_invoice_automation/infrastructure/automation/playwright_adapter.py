@@ -27,11 +27,13 @@ from decimal import Decimal
 from playwright.sync_api import Locator, Page, expect
 
 from pharmacy_invoice_automation.application.exceptions import TransientInfrastructureError
+from pharmacy_invoice_automation.domain.constants import TAX_RATE_BY_TYPE
 from pharmacy_invoice_automation.domain.entities.batch import Batch
 from pharmacy_invoice_automation.domain.entities.medicine import Medicine
 from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
 from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
 from pharmacy_invoice_automation.domain.entities.supplier import Supplier
+from pharmacy_invoice_automation.domain.enums.tax_type import TaxType
 from pharmacy_invoice_automation.domain.ports.repositories.batch_repository import (
     BatchRepository,
 )
@@ -46,10 +48,10 @@ from pharmacy_invoice_automation.domain.ports.services.browser_automation_provid
     BrowserAutomationProvider,
 )
 from pharmacy_invoice_automation.domain.services.price_policy import PricePolicy
-from pharmacy_invoice_automation.domain.value_objects.money import Money
 from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
     AutomationError,
     SelectorNotUsableError,
+    UnitMismatchError,
     VerificationFailedError,
     wrap_playwright_error,
 )
@@ -244,12 +246,29 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
         return self._run_outcome("remove_default_supplier_tag", _do)
 
+    # Bug fix (2026-08, PO-confirmed via a real run -- CRITICAL, a false
+    # "not found" here silently misroutes _resolve_supplier_on_site into
+    # create_supplier() for a supplier that already exists): this used to
+    # call Locator.count() -- which never waits, it just reads the DOM at
+    # that exact instant -- immediately after typing, with no wait/poll
+    # at all. The exact same "site needs real, non-instant settle time"
+    # class of bug already fixed for the medicine search loop
+    # (_poll_until_matched), just never applied here. Switching to
+    # _type_into_search_box's real per-character typing (measurably
+    # slower than the old .fill()) turned this from a latent gap into a
+    # reliably-reproducing one -- PO reported the supplier's name typed
+    # but never actually selected (no chip/selected state), followed by
+    # "create_supplier succeeded" in the log, exactly what
+    # _resolve_supplier_on_site's own search_supplier-false fallback
+    # produces. Now polls the same way the medicine loop does.
     def search_supplier(self, name: str) -> bool:
-        entry = self._registry.require_usable("supplier.search_input")
         try:
-            self._locate(entry).fill(name)
+            self._type_into_search_box("supplier.search_input", name)
             result_entry = self._registry.require_usable("supplier.search_result_option")
-            return self._locate_parameterized(result_entry, name).count() > 0
+            return self._poll_until_matched(
+                lambda: self._locate_parameterized(result_entry, name).count() > 0,
+                label=f"search_supplier '{name}'",
+            )
         except SelectorRegistryError:
             raise
         except Exception as exc:  # noqa: BLE001
@@ -257,7 +276,19 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
     def select_supplier(self, name: str) -> AutomationOutcome:
         def _do() -> None:
-            self._fill("supplier.search_input", name)
+            self._type_into_search_box("supplier.search_input", name)
+            result_entry = self._registry.require_usable("supplier.search_result_option")
+            if not self._poll_until_matched(
+                lambda: self._locate_parameterized(result_entry, name).count() > 0,
+                label=f"select_supplier '{name}'",
+            ):
+                raise VerificationFailedError(
+                    f"select_supplier: no matching 'supplier.search_result_option' ever "
+                    f"appeared for '{name}' after typing -- refusing to click a result that "
+                    "was never confirmed present (this method is only ever called after "
+                    "search_supplier() itself already confirmed a match, so this would mean "
+                    "the result disappeared again)."
+                )
             self._click_parameterized("supplier.search_result_option", name)
 
         return self._run_outcome("select_supplier", _do)
@@ -294,12 +325,12 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
     # just "naphacogyl" returns real results, including the correct,
     # already-catalogued match. PurchaseItem.medicine_name/Medicine.name
     # conflate two different purposes (the string to search/select on
-    # the web vs. the packaging description _convert_to_retail_units
-    # elsewhere derives its Vien-conversion factor from) into one field
-    # -- this strips the packaging part for web search/display use ONLY,
-    # right before it is sent to the page; the original field is never
-    # touched. PO also confirmed the earlier suspicion that
-    # medicine.add_new_trigger itself was broken/misrouted was wrong --
+    # the web vs. the full packaging description as printed on the
+    # invoice) into one field -- this strips the packaging part for web
+    # search/display use ONLY, right before it is sent to the page; the
+    # original field is never touched. PO also confirmed the earlier
+    # suspicion that medicine.add_new_trigger itself was broken/misrouted
+    # was wrong --
     # that button opens the correct "Thêm mới thuốc" form fine when
     # clicked with an empty search box, so no change is made there.
     _PACKAGING_SUFFIX_PATTERN = re.compile(r"\s*\(.*$")
@@ -355,23 +386,55 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         before create_medicine() runs, so this distinction may matter
         again the next time that happens -- not re-investigated here
         since it could no longer be reproduced against real evidence.
+
+        BUG FIX #2 (2026-08, PO-confirmed via a real run -- found during
+        a full-file audit for the same class of bug after it hit
+        search_supplier(), see that method's own comment): this still
+        checked the result count exactly ONCE, after a single fixed
+        wait, rather than polling (_poll_until_matched) the way the
+        candidate loop (_fill_and_check_medicine_result) and
+        search_supplier() both already do. Switched to
+        _type_into_search_box's real per-character typing made typing
+        itself measurably slower, and this was the last remaining
+        "type, then a single non-retrying check" spot for medicine.
         """
         search_name = self._strip_packaging_description(name)
-        entry = self._registry.require_usable("medicine.search_input")
         try:
-            self._locate(entry).fill(search_name)
-            self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+            self._type_into_search_box("medicine.search_input", search_name)
             result_entry = self._registry.require_usable("medicine.search_result_option")
-            return self._locate_parameterized(result_entry, search_name).count() > 0
+            return self._poll_until_matched(
+                lambda: self._locate_parameterized(result_entry, search_name).count() > 0,
+                label=f"search_medicine '{search_name}'",
+            )
         except SelectorRegistryError:
             raise
         except Exception as exc:  # noqa: BLE001
             raise wrap_playwright_error("search_medicine", exc) from exc
 
     def select_medicine(self, name: str) -> AutomationOutcome:
+        # Bug fix (2026-08, found during the same audit as search_medicine's
+        # own #2 above): used to type then click immediately, relying
+        # solely on Locator.click()'s own generic implicit auto-wait --
+        # unlike search_supplier()/select_supplier(), it never explicitly
+        # confirmed the result existed first. Now polls
+        # (_poll_until_matched) and raises a clear VerificationFailedError
+        # if the result never appears, matching select_supplier()'s own
+        # pattern -- consistent behavior/error reporting across every
+        # search-as-you-type box in this file, not an implicit generic
+        # Playwright timeout for this one.
         def _do() -> None:
             search_name = self._strip_packaging_description(name)
-            self._fill("medicine.search_input", search_name)
+            self._type_into_search_box("medicine.search_input", search_name)
+            result_entry = self._registry.require_usable("medicine.search_result_option")
+            if not self._poll_until_matched(
+                lambda: self._locate_parameterized(result_entry, search_name).count() > 0,
+                label=f"select_medicine '{search_name}'",
+            ):
+                raise VerificationFailedError(
+                    f"select_medicine: no matching 'medicine.search_result_option' ever "
+                    f"appeared for '{search_name}' after typing -- refusing to click a result "
+                    "that was never confirmed present."
+                )
             self._click_parameterized("medicine.search_result_option", search_name)
 
         return self._run_outcome("select_medicine", _do)
@@ -424,6 +487,21 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         self, invoice: PurchaseInvoice, dry_run: bool = False
     ) -> AutomationOutcome:
         """
+        STRATEGY CHANGE (2026-08, PO decision -- REPLACES the Vien
+        retail-unit-conversion design entirely, see
+        _verify_unit_matches_invoice's own docstring for the full
+        mechanism): Vien conversion (_convert_to_retail_units, now
+        removed) is no longer used anywhere in this method. Phase 1
+        below fills each item's own ORIGINAL invoice quantity/unit_price
+        verbatim -- no multiplication/division by any packaging ratio --
+        but only after verifying, for real, that the site's own
+        currently-displayed unit for this row genuinely matches
+        item.unit; a mismatch stops this line (and so this whole
+        invoice, per the existing "one invoice, all-or-nothing" outcome
+        contract) with a clear reason instead of ever guessing a
+        conversion. _update_retail_prices_after_save similarly now
+        feeds item.unit_price directly into PricePolicy, unconverted.
+
         Two-phase model (06_multi_line_items.py, PO-confirmed 2026-08,
         REPLACING the prior single-phase-per-line loop): during active
         fill, quantity/price/VAT (invoice_line.quantity_field/
@@ -438,12 +516,14 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         needed by this method since Phase 1 only ever touches the
         active row's shared fields.
 
-        Phase 1 (search + quantity/price/VAT), once per line, in
-        invoice order: search+select this line's medicine (see
-        _search_and_select_medicine_for_line), fill the shared
-        quantity/price/VAT set, then click invoice_line.add_row_button
-        to confirm this line and advance -- revealing a fresh set for
-        the next one.
+        Phase 1 (search + unit verification + quantity/price/VAT), once
+        per line, in invoice order: search+select this line's medicine
+        (see _search_and_select_medicine_for_line), verify the site's
+        own displayed unit matches item.unit (see
+        _verify_unit_matches_invoice), fill the shared quantity/price/
+        VAT set with the invoice's own original values, then click
+        invoice_line.add_row_button to confirm this line and advance --
+        revealing a fresh set for the next one.
 
         Phase 2 (batch/expiry), only after every line from Phase 1 is
         confirmed, only for lines that actually have a Batch: click
@@ -562,11 +642,12 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
             for index, item in enumerate(invoice.items):
                 self._search_and_select_medicine_for_line(item, index, supplier)
-                retail_quantity, retail_unit_price = self._convert_to_retail_units(item)
-                self._fill("invoice_line.quantity_field", str(retail_quantity))
-                self._fill("invoice_line.unit_price_field", str(retail_unit_price.amount))
+                self._verify_unit_matches_invoice(item, index)
+                quantity_to_fill, unit_price_to_fill = self._quantity_and_price_for_fill(item)
+                self._fill("invoice_line.quantity_field", str(quantity_to_fill))
+                self._fill("invoice_line.unit_price_field", str(unit_price_to_fill))
                 if item.tax_type is not None:
-                    self._fill("invoice_line.vat_field", item.tax_type.value)
+                    self._fill("invoice_line.vat_field", self._format_tax_percentage(item.tax_type))
                 self._click("invoice_line.add_row_button")
                 self._wait_for_row_settled(index + 2)
 
@@ -605,6 +686,40 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 self._verify_saved()
 
         return self._run_outcome("fill_and_save_invoice", _do)
+
+    @staticmethod
+    def _format_tax_percentage(tax_type: TaxType) -> str:
+        """
+        BUG FIX (2026-08, PO-confirmed via a real DB row -- CRITICAL,
+        found while investigating a "VAT never appears on the real
+        site" report): the Phase 1 loop used to fill
+        invoice_line.vat_field with ``item.tax_type.value`` directly --
+        but that is the Domain enum's own string label (e.g.
+        ``"reduced"``), never a percentage number. invoice_line.vat_field's
+        own registry notes confirm it is "a plain text input filled
+        with a percentage number (e.g. '5')", not a dropdown -- so the
+        real site almost certainly rejected/cleared the literal text
+        "reduced", exactly matching what was observed (VAT reads empty
+        on the real site despite this fill genuinely running --
+        item.tax_type was NOT None on the real invoice row that
+        triggered this investigation).
+
+        Converts via the already-established
+        domain.constants.TAX_RATE_BY_TYPE (the SAME mapping
+        domain.services.tax_calculation_service.TaxCalculationService
+        already uses for tax math) -- never a new/invented mapping.
+        TAX_RATE_BY_TYPE stores a fraction (e.g. Decimal("0.05")); this
+        multiplies by 100 and formats without a forced decimal point
+        ("5", not "5.00" or "5E+1") -- every current rate is an exact
+        whole percentage, but this also degrades safely to a real
+        fractional string (e.g. "8.5") rather than silently rounding,
+        should a future rate ever not be one.
+        """
+        percentage = TAX_RATE_BY_TYPE[tax_type.value] * 100
+        formatted = format(percentage, "f")
+        if "." in formatted:
+            formatted = formatted.rstrip("0").rstrip(".")
+        return formatted
 
     # Bug fix (2026-08, PO-confirmed via a real --dry-run run): a real
     # "Hãy chọn thuốc để thêm vào phiếu" site error (rejecting
@@ -733,6 +848,115 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
         self._click_parameterized("medicine.search_result_option", search_name)
         self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+
+    def _verify_unit_matches_invoice(self, item: PurchaseItem, index: int) -> None:
+        """
+        STRATEGY CHANGE (2026-08, PO decision -- REPLACES Vien retail-
+        unit conversion entirely): the site's own purchase unit for a
+        just-selected medicine is not guaranteed to match this
+        invoice's own stated unit (item.unit) -- Naphacogyl's real
+        catalog entry surfaced exactly this: the site already had "Hop"
+        while a different invoice's own reading assumed something else.
+        Converting through an assumed/looked-up packaging ratio (the
+        old Vien-conversion design) risked silently entering a WRONG
+        quantity/price if that assumption was ever wrong -- unacceptable
+        per the Automation business rule that automation never invents
+        or guesses a value. The new rule instead: read the site's own
+        displayed unit for this row FOR REAL, right after selecting the
+        medicine and before filling anything else, and only proceed
+        with the invoice's own original (unconverted) quantity/price if
+        it genuinely matches. A mismatch stops here with a clear reason
+        -- never silently converted, never silently ignored.
+
+        invoice_line.unit_display (2026-08, PO direct DOM inspection,
+        real snapshot of invoice 00001567's Naphacogyl line -- see that
+        entry's own registry notes): a standard native <select
+        ng-model="gridItem.SelectedUnitId">, NOT page-wide-unique --
+        one per row, same ng-repeat structure already established for
+        invoice_line.select_row_for_batch_button's own trigger. ``index``
+        (this item's 0-based position in invoice.items, matching
+        _click_batch_edit_button_for_row's own 1-based
+        position - 1) scopes it via _line_item_rows().nth(index), the
+        exact same row-scoping mechanism already used there -- the
+        currently-active (not-yet-committed) row's own <tbody> already
+        exists by this point (the table always carries one "trailing"
+        not-yet-settled tbody ahead of the committed count, per
+        _wait_for_row_settled's own "+1 trailing empty row" comment),
+        so this is safe to read before add_row_button is ever clicked
+        for this line. Reads the currently-selected <option>'s own text
+        ('option:checked') -- deliberately NOT Locator.input_value(),
+        which for a <select> returns the raw internal option value
+        (e.g. 'number:1111713'), never the display label ('Hộp') this
+        compares against.
+
+        Both this selector and the expected display text
+        (value_mappings.unit_display_label) must be 'confirmed' before
+        this method will trust anything it reads -- 'hop' is confirmed
+        from this same real snapshot, but any OTHER unit code (e.g.
+        'vien') is still 'needs_verification' against the real
+        registry, so a line using one of those still raises a clean
+        SelectorNotUsableError rather than guessing, exactly like
+        invoice.commercial_discount_field's own still-unconfirmed gate
+        elsewhere in this method.
+
+        Reviewer-confirmed override (PO decision, 2026-08 -- "Coldi-B
+        DNH": 1 Hop trên hóa đơn = 1 Lọ trên web is a genuine, correct
+        naming difference, not a bug): when
+        item.confirmed_website_unit_ratio is already set, a reviewer
+        has already confirmed this exact line's invoice-unit-to-
+        website-unit ratio (see SubmitInvoiceReviewUseCase's own
+        "item.<id>.confirmed_website_unit_ratio" field), so the site's
+        displayed unit LABEL no longer needs to match item.unit's own
+        label -- this method trusts the confirmed ratio and returns
+        immediately, without even reading the site's displayed unit.
+        fill_and_save_invoice applies the ratio to quantity/price
+        itself. Only reached the FIRST time a line's site unit turns
+        out to differ (no ratio confirmed yet) does this still raise --
+        now UnitMismatchError instead of a generic
+        VerificationFailedError, so composition_root.cli.run_automate
+        can print a specific, actionable message pointing the operator
+        at the review step instead of a generic "unexpected error."
+        """
+        if item.confirmed_website_unit_ratio is not None:
+            return
+        entry = self._registry.require_usable("invoice_line.unit_display")
+        mapping_entry = self._registry.get_value_mapping("unit_display_label", item.unit.code)
+        if not mapping_entry.is_confirmed or mapping_entry.label is None:
+            raise SelectorNotUsableError(
+                f"value_mappings.unit_display_label.{item.unit.code} is not confirmed yet "
+                f"(status={mapping_entry.status}) -- refusing to guess whether the site's "
+                f"displayed unit matches invoice item '{item.medicine_name}''s own unit "
+                f"('{item.unit.code}')."
+            )
+        assert entry.value is not None
+        select_locator = self._line_item_rows().nth(index).locator(entry.value)
+        displayed_unit = select_locator.locator("option:checked").inner_text().strip()
+        if displayed_unit != mapping_entry.label:
+            raise UnitMismatchError(
+                medicine_name=item.medicine_name,
+                purchase_item_id=item.id,
+                invoice_unit_label=mapping_entry.label,
+                website_unit_label=displayed_unit,
+            )
+
+    def _quantity_and_price_for_fill(self, item: PurchaseItem) -> tuple[Decimal, Decimal]:
+        """
+        This line's own invoice quantity/price, verbatim, UNLESS a
+        reviewer has confirmed a website-unit ratio for it (see
+        _verify_unit_matches_invoice's own docstring) -- in which case
+        quantity is scaled by that ratio and unit price scaled
+        inversely, so the line's total value (quantity x unit price)
+        is preserved. "1 invoice unit = ratio website units," so N
+        invoice units of quantity becomes N x ratio website units, each
+        at 1/ratio the invoice's own per-unit price -- e.g. Coldi-B
+        DNH's ratio of 1 leaves both figures unchanged, matching "1 Hop
+        = 1 Lọ" being a pure naming difference, not a real quantity
+        conversion.
+        """
+        if item.confirmed_website_unit_ratio is None:
+            return item.quantity.amount, item.unit_price.amount
+        ratio = item.confirmed_website_unit_ratio
+        return item.quantity.amount * ratio, item.unit_price.amount / ratio
 
     def _resolve_invoice_supplier(self, invoice: PurchaseInvoice) -> Supplier | None:
         """
@@ -1092,8 +1316,21 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
             item.medicine_id,
         )
 
-    @staticmethod
-    def _medicine_search_fill_candidates(search_name: str) -> list[str]:
+    # BUG FIX round 2 (2026-08, PO-confirmed via real hands-on testing,
+    # AFTER a full 8000ms/33-check poll proved both 'Coldi-B DNH' and
+    # word-truncated 'Coldi-B' genuinely matched=False -- not a timing
+    # issue): the real boundary PO separately confirmed by hand is
+    # MID-WORD, not at a word boundary -- typing 'Coldi-' (stopping
+    # right at the hyphen, before the trailing 'B') produced a real
+    # dropdown match; word-level truncation alone can never reach that
+    # string. Floor for the character-by-character fallback below --
+    # short enough to reach real mid-word thresholds like 'Coldi-' (6
+    # chars), long enough to avoid a near-empty query surfacing
+    # unrelated noise.
+    _MEDICINE_SEARCH_MIN_CHAR_TRUNCATION_LENGTH = 4
+
+    @classmethod
+    def _medicine_search_fill_candidates(cls, search_name: str) -> list[str]:
         """
         BUG FIX (2026-08, PO-confirmed via real hands-on testing): the
         real site's search-as-you-type is apparently sensitive to the
@@ -1105,16 +1342,59 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         long medicine name could plausibly hit the same real, unknown
         threshold. Returns the full name first, then progressively
         SHORTER word-truncated prefixes (dropping one trailing word at
-        a time, e.g. 'Coldi-B DNH' -> 'Coldi-B' -> nothing further, a
-        single word is never truncated below itself -- an empty search
-        would surface every medicine, not the one actually wanted).
+        a time, e.g. 'Coldi-B DNH' -> 'Coldi-B').
+
+        Round 2 (see _MEDICINE_SEARCH_MIN_CHAR_TRUNCATION_LENGTH's own
+        comment): word-level truncation alone was proven, by a real
+        33-check/8000ms poll, insufficient for some names -- the real
+        threshold can sit MID-WORD (e.g. 'Coldi-', not 'Coldi-B'). Once
+        word-level truncation is exhausted, continues shortening the
+        final (shortest) word-level candidate one CHARACTER at a time
+        down to _MEDICINE_SEARCH_MIN_CHAR_TRUNCATION_LENGTH. This is
+        safe regardless of how short it gets: the candidates returned
+        here only ever decide what gets TYPED to make a dropdown
+        appear -- which row is actually SELECTED is always resolved
+        separately, by an end-anchored match against the full,
+        untruncated search_name (see _fill_medicine_search_until_matched
+        and text_ends_with's own comment), never against whichever
+        candidate happened to trigger the dropdown.
         """
         words = search_name.split()
         candidates = [search_name]
         for word_count in range(len(words) - 1, 0, -1):
             candidates.append(" ".join(words[:word_count]))
+        shortest = candidates[-1]
+        for length in range(
+            len(shortest) - 1, cls._MEDICINE_SEARCH_MIN_CHAR_TRUNCATION_LENGTH - 1, -1
+        ):
+            candidates.append(shortest[:length])
         return candidates
 
+    # Bug fix (2026-08, PO-confirmed via real diagnostic logging, THEN a
+    # real hands-on live-site experiment that found the true root cause):
+    # a real run's own per-candidate DIAG log proved "Coldi-B" -- a
+    # candidate PO separately, manually confirmed DOES produce a real
+    # match when typed into an EMPTY box -- was genuinely tried (not
+    # skipped) but still read back matched=False. Two distinct gaps,
+    # both closed together:
+    # (1) ROOT CAUSE (PO's own live experiment): typing "Coldi-" character
+    # by character on the real site worked; PASTING the identical text
+    # did not; typing "Coldi-b" then Backspacing the 'b' worked. The site
+    # only reacts to genuine keyboard events, not to a box's value being
+    # set programmatically. Playwright's .fill() (and .clear()) do
+    # exactly that -- set the value directly, the same mechanism as a
+    # paste, no keydown/keyup at all -- so a candidate could look
+    # correctly typed in the DOM afterward while never having triggered a
+    # real search. Every candidate now goes through _type_into_search_box
+    # (see its own docstring) instead -- select-all+Backspace to clear,
+    # then press_sequentially, a real per-character keystroke simulation.
+    # (2) is_match() was checked exactly ONCE, at a single fixed offset
+    # (_MEDICINE_SELECTION_SETTLE_MS after the fill) -- a real async
+    # response landing even slightly after that one offset would read as
+    # a false "not matched" despite the candidate being genuinely valid,
+    # exactly the failure the DIAG log caught. _poll_until_matched now
+    # checks repeatedly across that same total budget (see its own
+    # docstring) instead of gambling on one instant.
     def _fill_medicine_search_until_matched(
         self, search_key: str, search_name: str, is_match: Callable[[], bool]
     ) -> bool:
@@ -1133,11 +1413,141 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         truncated text alone.
         """
         for candidate in self._medicine_search_fill_candidates(search_name):
-            self._fill(search_key, candidate)
-            self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
-            if is_match():
+            self._type_into_search_box(search_key, candidate)
+            matched = self._poll_until_matched(
+                is_match, label=f"candidate '{candidate}' (goc '{search_name}')"
+            )
+            # Per-candidate proof, not just the aggregate click log: golden
+            # tests assert on this exact "matched=True/False" line to prove
+            # is_match() genuinely fired for each candidate actually tried
+            # (see TestFullSupplierAndThreeMedicineFlow's own comment) --
+            # kept as real test evidence, not incidental debug noise.
+            self._logger.info(
+                "DIAG: candidate rut ngan '%s' (goc: '%s') -> matched=%s",
+                candidate,
+                search_name,
+                matched,
+            )
+            if matched:
                 return True
         return False
+
+    _MEDICINE_SELECTION_POLL_INTERVAL_MS = 250
+
+    # Strategy decision (2026-08, PO-confirmed -- ends a 4-5 round chain
+    # of chasing individually-different real timings for this same
+    # symptom: "Coldi-B", then "search_supplier", then "search_medicine/
+    # select_medicine", then "Coldi immediately after a heavy Naphacogyl
+    # disambiguation" -- each fixed a real, distinct gap, yet a new one
+    # kept surfacing). PO's own explicit call: this is real network
+    # traffic to a real, live production server -- there is no fixed
+    # number that is provably "exactly enough" for every real response
+    # time, and chasing an ever-more-precise one has already cost
+    # several rounds without ever reaching a number PO can trust for
+    # good. Two independent pieces of real evidence back this: (1) the
+    # site's own widget carries a `refresh-delay="500"` attribute
+    # (observed directly in an earlier real DOM snapshot), meaning the
+    # SITE ITSELF documents that its own results can take real,
+    # variable time to refresh; (2) switching from Playwright's instant
+    # .fill() to real per-character typing (_type_into_search_box,
+    # required -- proven correct for "Coldi-B DNH", see that method's
+    # own comment) means the total time until a real response comes
+    # back is now genuinely coupled to real network/server conditions
+    # at the moment of each run, not a locally-controlled constant the
+    # way .fill() used to make it feel.
+    #
+    # New governing principle from here on: GENEROUS on wait time,
+    # STRICT on verification. This budget is deliberately large (8s,
+    # roughly 3x the previous 2.5s) -- but nothing about is_match()'s
+    # own contract changes: a candidate is never accepted without a
+    # real matched=True, and a candidate that never matches within this
+    # full budget still fails cleanly (AutomationError/
+    # VerificationFailedError, exactly as before) -- never a silent
+    # guess either way. A generous ceiling that is only ever paid when
+    # something is genuinely slow or absent (the poll always returns the
+    # instant a real match appears, per _poll_until_matched's own
+    # contract) is a safe trade -- it can never cause a WRONG
+    # selection, only a slower-to-fail one in the genuinely-absent case.
+    #
+    # Do not "optimize" this number further without new real evidence
+    # (an actual observed real-run timeout that still failed at 8s, or a
+    # real complaint about total run time). It is deliberately generous,
+    # not precisely measured -- searching for a more "exact" value here
+    # is the same unproductive chase this comment exists to end.
+    #
+    # Scoped ONLY to _poll_until_matched (the real "is the search result
+    # here yet" wait) -- deliberately NOT the same constant as
+    # _MEDICINE_SELECTION_SETTLE_MS (2.5s), which is a DIFFERENT, already
+    # decided concern: a fixed wait for Angular to finish binding a row's
+    # own display AFTER a click that already succeeded (see that
+    # constant's own comment) -- inflating that one too would add real,
+    # multiplied-per-line wait time to every already-successful
+    # selection for no evidenced benefit, unlike this one which is only
+    # ever paid in the slow/absent case.
+    _SEARCH_RESULT_POLL_BUDGET_MS = 8_000
+
+    def _poll_until_matched(self, is_match: Callable[[], bool], *, label: str = "") -> bool:
+        """
+        Polls ``is_match()`` every _MEDICINE_SELECTION_POLL_INTERVAL_MS
+        until it reports True, or a total of
+        _SEARCH_RESULT_POLL_BUDGET_MS has elapsed -- see that constant's
+        own comment for why it is deliberately generous rather than
+        precisely tuned. No confirmed "search settled" selector exists
+        yet to poll against directly the way _wait_for_row_settled polls
+        a real <tbody> count, so this samples is_match() repeatedly
+        across the budget instead of checking once at a fixed offset. A
+        single fixed-offset check is a real race: the DIAG log this fix
+        originally responded to proved a genuinely-valid candidate
+        ('Coldi-B') can still read matched=False if the site's async
+        response lands even slightly after that one check. Returns as
+        soon as a match appears (never waits out the rest of the budget
+        once found), and returns False only after the full budget has
+        been sampled with no match -- verification itself never gets
+        looser just because the budget got wider.
+
+        DIAG instrumentation (2026-08, PO-confirmed via a real run --
+        "Coldi" read matched=False through this SAME, already-polling
+        method, immediately after a heavy "Naphacogyl" human-
+        disambiguation had just succeeded through the identical code
+        path): logs the REAL elapsed time and check COUNT this call
+        actually consumed, not just the final True/False -- needed to
+        tell apart "the full budget genuinely ran out, still nothing"
+        (a real settle-time/budget question) from "far fewer checks ran
+        than the interval implies" (each individual is_match() call
+        itself was slow -- e.g. the page still busy right after a heavy
+        prior operation -- eating the budget in a couple of long checks
+        instead of many fast ones). ``label`` identifies which call
+        site/candidate this poll belongs to, since multiple call sites
+        now share this one method.
+        """
+        elapsed_ms = 0
+        attempts = 0
+        tag = f" [{label}]" if label else ""
+        while True:
+            attempts += 1
+            if is_match():
+                self._logger.info(
+                    "DIAG poll%s: matched=True after %dms elapsed, %d check(s).",
+                    tag,
+                    elapsed_ms,
+                    attempts,
+                )
+                return True
+            if elapsed_ms >= self._SEARCH_RESULT_POLL_BUDGET_MS:
+                self._logger.info(
+                    "DIAG poll%s: matched=False, gave up after the full %dms budget, "
+                    "%d check(s) total.",
+                    tag,
+                    elapsed_ms,
+                    attempts,
+                )
+                return False
+            step_ms = min(
+                self._MEDICINE_SELECTION_POLL_INTERVAL_MS,
+                self._SEARCH_RESULT_POLL_BUDGET_MS - elapsed_ms,
+            )
+            self._page.wait_for_timeout(step_ms)
+            elapsed_ms += step_ms
 
     def _fill_and_check_medicine_result(self, search_key: str, search_name: str) -> bool:
         """Fill one line's own search box and report whether a name-anchored match exists,
@@ -1166,8 +1576,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         Create a catalog entry for a line's medicine that a real,
         zero-result search just proved does not exist on-site yet.
         item.medicine_id is trusted as already-resolved (same as
-        item.batch_id for _resolve_batch, item.retail_units_per_purchase_unit
-        for _convert_to_retail_units -- both resolved upstream by the
+        item.batch_id for _resolve_batch -- resolved upstream by the
         Application-layer pipeline, never guessed here).
 
         OPEN QUESTION, not resolved unilaterally: whether the real site
@@ -1216,47 +1625,71 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         reviews/edits the value in the browser before the final save,
         per the "reference only, never authoritative" retail-price rule.
 
-        Part 3 (Vien unit conversion, PO-confirmed 2026-08): the
-        suggested retail price is calculated from the converted
-        per-Vien purchase price, not the raw invoice unit_price --
-        "Gia ban le" prices one Vien, so its suggestion must be based
-        on what one Vien actually cost.
+        STRATEGY CHANGE (2026-08, PO decision -- REPLACES Vien retail-
+        unit conversion entirely, see _verify_unit_matches_invoice's own
+        docstring for the full reasoning): previously this fed a
+        converted per-Vien purchase price into PricePolicy, since "Gia
+        ban le" was assumed to always price one Vien. Vien conversion
+        (_convert_to_retail_units) is now removed -- fill_and_save_invoice's
+        Phase 1 already verified the site's own unit genuinely matches
+        item.unit before this method ever runs, so item.unit_price (the
+        invoice's own original, unconverted purchase price) is fed
+        directly into PricePolicy.calculate_suggested_retail_price --
+        no formula change there, only a different (now-verified, no
+        longer converted) input.
 
-        invoice_line.edit_medicine_button's per-item nth is a reasonable
-        but NOT independently confirmed extrapolation -- the recording
-        only demonstrates index 0 (.first, one line item). See that
-        entry's notes.
+        BUG FIX (2026-08, PO-confirmed via a real DOM snapshot of row
+        2's own "Chỉnh sửa thuốc" button -- CRITICAL, matches the real
+        symptom exactly: row 1's retail price always correct, row 2+
+        always missing/wrong): invoice_line.edit_medicine_button's per-
+        item PAGE-WIDE nth (the prior _click_at_index call this method
+        used) was never independently confirmed for any row past index
+        0, and PO's real inspection now shows why it cannot be trusted
+        -- the button has no id and no per-row suffix, "cấu trúc giống
+        hệt nhau cho mọi dòng," so a page-wide nth(index) has no
+        guarantee of landing on the Nth row's own button rather than
+        some other identically-shaped element elsewhere on the page.
+        Now scoped via _click_edit_medicine_button_for_row (see its own
+        docstring), the exact same _line_item_rows().nth() mechanism
+        invoice_line.select_row_for_batch_button already uses.
         """
         self._click("invoice.edit_link")
         for index, item in enumerate(invoice.items):
-            self._click_at_index("invoice_line.edit_medicine_button", index)
-            _, retail_unit_price = self._convert_to_retail_units(item)
+            self._click_edit_medicine_button_for_row(index + 1)
             suggested_retail_price = self._price_policy.calculate_suggested_retail_price(
-                retail_unit_price
+                item.unit_price
             )
             self._fill("medicine.retail_price_field", str(suggested_retail_price.amount))
             self._click("invoice_line.edit_dialog_close_button")
 
-    def _convert_to_retail_units(self, item: PurchaseItem) -> tuple[Decimal, Money]:
+    def _click_edit_medicine_button_for_row(self, position: int) -> None:
         """
-        Convert ``item``'s purchase-denominated quantity/price to Vien
-        (Part 3, PO-confirmed 2026-08): the site always retails by Vien
-        regardless of the invoice's own purchase unit (Hop/Vi/...).
-        ``item.retail_units_per_purchase_unit`` is resolved earlier in
-        the pipeline (pipeline.party_matching_step.PartyMatchingStep,
-        backed by domain.validators.invoice_validator.InvoiceValidator's
-        matching gate) -- never computed or guessed here.
+        Click the "Chỉnh sửa thuốc" trigger for the row at 1-based
+        ``position`` (PO-confirmed 2026-08 via a real DOM snapshot of
+        row 2's own button -- see _update_retail_prices_after_save's
+        own docstring for the full bug this fixes). Like
+        invoice_line.select_row_for_batch_button, this trigger has NO
+        distinguishing id or per-row suffix of its own -- structurally
+        identical on every row -- and is only distinguishable by which
+        <tbody> it lives in (ng-repeat="gridItem in
+        viewModel.NoteItems"), so this mirrors
+        _click_batch_edit_button_for_row's exact mechanism: scoped to
+        _line_item_rows() (invoice_line.table_root), never a page-wide
+        lookup.
         """
-        if item.retail_units_per_purchase_unit is None:
-            raise AutomationError(
-                f"PurchaseItem '{item.medicine_name}' has no resolved "
-                f"retail_units_per_purchase_unit -- cannot convert its quantity/price to "
-                f"Vien. This invoice should not have reached automation in this state."
+        entry = self._registry.require_usable("invoice_line.edit_medicine_button")
+        if entry.strategy != "title" or entry.value is None:
+            raise SelectorNotUsableError(
+                "'invoice_line.edit_medicine_button' has strategy "
+                f"{entry.strategy!r}, not 'title' -- row-scoped lookup only applies to a "
+                "title-based selector."
             )
-        factor = Decimal(item.retail_units_per_purchase_unit)
-        retail_quantity = item.quantity.amount * factor
-        retail_unit_price = Money(item.unit_price.amount / factor, item.unit_price.currency)
-        return retail_quantity, retail_unit_price
+        try:
+            self._line_item_rows().nth(position - 1).get_by_title(entry.value).click()
+        except Exception as exc:  # noqa: BLE001
+            raise wrap_playwright_error(
+                f"click:invoice_line.edit_medicine_button[row {position}]", exc
+            ) from exc
 
     @staticmethod
     def _row_id_suffix(position: int) -> str:
@@ -1547,18 +1980,6 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 "own auto-advance-to-next-view behavior) against the live site."
             )
 
-    def _click_at_index(self, key: str, index: int) -> None:
-        """
-        Like _click, but for a per-line repeating element whose registry
-        entry deliberately carries no fixed 'nth' -- the caller supplies
-        the runtime index instead (see invoice_line.edit_medicine_button).
-        """
-        entry = self._registry.require_usable(key)
-        try:
-            self._locate(entry).nth(index).click()
-        except Exception as exc:  # noqa: BLE001
-            raise wrap_playwright_error(f"click:{key}[{index}]", exc) from exc
-
     _OPTIONAL_CLICK_TIMEOUT_MS = 2_000
 
     def _click_if_present(self, key: str) -> bool:
@@ -1691,6 +2112,42 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
             self._locate(entry).fill(value)
         except Exception as exc:  # noqa: BLE001
             raise wrap_playwright_error(f"fill:{key}", exc) from exc
+
+    def _type_into_search_box(self, key: str, value: str) -> None:
+        """
+        Bug fix (2026-08, PO-confirmed via a real, hands-on live-site
+        experiment -- CRITICAL, and the real explanation behind the
+        Coldi-B race this project previously chased as a settle-timing
+        issue): PO proved the real site's own search-as-you-type ONLY
+        reacts to genuine keyboard events landing on the box -- typing
+        "Coldi-" character by character produced real results; PASTING
+        (Ctrl+V) the exact same text produced NONE; typing "Coldi-b"
+        then pressing Backspace to remove the trailing 'b' DID work.
+        Playwright's .fill()/.clear() set the element's value directly
+        -- the same mechanism as a paste, no keydown/keyup involved at
+        all -- so they can silently fail to trigger a real search even
+        though the DOM ends up looking identical afterward. Used for
+        every real search-as-you-type box (medicine.search_input,
+        invoice_line.subsequent_row_medicine_search_input,
+        supplier.search_input) instead of _fill: selects any existing
+        content and Backspaces it (both real key presses -- a no-op,
+        harmless press on an already-empty box), then
+        press_sequentially's real keydown/keypress/input/keyup per
+        character, exactly what a human typing does. Plain form fields
+        (name/phone/address/quantity/etc.) are NOT search-as-you-type
+        widgets and PO's experiment never touched them -- left on _fill,
+        since switching those to keystroke-by-keystroke typing would
+        only add risk and real time with no evidenced benefit.
+        """
+        entry = self._registry.require_usable(key)
+        try:
+            locator = self._locate(entry)
+            locator.click()
+            locator.press("Control+A")
+            locator.press("Backspace")
+            locator.press_sequentially(value)
+        except Exception as exc:  # noqa: BLE001
+            raise wrap_playwright_error(f"type:{key}", exc) from exc
 
     def _fill_row_specific_field(self, key: str, position: int, value: str) -> None:
         """

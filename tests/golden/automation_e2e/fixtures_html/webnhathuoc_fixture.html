@@ -181,7 +181,9 @@
     <tbody data-row="1">
       <tr><td><button type="button" class="btn btn-primary">
         <i class="fa-calendar-days" style="display:inline-block;width:16px;height:16px"></i>
-      </button></td></tr>
+      </button></td><td class="unit-select-cell"></td><td>
+        <button type="button" title="Chỉnh sửa thuốc" class="edit-medicine-trigger" hidden>Chỉnh sửa thuốc</button>
+      </td></tr>
     </tbody>
   </table>
   <table id="table-id-trans-details-by-object-note">
@@ -532,15 +534,39 @@
     item, since only one edit dialog is ever open at a time on the real
     site either) plus 2 "Đóng" buttons -- a decoy at index 0 and the
     real one at index 1, matching invoice_line.edit_dialog_close_button's
-    confirmed nth=1. Closing logs the field's value (by item index) to
+    confirmed nth=1. Closing logs the field's value (by row) to
     #retail-price-log before clearing it, so a test can verify each
-    item's calculated price independently even though the field itself
+    row's calculated price independently even though the field itself
     is reused.
+
+    BUG FIX (2026-08, PO-confirmed via a real DOM snapshot of row 2's
+    own "Chỉnh sửa thuốc" button: identical structure to row 1's,
+    "không có id riêng, không có hậu tố số theo dòng" -- matches the
+    real symptom (row 1's retail price always correct, row 2+ always
+    wrong/skipped)): each row's own edit-trigger button now lives
+    INSIDE that row's own <tbody> (see #real-line-items-table's
+    pre-seeded row 1 above and appendSettledRow() below), not in a
+    single flat, page-wide list keyed by a fixture-only
+    data-item-index -- PlaywrightBrowserAutomationProvider must locate
+    it the same row-scoped way invoice_line.select_row_for_batch_button
+    already is (_line_item_rows().nth(position)), never a page-wide nth.
+    #edit-medicine-decoy-button below (deliberately placed OUTSIDE
+    #real-line-items-table, sharing the exact same title) proves a
+    still-unscoped lookup would be wrong -- clicking it logs a clearly
+    invalid "DECOY"-tagged entry that a correctly row-scoped lookup
+    must never produce.
   -->
-  <div id="edit-medicine-section" hidden>
-    <button type="button" title="Chỉnh sửa thuốc" data-item-index="0">Chỉnh sửa thuốc</button>
-    <button type="button" title="Chỉnh sửa thuốc" data-item-index="1">Chỉnh sửa thuốc</button>
+  <button
+    type="button"
+    title="Chỉnh sửa thuốc"
+    id="edit-medicine-decoy-button"
+    class="edit-medicine-trigger"
+    data-medicine-name="DECOY-WRONG-ROW"
+    hidden
+  >Chỉnh sửa thuốc (decoy, outside the real line-items table)</button>
+  <div id="edit-medicine-section">
     <div id="retail-price-dialog" hidden>
+      <span id="retail-price-dialog-medicine-name"></span>
       <label>Giá bán lẻ <input type="text" id="retail-price" /></label>
       <button type="button" disabled>Đóng</button>
       <button type="button" id="close-retail-price-dialog">Đóng</button>
@@ -558,6 +584,50 @@
   <span class="close ui-select-match-close" id="default-supplier-tag-remove">&times;</span>
 
   <script>
+    // invoice_line.unit_display (2026-08, PO direct DOM inspection --
+    // REPLACES the earlier, now-confirmed-inaccurate #tbxUnitDisplay
+    // shared-span model). Real snapshot (invoice 00001567, Naphacogyl
+    // line): '<select ng-model="gridItem.SelectedUnitId" ...>' with 2
+    // real <option> elements ('Vỉ'/'Hộp'), one per row (same
+    // ng-repeat="gridItem in viewModel.NoteItems" pattern already
+    // modeled for the batch/expiry calendar-icon trigger) -- NOT a
+    // single shared element like #tbxQuantityId/#tbxPriceId/#tbxVATId.
+    // Adds "Viên" as a 3rd real option (every existing test item's
+    // unit, so the default stays a genuine match) -- PO's own snapshot
+    // only had 2 options because that specific medicine's own
+    // gridItem.Units happened to have 2, not because 3+ options are
+    // impossible. Which option starts "selected" is driven by a
+    // per-row "row{N}_unit_label" query param (1-based row number,
+    // matching PlaywrightBrowserAutomationProvider._verify_unit_matches_invoice's
+    // own 0-based index + 1), defaulting to "Viên" -- lets a test give
+    // DIFFERENT rows different units in the SAME run (e.g. row 1
+    // matches, row 2 doesn't).
+    function unitSelectHtml(rowNumber) {
+      const label =
+        new URLSearchParams(location.search).get("row" + rowNumber + "_unit_label") || "Viên";
+      const options = [
+        ["number:1111712", "Vỉ"],
+        ["number:1111713", "Hộp"],
+        ["number:1111720", "Viên"],
+      ];
+      return (
+        '<select ng-model="gridItem.SelectedUnitId" class="unit-select">' +
+        options
+          .map(function (pair) {
+            const value = pair[0];
+            const text = pair[1];
+            const selectedAttr = text === label ? " selected" : "";
+            return (
+              '<option label="' + text + '" value="' + value + '"' + selectedAttr + ">" + text + "</option>"
+            );
+          })
+          .join("") +
+        "</select>"
+      );
+    }
+    document.querySelector("#real-line-items-table tbody[data-row=\"1\"] .unit-select-cell").innerHTML =
+      unitSelectHtml(1);
+
     const loginPopupParams = new URLSearchParams(location.search);
     if (loginPopupParams.has("show_login_popup")) {
       document.getElementById("login-notification-popup-close").hidden = false;
@@ -668,6 +738,15 @@
       el.addEventListener("click", () => {
         window.medicineResultClickLog = window.medicineResultClickLog || [];
         window.medicineResultClickLog.push(el.getAttribute("data-medicine-result"));
+        // Snapshot of whichever medicine was most recently selected --
+        // read by appendSettledRow() below to tag that new row's own
+        // edit-medicine-trigger button, so
+        // TestEditMedicineButtonRowScoping can prove each row's real
+        // "Chỉnh sửa thuốc" click opens the dialog for the SAME
+        // medicine that was actually selected for that row, not
+        // whichever button a page-wide (unscoped) lookup happens to
+        // hit first.
+        window.lastSelectedMedicineText = el.textContent.trim();
       });
     });
     // Parts 2/3 of the multi-result-disambiguation feature (2026-08,
@@ -691,6 +770,14 @@
       el.addEventListener("input", () => {
         window.lastMedicineSearchInputId = inputId;
         el.setAttribute("aria-expanded", "true");
+        // Added for TestMedicineSearchClearBeforeEachCandidate (2026-08):
+        // records the input's own value on EVERY real 'input' event (both
+        // an explicit .clear() -- value "" -- and each subsequent .fill()),
+        // in the order they really happened, so a test can prove each
+        // retried candidate was typed from an actually-empty box, never
+        // appended onto whatever the previous candidate left behind.
+        window.searchInputValueLog = window.searchInputValueLog || [];
+        window.searchInputValueLog.push(el.value);
       });
     });
     // chip_render_delay_ms (2026-08, PO-confirmed via a real dry-run --
@@ -788,6 +875,77 @@
         }
       });
     }
+    // require_real_keystrokes (2026-08, PO-confirmed via a real, hands-on
+    // live-site experiment -- CRITICAL, the true root cause behind the
+    // Coldi-B race this project previously chased as a settle-timing
+    // issue): PO proved the real site's own search-as-you-type ONLY
+    // reacts to genuine keyboard events on the box -- typing "Coldi-"
+    // character by character produced real results; PASTING the exact
+    // same text produced none; typing "Coldi-b" then Backspacing the 'b'
+    // worked. Models that precisely, independent of search_length_limit
+    // above (a different, already-modeled real bug): when set, every
+    // real medicine-search result row is removed from the DOM up front,
+    // and only re-appended the first time a genuine 'keyup' event is
+    // observed on either search input -- a value set programmatically
+    // (Playwright's .fill()/.clear(), which dispatch 'input' but never
+    // 'keydown'/'keyup') never flips this and the rows never reappear;
+    // press_sequentially's real per-character keydown/keyup does.
+    const requireRealKeystrokes = new URLSearchParams(location.search).get(
+      "require_real_keystrokes"
+    );
+    if (requireRealKeystrokes) {
+      const resultsTable = document.getElementById("medicine-search-results-table");
+      const allResultRows = [...resultsTable.children];
+      allResultRows.forEach((row) => row.remove());
+      const sawRealKeyup = {};
+      ["first-line-search", "subsequent-line-search"].forEach((inputId) => {
+        const el = document.getElementById(inputId);
+        if (!el) {
+          return;
+        }
+        el.addEventListener("keyup", () => {
+          if (sawRealKeyup[inputId]) {
+            return;
+          }
+          sawRealKeyup[inputId] = true;
+          allResultRows.forEach((row) => resultsTable.appendChild(row));
+        });
+      });
+    }
+    // medicine_search_settle_delay_ms (2026-08, added while auditing
+    // every search-as-you-type box for the same "checked once, no poll"
+    // class of bug already found in search_supplier() -- see that
+    // method's own comment in playwright_adapter.py). Mirrors
+    // supplier_search_settle_delay_ms's own pattern exactly, but for the
+    // medicine search results table: hides every real result row up
+    // front and reveals them only this many ms after the LAST real
+    // keyup on either medicine search input (a per-keystroke debounce
+    // reset). Lets a test prove search_medicine()'s own poll
+    // (_poll_until_matched) genuinely waits out a real settle delay,
+    // the same way the supplier-side fix was proven.
+    const medicineSearchSettleDelayMs = Number(
+      new URLSearchParams(location.search).get("medicine_search_settle_delay_ms") || 0
+    );
+    if (medicineSearchSettleDelayMs > 0) {
+      const medicineResultsTable = document.getElementById("medicine-search-results-table");
+      const allMedicineResultRows = [...medicineResultsTable.children];
+      allMedicineResultRows.forEach((row) => row.remove());
+      let medicineSettleTimer = null;
+      ["first-line-search", "subsequent-line-search"].forEach((inputId) => {
+        const el = document.getElementById(inputId);
+        if (!el) {
+          return;
+        }
+        el.addEventListener("keyup", () => {
+          if (medicineSettleTimer) {
+            clearTimeout(medicineSettleTimer);
+          }
+          medicineSettleTimer = setTimeout(() => {
+            allMedicineResultRows.forEach((row) => medicineResultsTable.appendChild(row));
+          }, medicineSearchSettleDelayMs);
+        });
+      });
+    }
     // 2026-08, added for TestMedicineResolutionMergedIntoPerLineLoop:
     // create_medicine()'s real flow clicks #submit-medicine TWICE --
     // once before "Tên thuốc" is filled (group/code submit), once
@@ -842,6 +1000,40 @@
       window.defaultSupplierTagRemoveClicks = (window.defaultSupplierTagRemoveClicks || 0) + 1;
       document.getElementById("default-supplier-tag-remove").remove();
     });
+    // supplier_search_settle_delay_ms (2026-08, PO-confirmed via a real,
+    // hands-on regression report -- CRITICAL): after switching the
+    // medicine/supplier search boxes from Playwright's .fill() to real
+    // per-character typing (_type_into_search_box), search_supplier()
+    // started reading a false "not found" immediately after typing
+    // finished, wrongly falling through to create_supplier() for an
+    // ALREADY-existing supplier -- the exact same "the site needs real,
+    // non-instant settle time after the last keystroke" problem already
+    // modeled for medicine (_MEDICINE_SELECTION_SETTLE_MS/
+    // _poll_until_matched) and row-settling (row_settle_delay_ms) above,
+    // just never modeled for supplier search until now. When set, hides
+    // the real result span up front and reveals it only this many ms
+    // after the LAST real keyup on #supplier-search (a per-keystroke
+    // debounce reset, not a fixed delay from the very first one) -- lets
+    // a test prove an unpolled single check fails and a real poll
+    // succeeds, the same way the earlier medicine-side fixes were
+    // proven.
+    const supplierSearchSettleDelayMs = Number(
+      new URLSearchParams(location.search).get("supplier_search_settle_delay_ms") || 0
+    );
+    if (supplierSearchSettleDelayMs > 0) {
+      const supplierResultsContainer = document.getElementById("supplier-search-results");
+      const realSupplierResultSpan = supplierResultsContainer.querySelector("span");
+      realSupplierResultSpan.remove();
+      let supplierSettleTimer = null;
+      document.getElementById("supplier-search").addEventListener("keyup", () => {
+        if (supplierSettleTimer) {
+          clearTimeout(supplierSettleTimer);
+        }
+        supplierSettleTimer = setTimeout(() => {
+          supplierResultsContainer.appendChild(realSupplierResultSpan);
+        }, supplierSearchSettleDelayMs);
+      });
+    }
     document.getElementById("submit-supplier").addEventListener("click", () => {
       // Appends rather than replacing #tblMain's innerHTML (harmless
       // now that #tblMain holds nothing else, kept for parity with the
@@ -866,6 +1058,31 @@
       .addEventListener("click", () => {
         currentBatchEditRow = 1;
       });
+    // Row-scoping fix for invoice_line.edit_medicine_button (2026-08,
+    // PO-confirmed via a real DOM snapshot of row 2's own button --
+    // see #edit-medicine-decoy-button's own comment above). Each row's
+    // edit-trigger button (row 1's pre-seeded one, plus every dynamic
+    // one appendSettledRow() creates below) is wired through this same
+    // function; #edit-medicine-decoy-button (deliberately OUTSIDE any
+    // <tbody>) is wired too, but only so a test can prove it is never
+    // reached by a correctly row-scoped lookup.
+    let currentEditRow = null;
+    let currentEditMedicineName = "";
+    function wireEditMedicineTrigger(button) {
+      button.addEventListener("click", () => {
+        const tbody = button.closest("tbody");
+        currentEditRow = tbody ? tbody.getAttribute("data-row") : "decoy";
+        currentEditMedicineName = button.getAttribute("data-medicine-name") || "";
+        document.getElementById("retail-price-dialog-medicine-name").textContent =
+          currentEditMedicineName;
+        document.getElementById("retail-price").value = "";
+        document.getElementById("retail-price-dialog").hidden = false;
+      });
+    }
+    wireEditMedicineTrigger(
+      document.querySelector('#real-line-items-table tbody[data-row="1"] .edit-medicine-trigger')
+    );
+    wireEditMedicineTrigger(document.getElementById("edit-medicine-decoy-button"));
     // _wait_for_row_settled (bug fix, PO-confirmed 2026-08 -- CRITICAL,
     // silent data loss investigation): the real site's own Angular
     // digest genuinely takes a non-instant amount of time to "settle"
@@ -893,6 +1110,19 @@
       document.getElementById("tbxPriceId").value = "";
       document.getElementById("tbxVATId").value = "";
 
+      // Tags the row that was JUST filled (the last tbody that already
+      // existed at this click, e.g. row 1 the first time) with
+      // whichever medicine was most recently selected for it --
+      // appendSettledRow() below creates the NEXT, still-empty row,
+      // not this one, so it must not be the one tagged.
+      const lineItemsContainer = document.getElementById("real-line-items-table");
+      const justFilledTbody = lineItemsContainer.tBodies[lineItemsContainer.tBodies.length - 1];
+      const justFilledTrigger =
+        justFilledTbody && justFilledTbody.querySelector(".edit-medicine-trigger");
+      if (justFilledTrigger) {
+        justFilledTrigger.setAttribute("data-medicine-name", window.lastSelectedMedicineText || "");
+      }
+
       if (rowNeverSettles) {
         return;
       }
@@ -904,10 +1134,14 @@
         tbody.innerHTML =
           '<tr><td><button type="button" class="btn btn-primary">' +
           '<i class="fa-calendar-days" style="display:inline-block;width:16px;height:16px">' +
-          "</i></button></td></tr>";
+          "</i></button></td><td class=\"unit-select-cell\">" +
+          unitSelectHtml(rowNumber) +
+          '</td><td><button type="button" title="Chỉnh sửa thuốc" ' +
+          'class="edit-medicine-trigger" hidden>Chỉnh sửa thuốc</button></td></tr>';
         tbody.querySelector(".fa-calendar-days").addEventListener("click", () => {
           currentBatchEditRow = rowNumber;
         });
+        wireEditMedicineTrigger(tbody.querySelector(".edit-medicine-trigger"));
         container.appendChild(tbody);
       };
       if (rowSettleDelayMs > 0) {
@@ -930,21 +1164,21 @@
     });
     document.getElementById("edit-invoice-link").addEventListener("click", (event) => {
       event.preventDefault();
-      document.getElementById("edit-medicine-section").hidden = false;
-    });
-    let currentEditItemIndex = null;
-    document.querySelectorAll('[title="Chỉnh sửa thuốc"]').forEach((button) => {
-      button.addEventListener("click", () => {
-        currentEditItemIndex = button.getAttribute("data-item-index");
-        document.getElementById("retail-price").value = "";
-        document.getElementById("retail-price-dialog").hidden = false;
+      // Reveals every row's own edit-trigger button that exists AT
+      // THIS MOMENT (real rows already committed by Phase 1, plus the
+      // decoy) -- not a fixed set captured once at page load, since
+      // most real rows are only created later by #add-row-button's own
+      // handler above.
+      document.querySelectorAll(".edit-medicine-trigger").forEach((button) => {
+        button.hidden = false;
       });
     });
     document.getElementById("close-retail-price-dialog").addEventListener("click", () => {
       const value = document.getElementById("retail-price").value;
       const entry = document.createElement("li");
-      entry.textContent = currentEditItemIndex + ":" + value;
-      entry.setAttribute("data-item-index", currentEditItemIndex);
+      entry.textContent = currentEditRow + "|" + value;
+      entry.setAttribute("data-row", currentEditRow);
+      entry.setAttribute("data-medicine-name", currentEditMedicineName);
       document.getElementById("retail-price-log").appendChild(entry);
       document.getElementById("retail-price-dialog").hidden = true;
     });

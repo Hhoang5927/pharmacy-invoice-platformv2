@@ -149,6 +149,13 @@ CONFIRMED_FROM_RECORDINGS = {
     "invoice.save_button",
     "invoice.edit_link",
     "invoice_line.edit_dialog_close_button",
+    # Upgraded from 'derived' (2026-08, PO-confirmed via a real DOM
+    # snapshot of row 2's own "Chỉnh sửa thuốc" button -- see this
+    # entry's own registry notes): the title='Chỉnh sửa thuốc' locator
+    # pattern is now directly evidenced on 2 real rows, and
+    # PlaywrightBrowserAutomationProvider no longer relies on an
+    # unconfirmed page-wide-index assumption to use it correctly.
+    "invoice_line.edit_medicine_button",
 }
 
 # 'derived' (not 'confirmed') on purpose -- inferred from a confirmed
@@ -158,7 +165,6 @@ DERIVED_FROM_INFERENCE = {
     "supplier.note_field",
     "supplier.creation_confirmation_close_button",
     "invoice.save_success_indicator",
-    "invoice_line.edit_medicine_button",
     "medicine.search_result_option_by_code",
 }
 
@@ -304,10 +310,28 @@ class TestLoadRealWebnhathuocRegistry:
 
     def test_no_unit_display_label_is_falsely_marked_confirmed(self, registry) -> None:
         # The reference recording selected the unit dropdown by raw option
-        # value, never by visible label text -- so no label is actually
-        # confirmed yet. This test fails loudly if someone marks one
-        # 'confirmed' without real evidence.
+        # value, never by visible label text -- so no label was originally
+        # confirmed for any code this way. This test fails loudly if
+        # someone marks one 'confirmed' without real evidence.
+        #
+        # "hop" is now the one legitimate exception (2026-08, PO direct
+        # DOM inspection -- see invoice_line.unit_display's own registry
+        # notes/source for the real snapshot: invoice 00001567's
+        # Naphacogyl line, "Hộp" shown selected="selected"). That
+        # evidence is for a DIFFERENT <select> than the one this
+        # docstring originally referred to (the invoice line's own
+        # 'Đơn vị' dropdown, not medicine.unit_dropdown) -- see
+        # unit_display_label's own top-level 'description' field for the
+        # full two-consumer distinction -- but it is real, so "hop"
+        # staying confirmed is correct, not a violation this canary
+        # should catch. Every OTHER code must still be unconfirmed.
         for code, mapping_entry in registry.value_mappings["unit_display_label"].items():
+            if code == "hop":
+                assert mapping_entry.is_confirmed, (
+                    "unit_display_label.hop should stay confirmed -- see this test's own "
+                    "comment for the real evidence backing it."
+                )
+                continue
             assert not mapping_entry.is_confirmed, (
                 f"unit_display_label.{code} is marked confirmed but no recording ever "
                 "captured a real display label -- verify against the live site first."

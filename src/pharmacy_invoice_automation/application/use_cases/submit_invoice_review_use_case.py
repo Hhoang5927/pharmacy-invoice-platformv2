@@ -51,11 +51,33 @@ unit IS one retail unit, nothing to convert -- never asks for a second,
 fabricated number) and, for a genuinely NEW Medicine, makes it the
 Medicine's own dispensing unit instead of defaulting to Vien -- never
 applied retroactively to an already-existing Medicine.
+
+Per-item confirmed website-unit ratio (PO decision, 2026-08 --
+"Coldi-B DNH": 1 Hop trên hóa đơn = 1 Lọ trên web, confirmed a genuine,
+correct site-vs-invoice naming difference, not a bug):
+``corrected_fields`` may also carry keys of the form
+``"item.<purchase_item_id>.confirmed_website_unit_ratio"`` (a positive
+number, e.g. ``"1"``) -- the reviewer's answer to the unit-name
+mismatch infrastructure.automation.playwright_adapter's own
+``_verify_unit_matches_invoice`` raises (as ``UnitMismatchError``) when
+the real site's displayed unit for a line does not match this
+invoice's own unit and no ratio is confirmed yet. Distinct from
+``retail_units_per_purchase_unit``/``retail_unit_override`` above,
+which are about converting to Vien for RETAIL pricing -- this is about
+unblocking automation's own PURCHASE-form fill, a mismatch that can
+only be discovered once automation actually reads the live site, never
+at OCR/review time. Simply sets
+PurchaseItem.confirmed_website_unit_ratio; unlike the packaging-ratio
+and retail-unit-override corrections above, this is not learned onto
+the resolved Medicine -- a site's own displayed-unit naming is a
+site/row-level fact, not something this project has evidence is
+consistent across every invoice for the same medicine.
 """
 
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from pharmacy_invoice_automation.application.commands import SubmitInvoiceReviewCommand
 from pharmacy_invoice_automation.application.dto import PurchaseInvoiceDTO
@@ -87,6 +109,7 @@ _ITEM_FIELD_PREFIX = "item."
 _PACKAGING_RATIO_FIELD_SUFFIX = ".retail_units_per_purchase_unit"
 _MEDICINE_TYPE_FIELD_SUFFIX = ".medicine_type"
 _RETAIL_UNIT_OVERRIDE_FIELD_SUFFIX = ".retail_unit_override"
+_WEBSITE_UNIT_RATIO_FIELD_SUFFIX = ".confirmed_website_unit_ratio"
 _MEDICINE_TYPE_ALIASES: dict[str, MedicineType] = {
     "prescription": MedicineType.PRESCRIPTION,
     "over_the_counter": MedicineType.OVER_THE_COUNTER,
@@ -105,6 +128,15 @@ def _parse_retail_unit_override(raw_value: str) -> Unit | None:
         return Unit(code=raw_value.strip().lower())
     except ValidationError:
         return None
+
+
+def _parse_confirmed_website_unit_ratio(raw_value: str) -> Decimal | None:
+    """None (never guessed/defaulted) for anything not a strictly-positive number."""
+    try:
+        value = Decimal(raw_value.strip())
+    except InvalidOperation:
+        return None
+    return value if value > 0 else None
 
 
 class SubmitInvoiceReviewUseCase:
@@ -190,6 +222,7 @@ class SubmitInvoiceReviewUseCase:
             invoice, corrected_fields, retail_unit_overrides
         )
         medicines_to_update.extend(medicine_type_updates)
+        self._apply_confirmed_website_unit_ratio_corrections(invoice, corrected_fields)
 
         invoice.touch()
         return new_medicines, medicines_to_update
@@ -275,6 +308,34 @@ class SubmitInvoiceReviewUseCase:
                 medicine.assign_retail_units_per_purchase_unit(1)
                 medicines_to_update.append(medicine)
         return overrides, medicines_to_update
+
+    def _apply_confirmed_website_unit_ratio_corrections(
+        self, invoice: PurchaseInvoice, corrected_fields: dict[str, str]
+    ) -> None:
+        """
+        Apply any ``item.<id>.confirmed_website_unit_ratio`` reviewer
+        corrections (PO decision, 2026-08 -- see this module's own
+        docstring) directly onto their PurchaseItem. Item-level only --
+        unlike the packaging-ratio/retail-unit-override corrections
+        above, this is never learned onto the resolved Medicine (a
+        site's displayed-unit naming is a per-row fact, not a property
+        of the medicine itself).
+        """
+        items_by_id = {item.id: item for item in invoice.items}
+        for key, raw_value in corrected_fields.items():
+            if not key.startswith(_ITEM_FIELD_PREFIX) or not key.endswith(
+                _WEBSITE_UNIT_RATIO_FIELD_SUFFIX
+            ):
+                continue
+            item = items_by_id.get(
+                key[len(_ITEM_FIELD_PREFIX) : -len(_WEBSITE_UNIT_RATIO_FIELD_SUFFIX)]
+            )
+            if item is None:
+                continue
+            ratio = _parse_confirmed_website_unit_ratio(raw_value)
+            if ratio is None:
+                continue  # left unchanged; re-validation surfaces anything materially wrong
+            item.assign_confirmed_website_unit_ratio(ratio)
 
     def _apply_medicine_type_corrections(
         self,

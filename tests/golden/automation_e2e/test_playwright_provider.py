@@ -86,14 +86,22 @@ def _registry_with_confirmed_vien_label() -> SelectorRegistry:
     """
     The real registry with value_mappings.unit_display_label.vien marked
     'confirmed' -- TEST-ONLY, not a claim of real evidence. Every real
-    unit_display_label entry (config/selector_registry.webnhathuoc.json)
-    is genuinely 'needs_verification' (see
+    unit_display_label entry EXCEPT "hop" (config/selector_registry.
+    webnhathuoc.json) is genuinely 'needs_verification' (see
     TestUnverifiedFlowsFailCleanlyInsteadOfGuessing, which proves
-    create_medicine() correctly stops there against the real registry) --
-    this override exists purely so
-    TestMedicineResolutionMergedIntoPerLineLoop can exercise the
-    create-then-reselect handoff itself, same spirit as _local_registry's
-    own test-only login.navigate/login.session_indicator overrides above.
+    create_medicine() correctly stops there against the real registry
+    for an unconfirmed code) -- "vien" specifically has two real
+    consumers that both need it: medicine.unit_dropdown (this override's
+    original purpose, TestMedicineResolutionMergedIntoPerLineLoop's
+    create-then-reselect handoff) and, since the 2026-08 unit-
+    verification strategy change,
+    PlaywrightBrowserAutomationProvider._verify_unit_matches_invoice
+    (every existing test item uses Unit(code="vien"), so any
+    fill_and_save_invoice test reaching Phase 1 needs this override too
+    -- see that method's own docstring). "hop" itself needs no override
+    here: it is already 'confirmed' ("Hộp") in the real registry, from
+    invoice_line.unit_display's own real DOM evidence -- see that
+    entry's registry notes.
     """
     real = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
     unit_display_label = dict(real.value_mappings["unit_display_label"])
@@ -381,6 +389,58 @@ class TestUnverifiedFlowsFailCleanlyInsteadOfGuessing:
         # it for medicine_type=OVER_THE_COUNTER.
         group_select = page.get_by_label("Nhóm thuốc")
         assert group_select.input_value() == "2"
+
+    def test_fill_and_save_invoice_stops_at_the_unconfirmed_unit_display_label(
+        self, page: Page
+    ) -> None:
+        # STRATEGY CHANGE (2026-08, PO decision -- REPLACES Vien retail-
+        # unit conversion): fill_and_save_invoice's Phase 1 now calls
+        # _verify_unit_matches_invoice right after selecting each line's
+        # medicine. Use the *real*, unmodified registry here (not
+        # _registry_with_confirmed_vien_label's test-only override) --
+        # invoice_line.unit_display ITSELF is now genuinely 'confirmed'
+        # (real DOM evidence, see that entry's own registry notes), but
+        # value_mappings.unit_display_label.vien is still genuinely
+        # 'needs_verification' (only "hop" has real evidence so far) --
+        # a vien-unit item must still stop cleanly right there instead
+        # of ever guessing at the expected label text.
+        from datetime import date
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+
+        invoice = PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-001", invoice_date=date.today()
+        )
+        invoice.add_item(
+            PurchaseItem(
+                id="item-1",
+                medicine_name="Paracetamol 500mg",
+                unit=Unit(code="vien"),
+                quantity=Quantity(Decimal("5")),
+                unit_price=Money(Decimal("10000")),
+            )
+        )
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome.success is False
+        assert "unit_display_label.vien" in (outcome.failure_reason or "")
+        # Never reached the quantity/price fill -- proof this stops
+        # BEFORE any value is entered, not after a partial/guessed fill.
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == []
 
     def test_remove_default_supplier_tag_clicks_the_real_element(self, page: Page) -> None:
         # Bug fix (PO-confirmed 2026-08, "forgot to wire it up"):
@@ -675,7 +735,7 @@ class TestTwoPhaseFillAndSaveInvoice:
 
         from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
 
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -714,7 +774,7 @@ class TestTwoPhaseFillAndSaveInvoice:
 
         from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
 
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -813,7 +873,7 @@ class TestTwoPhaseFillAndSaveInvoice:
             def get_by_id(self, batch_id: str) -> Batch:
                 return batches[batch_id]
 
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page,
@@ -839,6 +899,344 @@ class TestTwoPhaseFillAndSaveInvoice:
             "1|B111|2027-01-01",
             "2|B222|2027-06-15",
         ]
+
+
+class TestUnitVerificationBeforeFill:
+    """
+    STRATEGY CHANGE (2026-08, PO decision -- REPLACES Vien retail-unit
+    conversion entirely, see PlaywrightBrowserAutomationProvider.
+    _verify_unit_matches_invoice's own docstring): the old design
+    converted quantity/price through an assumed/looked-up
+    retail_units_per_purchase_unit ratio before ever filling anything.
+    The new design instead fills each item's own ORIGINAL invoice
+    quantity/unit_price verbatim -- but only after reading the site's
+    own currently-displayed unit for real and confirming it genuinely
+    matches item.unit; a mismatch stops the line instead of ever
+    guessing a conversion. Each row's own real <select
+    ng-model="gridItem.SelectedUnitId"> (see unitSelectHtml's own
+    comment in webnhathuoc_fixture.html) models the site's own real
+    per-row unit dropdown, defaulting to "Viên" and overridable
+    per-row via a "row{N}_unit_label" query param (1-based row number)
+    to simulate that row's own select showing something else.
+    """
+
+    def _make_item(self, medicine_name: str, unit_price: str, **overrides: object):
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        defaults: dict[str, object] = {
+            "id": "item-1",
+            "medicine_name": medicine_name,
+            "unit": Unit(code="vien"),
+            "quantity": Quantity(Decimal("7")),
+            "unit_price": Money(Decimal(unit_price)),
+        }
+        defaults.update(overrides)
+        return PurchaseItem(**defaults)  # type: ignore[arg-type]
+
+    @staticmethod
+    def _make_invoice():
+        from datetime import date
+
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+
+        return PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-001", invoice_date=date.today()
+        )
+
+    @staticmethod
+    def _remove_supplier_dialog_tbody(page: Page) -> None:
+        page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
+
+    def test_matching_unit_fills_the_original_invoice_values_verbatim_no_conversion(
+        self, page: Page
+    ) -> None:
+        # item.unit is vien and the site displays "Viên" (the fixture's
+        # own default) -- must match, and the RAW quantity (7, not
+        # multiplied/divided by any ratio -- none is even set on this
+        # item) and RAW unit_price (137500) must reach the page exactly
+        # as the invoice states them.
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = self._make_invoice()
+        invoice.add_item(self._make_item("Paracetamol 500mg", "137500"))
+
+        outcome = real_provider.fill_and_save_invoice(invoice, dry_run=True)
+
+        assert outcome == AutomationOutcome(success=True)
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["7|137500|"]
+
+    def test_mismatched_unit_stops_the_line_and_routes_to_review_never_guesses(
+        self, page: Page
+    ) -> None:
+        # row1_unit_label="Hộp" simulates row 1's own real <select>
+        # showing a DIFFERENT unit than this invoice's own (item.unit
+        # stays vien, unmapped to "Hộp") -- the exact real shape of the
+        # gap PO reported (Naphacogyl's real catalog entry already had
+        # "Hop"). Must stop this line with a clear reason and never
+        # touch quantity/price/VAT/add_row_button -- no silent
+        # conversion, no silent skip.
+        from urllib.parse import quote
+
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?row1_unit_label={quote('Hộp')}")
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = self._make_invoice()
+        invoice.add_item(self._make_item("Paracetamol 500mg", "137500"))
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome.success is False
+        assert "Đơn vị trên web" in (outcome.failure_reason or "")
+        assert "Hộp" in (outcome.failure_reason or "")
+        assert "Viên" in (outcome.failure_reason or "")
+        assert "Paracetamol 500mg" in (outcome.failure_reason or "")
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == []
+
+    def test_second_line_mismatch_does_not_disturb_the_first_lines_already_filled_values(
+        self, page: Page
+    ) -> None:
+        # Two items: the first genuinely matches (item.unit=vien, row
+        # 1's own real <select> defaults to "Viên", no override needed)
+        # and must be filled and committed for real before the second
+        # is even attempted; the second is deliberately given
+        # item.unit="hop" (confirmed expected label "Hộp") while row
+        # 2's own select ALSO defaults to "Viên" (no row2_unit_label
+        # override in this test's own URL) -- a genuine mismatch --
+        # proving a later line's mismatch stops the WHOLE invoice (this
+        # project's existing "one invoice, all-or-nothing" outcome
+        # contract) without ever having guessed on the first.
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = self._make_invoice()
+        invoice.add_item(self._make_item("Paracetamol 500mg", "10000", id="item-1"))
+        invoice.add_item(
+            self._make_item(
+                "Amoxicillin 500mg", "20000", id="item-2", unit=Unit(code="hop")
+            )
+        )
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome.success is False
+        assert "Amoxicillin 500mg" in (outcome.failure_reason or "")
+        # The first line's own value WAS genuinely filled/committed
+        # (real add_row_button click) before the second line's mismatch
+        # stopped everything -- proves this is a real per-line check,
+        # not a whole-invoice pre-check that would never have reached
+        # filling the first line at all.
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["7|10000|"]
+
+    def test_hop_unit_matches_via_real_registry_fills_five_not_converted_hundred(
+        self, page: Page
+    ) -> None:
+        # The exact real regression this whole strategy change fixes
+        # (PO direct DB inspection, 2026-08): invoice 00001567's real
+        # Naphacogyl line has unit="hop", quantity=5 -- and a
+        # retail_units_per_purchase_unit=20 that automation no longer
+        # reads at all. The OLD, now-removed Vien-conversion design
+        # would have filled 5 * 20 = 100 on the real site, never what
+        # the invoice actually says. Uses the REAL, completely
+        # unmodified registry -- no test-only override needed anywhere,
+        # since BOTH invoice_line.unit_display and value_mappings.
+        # unit_display_label.hop are now genuinely 'confirmed' from
+        # real DOM evidence (see invoice_line.unit_display's own
+        # registry notes) -- the strongest possible proof this works
+        # against real, confirmed data, not a test-only stand-in.
+        from decimal import Decimal
+        from urllib.parse import quote
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?row1_unit_label={quote('Hộp')}")
+        self._remove_supplier_dialog_tbody(page)
+
+        # medicine_name is "Paracetamol 500mg" (TH1, a single unambiguous
+        # match), not the real invoice's own "Naphacogyl" -- the real
+        # DB's Naphacogyl name matches 2 real catalog rows (TH6/TH7),
+        # which would route through the SEPARATE Part 2/3 human-
+        # disambiguation flow (already covered by its own tests) and
+        # obscure what this test is actually proving. quantity=5 and
+        # unit_price=21905 are still the real invoice's own values.
+        invoice = self._make_invoice()
+        invoice.add_item(
+            PurchaseItem(
+                id="item-1",
+                medicine_name="Paracetamol 500mg",
+                unit=Unit(code="hop"),
+                quantity=Quantity(Decimal("5")),
+                unit_price=Money(Decimal("21905")),
+            )
+        )
+
+        outcome = real_provider.fill_and_save_invoice(invoice, dry_run=True)
+
+        assert outcome == AutomationOutcome(success=True)
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["5|21905|"]
+
+
+class TestVatPercentageFilling:
+    """
+    BUG FIX (2026-08, PO-confirmed via a real DB row, invoice
+    '00001567' -- CRITICAL, root-caused a "VAT never appears on the
+    real site despite fill_and_save_invoice logging 'succeeded'"
+    report): Phase 1 used to fill invoice_line.vat_field with
+    ``item.tax_type.value`` directly -- the Domain enum's own string
+    label ("reduced", "standard", ...), never a percentage number.
+    invoice_line.vat_field's own registry notes confirm it is a plain
+    numeric text input (e.g. "5"), so the real site almost certainly
+    rejected/cleared that literal text. Now converts via the
+    already-established domain.constants.TAX_RATE_BY_TYPE (see
+    PlaywrightBrowserAutomationProvider._format_tax_percentage's own
+    docstring) -- these tests prove the real, correct number reaches
+    the page for every TaxType, via the fixture's own #line-fill-log
+    (records "quantity|price|vat" per committed line).
+    """
+
+    def _make_item(self, medicine_name: str, unit_price: str, **overrides: object):
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        defaults: dict[str, object] = {
+            "id": "item-1",
+            "medicine_name": medicine_name,
+            "unit": Unit(code="vien"),
+            "quantity": Quantity(Decimal("7")),
+            "unit_price": Money(Decimal(unit_price)),
+        }
+        defaults.update(overrides)
+        return PurchaseItem(**defaults)  # type: ignore[arg-type]
+
+    @staticmethod
+    def _make_invoice():
+        from datetime import date
+
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+
+        return PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-001", invoice_date=date.today()
+        )
+
+    @staticmethod
+    def _remove_supplier_dialog_tbody(page: Page) -> None:
+        page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
+
+    def test_reduced_vat_fills_the_real_percentage_number_five(self, page: Page) -> None:
+        # The exact real-world case that surfaced this bug: invoice
+        # '00001567's own tax_type was 'reduced' on all 3 real items.
+        from pharmacy_invoice_automation.domain.enums.tax_type import TaxType
+
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = self._make_invoice()
+        invoice.add_item(
+            self._make_item("Paracetamol 500mg", "10000", tax_type=TaxType.REDUCED)
+        )
+
+        outcome = real_provider.fill_and_save_invoice(invoice, dry_run=True)
+
+        assert outcome == AutomationOutcome(success=True)
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["7|10000|5"]
+
+    def test_every_tax_type_fills_its_own_correct_percentage_number(self, page: Page) -> None:
+        # One invoice, one line per TaxType (standard/reduced/exempt/
+        # eight_percent/other) -- proves the conversion is correct for
+        # every case, not just the one real invoice happened to use.
+        from pharmacy_invoice_automation.domain.enums.tax_type import TaxType
+
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = self._make_invoice()
+        invoice.add_item(
+            self._make_item(
+                "Paracetamol 500mg", "10000", id="item-1", tax_type=TaxType.STANDARD
+            )
+        )
+        invoice.add_item(
+            self._make_item(
+                "Amoxicillin 500mg", "20000", id="item-2", tax_type=TaxType.REDUCED
+            )
+        )
+        invoice.add_item(
+            self._make_item("Vitamin C 500mg", "5000", id="item-3", tax_type=TaxType.EXEMPT)
+        )
+
+        outcome = real_provider.fill_and_save_invoice(invoice, dry_run=True)
+
+        assert outcome == AutomationOutcome(success=True)
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["7|10000|10", "7|20000|5", "7|5000|0"]
+
+    def test_format_tax_percentage_covers_every_tax_type_directly(self) -> None:
+        # Direct unit check (no fixture/browser needed) on the
+        # conversion itself, for every TaxType including the two the
+        # real-browser tests above don't exercise (eight_percent,
+        # other) -- proves domain.constants.TAX_RATE_BY_TYPE is used
+        # correctly end to end, not just for the specific rates those
+        # tests happened to pick.
+        from pharmacy_invoice_automation.domain.enums.tax_type import TaxType
+
+        format_tax_percentage = (
+            PlaywrightBrowserAutomationProvider._format_tax_percentage  # noqa: SLF001
+        )
+
+        assert format_tax_percentage(TaxType.STANDARD) == "10"
+        assert format_tax_percentage(TaxType.REDUCED) == "5"
+        assert format_tax_percentage(TaxType.EXEMPT) == "0"
+        assert format_tax_percentage(TaxType.EIGHT_PERCENT) == "8"
+        assert format_tax_percentage(TaxType.OTHER) == "0"
 
 
 class TestInvoiceDateCalendarNavigation:
@@ -889,7 +1287,7 @@ class TestInvoiceDateCalendarNavigation:
 
         from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
 
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -920,7 +1318,7 @@ class TestInvoiceDateCalendarNavigation:
 
         from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
 
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -1048,7 +1446,7 @@ class TestRowSettleVerification:
         # the settled <tbody> -- well under _wait_for_row_settled's own
         # 5-second timeout, but long enough that a naive "check .count()
         # once, immediately" implementation would have already failed.
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -1079,7 +1477,7 @@ class TestRowSettleVerification:
         # "chưa nhập thông tin thuốc" error) -- no <tbody> is ever
         # appended. Must fail with a clear, actionable diagnostic, never
         # silently continue to the next line.
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -1106,7 +1504,7 @@ class TestRowSettleVerification:
         # The user's own explicit ask: don't just trust "no exception"
         # -- confirm the actual number of real rows on the page matches
         # how many lines were filled, for an invoice with >= 3 items.
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -1157,7 +1555,7 @@ class TestRowSettleVerification:
         # the 'Lịch sử giao dịch' dialog's table, sharing the 'Mặt hàng'
         # column-header PREFIX but not '[Mã-Tên]') has its own real
         # <tbody> too, and must also be excluded.
-        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        real_registry = _registry_with_confirmed_vien_label()
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
@@ -1258,21 +1656,100 @@ class TestMedicineSelectionSettleWait:
         # create_medicine() behind search_medicine() returning False --
         # this was the real, root-cause gap, not an unconditional-click
         # bug in the orchestration logic.
-        import time
-
+        #
+        # BUG FIX #2 (2026-08, found during the search_supplier()-
+        # triggered full-file audit): the original fix here was a FIXED
+        # wait_for_timeout, not a poll -- this test used to assert
+        # `elapsed >= 2.4` to prove that fixed wait was real. Switched to
+        # _poll_until_matched (see search_medicine's own comment), which
+        # returns as soon as a match appears -- for this fixture's own
+        # already-present "Paracetamol 500mg" row, that is now near-
+        # instant, so `elapsed >= 2.4` would fail even though the fix is
+        # correct. Re-proven instead via medicine_search_settle_delay_ms
+        # (mirrors supplier_search_settle_delay_ms's own pattern): a
+        # genuine, real async delay before the result appears, which an
+        # unpolled single check would miss entirely.
         real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
         config = PlaywrightAutomationConfig(username="u", password="p")
         real_provider = PlaywrightBrowserAutomationProvider(
             page, real_registry, config, logging.getLogger("test")
         )
-        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}?medicine_search_settle_delay_ms=1500"
+        )
 
-        started = time.monotonic()
         found = real_provider.search_medicine("Paracetamol 500mg")
-        elapsed = time.monotonic() - started
 
         assert found is True
-        assert elapsed >= 2.4
+
+
+class TestSelectMedicinePollsForRealSettleTime:
+    """
+    Bug fix (2026-08, found during the same full-file audit as
+    search_medicine's own #2 fix above): select_medicine() used to type
+    then click immediately, relying only on Locator.click()'s own
+    generic implicit auto-wait -- never an explicit poll+verify the way
+    select_supplier() already had. Now mirrors select_supplier() exactly:
+    polls for the result first, raises a clear VerificationFailedError
+    if it never appears, instead of leaving that to an opaque generic
+    Playwright timeout.
+    """
+
+    def test_a_bare_count_check_right_after_typing_sees_nothing_yet(self, page: Page) -> None:
+        # Control: proves medicine_search_settle_delay_ms genuinely
+        # reproduces a real race, the same way the supplier-side control
+        # test does.
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}?medicine_search_settle_delay_ms=1500"
+        )
+        search_box = page.locator("#first-line-search")
+        search_box.click()
+        search_box.press_sequentially("Paracetamol 500mg")
+
+        assert (
+            page.locator("[data-medicine-result]", has_text="Paracetamol 500mg").count() == 0
+        )
+
+    def test_select_medicine_waits_out_the_real_settle_delay_and_still_selects_it(
+        self, page: Page
+    ) -> None:
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}?medicine_search_settle_delay_ms=1500"
+        )
+
+        outcome = provider.select_medicine("Paracetamol 500mg")
+
+        assert outcome == AutomationOutcome(success=True)
+        assert page.evaluate("window.medicineResultClickLog") == ["TH1"]
+
+    def test_select_medicine_fails_cleanly_not_a_silent_guess_when_it_never_appears(
+        self, page: Page
+    ) -> None:
+        # The settle delay (15s) comfortably exceeds
+        # _SEARCH_RESULT_POLL_BUDGET_MS's own poll budget (8s, 2026-08
+        # PO-decided generous ceiling -- see that constant's own comment
+        # for why) -- proves a genuinely-never-(yet)-found result raises
+        # a clear, caught VerificationFailedError (surfaced as
+        # AutomationOutcome(success=False, ...) by _run_outcome) -- never
+        # hangs, never clicks a stale/absent element.
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}?medicine_search_settle_delay_ms=15000"
+        )
+
+        outcome = provider.select_medicine("Paracetamol 500mg")
+
+        assert outcome.success is False
+        assert "no matching" in (outcome.failure_reason or "")
 
 
 class TestMedicineSearchResultDisambiguation:
@@ -1337,11 +1814,11 @@ class TestMedicineSearchStripsPackagingDescription:
     returned ZERO dropdown results; typing just "naphacogyl" returned
     real results, including the already-catalogued correct match.
     PurchaseItem.medicine_name/Medicine.name conflate the web-search
-    string with the packaging description _convert_to_retail_units
-    elsewhere derives its Vien-conversion factor from -- these tests
-    prove PlaywrightBrowserAutomationProvider now strips that trailing
-    parenthetical before it ever reaches the page (search_medicine's
-    own docstring has the full incident writeup).
+    string with the full packaging description as printed on the
+    invoice -- these tests prove PlaywrightBrowserAutomationProvider
+    now strips that trailing parenthetical before it ever reaches the
+    page (search_medicine's own docstring has the full incident
+    writeup).
     """
 
     def test_search_medicine_strips_the_packaging_suffix_before_filling_the_box(
@@ -1476,6 +1953,14 @@ class TestMedicineSearchLengthFallback:
     script block's own comment) models the real length sensitivity by
     the TYPED value's own length, not a hardcoded name, so these tests
     exercise the real fallback loop, not a special-cased stub.
+
+    Round 2 (2026-08, PO-confirmed via a real 8000ms/33-check poll):
+    word-level truncation alone was proven insufficient for some real
+    names -- the true threshold can sit MID-WORD (e.g. "Coldi-", not
+    "Coldi-B"), which a word-boundary-only pass can never reach.
+    _medicine_search_fill_candidates now falls back further, to
+    character-by-character truncation, once word-level candidates are
+    exhausted (see that method's own comment).
     """
 
     @staticmethod
@@ -1542,6 +2027,57 @@ class TestMedicineSearchLengthFallback:
 
         assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
 
+    def test_word_boundary_still_insufficient_falls_back_to_character_truncation(
+        self, page: Page
+    ) -> None:
+        # Round 2 (2026-08, PO-confirmed via a real 8000ms/33-check poll
+        # that proved BOTH the full "Coldi-B DNH" (11 chars) AND the
+        # word-truncated "Coldi-B" (7 chars) genuinely matched=False --
+        # the real threshold sits MID-WORD, at "Coldi-" (6 chars), which
+        # word-level truncation alone can never reach (a single word is
+        # never split by _medicine_search_fill_candidates's word-level
+        # pass). search_length_limit=6 models exactly that: both
+        # word-level candidates (11 and 7 chars) exceed it, forcing the
+        # new character-by-character fallback to kick in, which reaches
+        # "Coldi-" (6 chars, <= the limit) on its first attempt.
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?search_length_limit=6")
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Coldi-B DNH"), 0
+        )
+
+        # Even though "Coldi-" was what made the dropdown appear, the
+        # actual row clicked is still resolved via an end-anchored match
+        # against the FULL "Coldi-B DNH" -- proving selection safety is
+        # independent of how short the triggering candidate got.
+        assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
+
+    def test_character_truncation_never_goes_below_the_configured_minimum(self) -> None:
+        # Direct unit check on the candidate generator itself (no live
+        # page needed): for a name whose first word is long enough to
+        # keep shortening, the shortest candidate produced must be
+        # exactly _MEDICINE_SEARCH_MIN_CHAR_TRUNCATION_LENGTH chars, never
+        # shorter -- an unbounded shrink would eventually search on a
+        # near-empty string and surface unrelated noise.
+        candidates = PlaywrightBrowserAutomationProvider._medicine_search_fill_candidates(  # noqa: SLF001
+            "Coldi-B DNH"
+        )
+
+        min_len = (
+            PlaywrightBrowserAutomationProvider._MEDICINE_SEARCH_MIN_CHAR_TRUNCATION_LENGTH  # noqa: SLF001
+        )
+        assert min(len(c) for c in candidates) == min_len
+        assert candidates[-1] == "Coldi-B"[:min_len]
+        # Word-level candidates ("Coldi-B DNH", "Coldi-B") still come
+        # first, unchanged -- character-level ones are a pure addition
+        # at the end, never a replacement.
+        assert candidates[:2] == ["Coldi-B DNH", "Coldi-B"]
+
     def test_name_missing_even_after_every_fallback_still_creates_a_new_one(
         self, page: Page
     ) -> None:
@@ -1593,6 +2129,445 @@ class TestMedicineSearchLengthFallback:
 
         assert page.evaluate("window.medicineResultClickLog") == ["TH99"]
         assert page.locator("#medicine-name-input").input_value() == "Xyzmycin Totally Unknown"
+
+
+class TestMedicineSearchClearsEachCandidateBeforeTheNext:
+    """
+    Bug fix (2026-08, PO-confirmed via real diagnostic logging): a real
+    run's own per-candidate DIAG log proved "Coldi-B" -- a candidate PO
+    separately confirmed by hand DOES produce a real match when typed
+    into an EMPTY box -- was genuinely tried by
+    _fill_medicine_search_until_matched but still read back
+    matched=False, right after a DIFFERENT, longer candidate ("Coldi-B
+    DNH") had just been tried and failed in the same box. Two real gaps
+    fixed together (see _fill_medicine_search_until_matched's own bug-fix
+    comment): each retry now goes through _type_into_search_box, which
+    real-keyboard-clears (select-all + Backspace) the box before typing
+    the next candidate, and the post-type check is now a real poll
+    (_poll_until_matched) across the existing settle budget instead of a
+    single fixed-offset read.
+
+    "Vitamin C 500mg" (TH3, already a real fixture row -- 3 words) is
+    reused here rather than inventing a new one: with
+    search_length_limit=8, its own 3-candidate cascade (full "Vitamin C
+    500mg"=15 chars -> fails, "Vitamin C"=9 chars -> fails, "Vitamin"=7
+    chars -> succeeds) reproduces the exact "the valid candidate is
+    neither the first nor the only one tried" shape of the real Coldi-B
+    incident, without needing a same-length coincidence.
+    """
+
+    @staticmethod
+    def _make_item(medicine_name: str, medicine_id: str = "item-1"):
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        return PurchaseItem(
+            id="item-1",
+            medicine_name=medicine_name,
+            unit=Unit(code="vien"),
+            quantity=Quantity(Decimal("5")),
+            unit_price=Money(Decimal("10000")),
+            medicine_id=medicine_id,
+            retail_units_per_purchase_unit=1,
+        )
+
+    @staticmethod
+    def _per_candidate_final_values(value_log: list[str]) -> list[str]:
+        """
+        press_sequentially logs ONE 'input' event per keystroke (unlike
+        the old single-shot .fill()), so the raw log is a long run of
+        growing prefixes per candidate, separated by a real "" the
+        select-all+Backspace clear produces. Reduces that down to just
+        each candidate's own final (fully-typed) value, in order --
+        the shape the old, simpler .fill()-based log used to have
+        directly.
+        """
+        runs: list[list[str]] = []
+        current: list[str] = []
+        for value in value_log:
+            if value == "":
+                if current:
+                    runs.append(current)
+                    current = []
+            else:
+                current.append(value)
+        if current:
+            runs.append(current)
+        return [run[-1] for run in runs]
+
+    def test_each_retried_candidate_is_typed_from_an_empty_box_and_the_last_one_wins(
+        self, page: Page
+    ) -> None:
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?search_length_limit=8")
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Vitamin C 500mg"), 0
+        )
+
+        # The valid candidate ("Vitamin") is neither the first ("Vitamin C
+        # 500mg") nor the second ("Vitamin C") tried -- yet TH3 (whose own
+        # <b> text ends with the FULL, untruncated "Vitamin C 500mg") is
+        # still the exact row that ends up clicked, never a wrong/earlier
+        # one.
+        assert page.evaluate("window.medicineResultClickLog") == ["TH3"]
+
+        value_log = page.evaluate("window.searchInputValueLog")
+
+        # 3 candidates were really typed, in the expected shrinking order
+        # -- reducing the raw per-keystroke log down to each candidate's
+        # own final, fully-typed value.
+        assert self._per_candidate_final_values(value_log) == [
+            "Vitamin C 500mg",
+            "Vitamin C",
+            "Vitamin",
+        ]
+
+        # Every single logged value across the WHOLE run -- every partial
+        # keystroke of every candidate -- is a clean prefix of whichever
+        # candidate was being typed at that moment. If the box had not
+        # been genuinely emptied first, a later candidate's own prefixes
+        # would instead start with the previous, longer candidate's
+        # leftover text (e.g. "Vitamin C 500mgV"), which is NOT a prefix
+        # of "Vitamin C" -- so this single check rules out any leftover
+        # content across every candidate boundary, not just the final
+        # value.
+        candidates = ["Vitamin C 500mg", "Vitamin C", "Vitamin"]
+        candidate_index = 0
+        for value in value_log:
+            if value == "":
+                candidate_index += 1
+                continue
+            assert candidates[candidate_index].startswith(value), (
+                f"'{value}' is not a clean prefix of candidate "
+                f"'{candidates[candidate_index]}' -- the box was not fully cleared "
+                "before this candidate was typed."
+            )
+
+
+class TestMedicineSearchRequiresRealKeyboardEvents:
+    """
+    Bug fix (2026-08, PO-confirmed via a real, hands-on live-site
+    experiment -- CRITICAL, the true root cause behind the Coldi-B race
+    _poll_until_matched/_type_into_search_box's own comments describe):
+    PO tested directly on the live site -- typing "Coldi-" character by
+    character produced real results; PASTING (Ctrl+V) the identical text
+    produced none; typing "Coldi-b" then Backspacing the trailing 'b'
+    worked. The site's search-as-you-type reacts ONLY to genuine keyboard
+    events, never to a box's value merely changing. Playwright's
+    .fill()/.clear() are a same-mechanism-as-paste: they set the value
+    directly and dispatch 'input', but never dispatch keydown/keyup.
+
+    The fixture's own require_real_keystrokes mode (see
+    webnhathuoc_fixture.html's own comment) models this precisely: every
+    medicine search result row is hidden until a real 'keyup' lands on
+    the search box. These two tests prove the fix with a real,
+    executable DOM demonstration, not just reasoning:
+    (A) a bare Locator.fill() -- the exact primitive this project used to
+        rely on -- never reveals any result under that mode.
+    (B) the real provider (now using _type_into_search_box's real
+        keystroke simulation) finds and selects the right row under that
+        exact same mode.
+    """
+
+    @staticmethod
+    def _make_item(medicine_name: str, medicine_id: str = "item-1"):
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        return PurchaseItem(
+            id="item-1",
+            medicine_name=medicine_name,
+            unit=Unit(code="vien"),
+            quantity=Quantity(Decimal("5")),
+            unit_price=Money(Decimal("10000")),
+            medicine_id=medicine_id,
+            retail_units_per_purchase_unit=1,
+        )
+
+    def test_a_plain_fill_never_reveals_results_when_the_site_needs_real_keystrokes(
+        self, page: Page
+    ) -> None:
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?require_real_keystrokes=1")
+
+        # The exact primitive this project's own _fill()/_clear() used to
+        # rely on, applied directly -- no adapter code involved at all.
+        page.locator("#first-line-search").fill("Vitamin")
+
+        result_entry_locator = page.locator("[data-medicine-result]", has_text="Vitamin")
+        assert result_entry_locator.count() == 0, (
+            "A plain .fill() revealed a result under require_real_keystrokes -- the fixture "
+            "no longer models the real site's own keyboard-only behavior PO confirmed by hand."
+        )
+
+    def test_the_real_provider_now_finds_and_selects_the_row_via_real_keystrokes(
+        self, page: Page
+    ) -> None:
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(f"{FIXTURE_HTML_PATH.resolve().as_uri()}?require_real_keystrokes=1")
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Vitamin C 500mg"), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH3"]
+
+
+class TestSupplierSearchPollsForRealSettleTime:
+    """
+    Regression (2026-08, PO-confirmed via a real run): after
+    search_supplier()/select_supplier() were switched to
+    _type_into_search_box (see TestMedicineSearchRequiresRealKeyboardEvents),
+    PO reported "Naphacogyl" -- previously ALWAYS matched=True on the
+    first try -- now read matched=False on the very first attempt, and
+    the browser showed the supplier's NAME typed into the box but no
+    "selected" chip/state, even though the log still said
+    "create_supplier succeeded". Root-caused by reading
+    _resolve_supplier_on_site (composition_root/cli.py): it calls
+    search_supplier() first and only calls select_supplier() if that
+    returned True -- otherwise it falls straight to create_supplier(),
+    which opens the "add new supplier" dialog and fills a name field
+    directly (exactly the "name typed, no selected state" symptom PO
+    saw). search_supplier() itself never had any wait/poll at all -- it
+    called Locator.count() (which never waits) immediately after typing,
+    the exact same "single fixed-offset/no-wait check" class of bug
+    already fixed for the medicine search loop
+    (_poll_until_matched) -- just never applied to supplier search
+    before. Typing character-by-character (_type_into_search_box) takes
+    real, measurably longer wall-clock time than the old .fill(), which
+    is what turned an already-latent gap into a reliably-reproducing one.
+    A false "not found" here doesn't just risk creating a duplicate
+    supplier -- it leaves the page in a real different state (an open
+    create-supplier dialog) that the PO suspected could then desync the
+    NEXT step (the first medicine search) -- see
+    TestFullSupplierAndThreeMedicineFlow below for the full-chain proof
+    that the fix prevents that too.
+
+    Fixed by making search_supplier() poll (_poll_until_matched) instead
+    of a single immediate count() check. The fixture's own
+    supplier_search_settle_delay_ms (see webnhathuoc_fixture.html's own
+    comment) models a real, non-instant settle delay after the last
+    keystroke, the same way row_settle_delay_ms already models it for
+    line-item rows.
+    """
+
+    def test_a_bare_count_check_right_after_typing_sees_nothing_yet(self, page: Page) -> None:
+        # Control: proves the fixture genuinely reproduces a real race
+        # (not a check that would trivially pass either way). Bypasses
+        # the adapter entirely -- typing directly via Playwright's own
+        # press_sequentially, then reading the DOM immediately, exactly
+        # mirroring what an unpolled search_supplier() used to do.
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}?supplier_search_settle_delay_ms=1500"
+        )
+        supplier_box = page.locator("#supplier-search")
+        supplier_box.click()
+        supplier_box.press_sequentially("Cong ty Duoc ABC")
+
+        assert page.locator("#supplier-search-results span").count() == 0, (
+            "The fixture's supplier_search_settle_delay_ms mode should hide the real result "
+            "until the configured delay elapses -- an immediate check must see nothing yet."
+        )
+
+    def test_search_supplier_waits_out_the_real_settle_delay_and_still_finds_it(
+        self, page: Page
+    ) -> None:
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        # 1500ms settle delay, well inside _SEARCH_RESULT_POLL_BUDGET_MS's
+        # 8000ms poll budget that _poll_until_matched now also governs
+        # search_supplier() with.
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}?supplier_search_settle_delay_ms=1500"
+        )
+
+        assert provider.search_supplier("Cong ty Duoc ABC") is True
+
+
+class TestFullSupplierAndThreeMedicineFlow:
+    """
+    PO explicitly asked for a full-chain test after the regression above
+    (2026-08): "test thật lại với TOÀN BỘ luồng (nhà cung cấp + cả 3
+    thuốc) ... vì lỗi lần này có dấu hiệu là hiệu ứng dây chuyền giữa 2
+    bước, không phải lỗi cô lập 1 chỗ." Drives the REAL production
+    orchestration function (composition_root.cli._automate_one_invoice --
+    not a hand-reimplemented copy of its logic) against the real
+    PlaywrightBrowserAutomationProvider and the real fixture, with
+    supplier_search_settle_delay_ms set so the real settle-time gap that
+    triggered the regression is actually exercised, then asserts BOTH
+    halves of the chain: the supplier ends up genuinely SELECTED (not
+    silently created instead), AND all 3 real medicine lines after it
+    still resolve correctly -- proving no state corruption leaked from
+    one step into the next.
+    """
+
+    @staticmethod
+    def _build_invoice_and_container(tmp_path: Path):
+        from datetime import date
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.medicine import Medicine
+        from pharmacy_invoice_automation.domain.entities.project import Project
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.entities.supplier import Supplier
+        from pharmacy_invoice_automation.domain.enums.invoice_status import InvoiceStatus
+        from pharmacy_invoice_automation.domain.enums.medicine_type import MedicineType
+        from pharmacy_invoice_automation.domain.ports.repositories.medicine_repository import (
+            MedicineRepository,
+        )
+        from pharmacy_invoice_automation.domain.ports.repositories.project_repository import (
+            ProjectRepository,
+        )
+        from pharmacy_invoice_automation.domain.ports.repositories.purchase_invoice_repository import (  # noqa: E501
+            PurchaseInvoiceRepository,
+        )
+        from pharmacy_invoice_automation.domain.ports.repositories.supplier_repository import (
+            SupplierRepository,
+        )
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+        from pharmacy_invoice_automation.infrastructure.di.registration import (
+            register_infrastructure_services,
+        )
+        from pharmacy_invoice_automation.infrastructure.di.service_container import (
+            ServiceContainer,
+        )
+
+        container = ServiceContainer()
+        register_infrastructure_services(container, tmp_path / "app")
+        container.resolve(ProjectRepository).add(
+            Project(id="proj-1", name="Test Project", root_folder=str(tmp_path))
+        )
+        # Name must match the fixture's own real supplier-search-result
+        # span text ("Cong ty Duoc ABC - 123 Le Loi") for supplier.
+        # search_result_option's substring match to find it.
+        container.resolve(SupplierRepository).add(Supplier(id="sup-1", name="Cong ty Duoc ABC"))
+
+        # TH1/TH2/TH3's own real fixture rows -- each an unambiguous,
+        # single-match medicine name, so this test proves the medicine
+        # loop itself (already covered elsewhere) still works after the
+        # supplier step, not a re-test of disambiguation.
+        medicine_names = ["Paracetamol 500mg", "Amoxicillin 500mg", "Vitamin C 500mg"]
+        medicine_repository = container.resolve(MedicineRepository)
+        for i, name in enumerate(medicine_names, start=1):
+            medicine_repository.add(
+                Medicine(
+                    id=f"med-{i}",
+                    medicine_code=f"TH{i}",
+                    name=name,
+                    medicine_type=MedicineType.OVER_THE_COUNTER,
+                    unit=Unit(code="vien"),
+                )
+            )
+        items = [
+            PurchaseItem(
+                id=f"item-{i}",
+                medicine_name=name,
+                unit=Unit(code="vien"),
+                quantity=Quantity(Decimal("5")),
+                unit_price=Money(Decimal("10000")),
+                medicine_id=f"med-{i}",
+                retail_units_per_purchase_unit=1,
+            )
+            for i, name in enumerate(medicine_names, start=1)
+        ]
+        invoice = PurchaseInvoice(
+            id="inv-1",
+            project_id="proj-1",
+            invoice_number="INV-001",
+            invoice_date=date.today(),
+            status=InvoiceStatus.READY_FOR_IMPORT,
+            supplier_id="sup-1",
+            items=items,
+        )
+        container.resolve(PurchaseInvoiceRepository).add(invoice)
+        return invoice, container
+
+    def test_supplier_is_selected_not_created_and_all_three_medicines_still_resolve(
+        self, page: Page, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from pharmacy_invoice_automation.composition_root import cli
+
+        invoice, container = self._build_invoice_and_container(tmp_path)
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        # Both a real supplier-search settle delay AND a real medicine-
+        # search settle delay, combined in ONE run -- stress-tests every
+        # poll path this audit touched (search_supplier, search_medicine
+        # via the per-line candidate loop) together, not in isolation,
+        # per the explicit request that follow-up regressions kept
+        # appearing one at a time when tested separately.
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?supplier_search_settle_delay_ms=1500&medicine_search_settle_delay_ms=1000"
+        )
+
+        def _confirm(_: str) -> str:
+            return cli._AUTOMATION_CONFIRMATION_PHRASE  # noqa: SLF001
+
+        with caplog.at_level(logging.INFO, logger="test"):
+            result = cli._automate_one_invoice(  # noqa: SLF001
+                invoice, container, provider, _confirm, dry_run=True
+            )
+
+        assert result.skipped is False
+        assert result.outcome is not None
+        assert result.outcome.success is True, result.outcome.failure_reason
+
+        # The supplier was genuinely SELECTED, not routed to
+        # create_supplier()'s own "add new supplier" dialog -- that
+        # dialog must never have been opened.
+        assert page.locator("#create-supplyer-dialog").is_hidden()
+        assert page.locator("#supplier-search").input_value() == "Cong ty Duoc ABC"
+
+        # All 3 real medicine lines after the supplier step still
+        # resolved and clicked correctly, in order -- no state left over
+        # from the supplier step corrupted the medicine search that
+        # follows it.
+        assert page.evaluate("window.medicineResultClickLog") == ["TH1", "TH2", "TH3"]
+
+        # Per-medicine is_match() proof, not just the aggregate click
+        # log: _fill_medicine_search_until_matched's own DIAG log records
+        # matched=True/False for every candidate it actually tried. Every
+        # one of the 3 real medicine names must show its FULL name
+        # (single-candidate, well under any length-fallback threshold)
+        # resolving matched=True -- never a silent matched=False that
+        # merely happened to still end in the right click via some other
+        # path.
+        diag_lines = [
+            record.getMessage() for record in caplog.records if record.getMessage().startswith(
+                "DIAG: candidate"
+            )
+        ]
+        for name in ["Paracetamol 500mg", "Amoxicillin 500mg", "Vitamin C 500mg"]:
+            expected = f"DIAG: candidate rut ngan '{name}' (goc: '{name}') -> matched=True"
+            assert expected in diag_lines, (
+                f"expected a matched=True DIAG line for '{name}', got: {diag_lines}"
+            )
 
 
 class TestMedicineResolutionMergedIntoPerLineLoop:
@@ -1913,6 +2888,24 @@ class TestMedicineDisambiguationByHumanSelection:
         flips on click; the chip is inserted 400ms later, on its own
         timer, independent of the click) -- proves the combined poll
         waits through it instead of failing early.
+
+        auto_select_medicine_after_ms=1500 (2026-08, raised from the
+        original 200 -- test-only timing fix, no production code
+        touched): the fixture's auto-select timer is anchored to page
+        load, wall-clock, not to when this test's own typing actually
+        happens. Once search_medicine/select_medicine switched from
+        Playwright's instant .fill() to real per-character typing
+        (_type_into_search_box, see its own comment), 200ms was no
+        longer reliably AFTER that typing finished -- a genuine race
+        where the simulated click could land mid-typing, and a
+        still-in-flight keystroke's own 'input' handler would flip
+        aria-expanded back to 'true' right after the click had just set
+        it 'false', with no further click ever following to fix it
+        again (DIAG logs during the failure showed exactly this: chip
+        present, aria-expanded stuck at 'true' for the full budget).
+        1500ms is a generous margin comfortably after typing+polling+
+        Part 2's suggestion logging finish, while still well inside
+        this test's own 5000ms human_disambiguation_timeout_ms budget.
         """
         config = PlaywrightAutomationConfig(
             username="u", password="p", human_disambiguation_timeout_ms=5_000
@@ -1923,7 +2916,7 @@ class TestMedicineDisambiguationByHumanSelection:
         )
         page.goto(
             f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
-            "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=200"
+            "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=1500"
             "&chip_render_delay_ms=400"
         )
 
@@ -2000,6 +2993,15 @@ class TestMedicineDisambiguationByHumanSelection:
         a chip -- proving _selected_match_container_locator's
         filter-by-content approach picks the right one instead of
         assuming a fixed position/count.
+
+        auto_select_medicine_after_ms=1500 -- same test-only timing fix
+        as test_waits_through_the_real_gap_between_aria_expanded_and_
+        the_chip_rendering's own comment (raised from 200; a keystroke
+        still in flight when the simulated click fired could flip
+        aria-expanded back to 'true' right after the click set it
+        'false', with nothing left to correct it -- see that test's
+        comment for the full DIAG-log evidence). No production code
+        changed.
         """
         real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
         config = PlaywrightAutomationConfig(
@@ -2010,7 +3012,7 @@ class TestMedicineDisambiguationByHumanSelection:
         )
         page.goto(
             f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
-            "?auto_select_medicine_code=TH7&auto_select_medicine_after_ms=200"
+            "?auto_select_medicine_code=TH7&auto_select_medicine_after_ms=1500"
         )
 
         disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
@@ -2052,12 +3054,40 @@ class TestMedicineDisambiguationByHumanSelection:
             "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=200"
         )
         # Decoy: injects a second chip into subsequent-line-search's own
-        # (otherwise empty) drug_search_box shortly after the real
-        # selection, simulating two rows simultaneously showing a chip.
+        # (otherwise empty) drug_search_box, simulating two rows
+        # simultaneously showing a chip.
+        #
+        # BUG FIX (2026-08, discovered while speeding up
+        # _fill_and_check_medicine_result's own settle check from a fixed
+        # wait to a real poll -- see _poll_until_matched): this used to
+        # fire the decoy from a bare setTimeout(..., 400), racing the REAL
+        # auto-select's own 200ms timer purely on wall-clock time. That
+        # only ever passed because the fixed 2500ms wait this test never
+        # exercises directly (_MEDICINE_SELECTION_SETTLE_MS, formerly
+        # always paid in full before _search_and_select_medicine_for_line
+        # ever reached the disambiguation poll) incidentally burned enough
+        # real time for BOTH timers to fire first. Once the settle check
+        # became a real poll that returns as soon as it matches (already
+        # true here -- both real fixture rows are present from page load),
+        # _wait_for_human_medicine_selection's own poll started ticking
+        # almost immediately -- well before the decoy's 400ms timer -- and
+        # legitimately (correctly, per its own single-tick-success
+        # contract) returned success on seeing only the real chip, never
+        # observing the decoy at all. Not a production bug: this test's
+        # own decoy was racing an unrelated fixed wait it was never
+        # supposed to depend on. Fixed by making the decoy deterministic
+        # instead of time-based -- attached directly to the SAME click
+        # event the real auto-selection fires (chip_render_delay_ms is
+        # unset/0 here, so the fixture's own real chip is inserted
+        # synchronously inside that same click handler), so the decoy is
+        # guaranteed to exist before the click's event dispatch even
+        # returns -- before any Playwright-side poll can possibly read the
+        # DOM -- regardless of how fast or slow the code under test is.
         page.evaluate(
             """
             () => {
-              setTimeout(() => {
+              const target = document.querySelector('[data-medicine-result="TH6"]');
+              target.addEventListener("click", () => {
                 const decoyBox = document.getElementById("subsequent-line-search").parentNode;
                 const chip = document.createElement("span");
                 chip.className = "ui-select-match-item btn btn-default btn-xs";
@@ -2065,7 +3095,7 @@ class TestMedicineDisambiguationByHumanSelection:
                   '<span class="close ui-select-match-close">&times;</span>' +
                   '<span><span class="ng-binding ng-scope">DECOY - Other Row</span></span>';
                 decoyBox.insertBefore(chip, document.getElementById("subsequent-line-search"));
-              }, 400);
+              });
             }
             """
         )
@@ -2074,6 +3104,237 @@ class TestMedicineDisambiguationByHumanSelection:
             disambiguation_provider._search_and_select_medicine_for_line(  # noqa: SLF001
                 self._make_item(), 0
             )
+
+
+class TestMedicineSearchAfterHeavyDisambiguationStillPolls:
+    """
+    Investigation (2026-08, PO-confirmed via a real run): after the
+    full-file poll audit above, "Coldi" -- going through the SAME
+    already-polling candidate loop that had just correctly resolved
+    "Naphacogyl" moments earlier in the SAME run -- still read back
+    matched=False. Code-review finding (documented here, not just
+    asserted): each _poll_until_matched call starts its own
+    `elapsed_ms = 0` completely fresh -- nothing carries over from a
+    PRECEDING call, so there was never a code-level "budget gets
+    consumed/shrunk by prior work" bug. Whether a heavy disambiguation
+    leaves the real PAGE ITSELF slower to answer the very next search
+    (a real performance/network effect this local, synchronous fixture
+    cannot fully replicate) was left an open question.
+
+    STRATEGY DECISION (2026-08, PO-confirmed, ends the chase): rather
+    than keep hunting an ever-more-precise timing number across this and
+    future real-run reports, PO decided to make the poll budget
+    generous by policy -- see `_SEARCH_RESULT_POLL_BUDGET_MS`'s own
+    comment in playwright_adapter.py for the full reasoning (real
+    network/server variance, a real `refresh-delay="500"` attribute
+    already observed on the site's own widget, real per-character typing
+    coupling total search time to real network conditions). Raised from
+    2500ms to 8000ms. This class's own tests below still hold under the
+    new budget -- they were written to prove the mechanism's
+    budget-independence property, which does not change with the
+    number, only their own settle-delay values needed adjusting to stay
+    meaningfully near/over the NEW 8000ms budget instead of the old one.
+    """
+
+    @staticmethod
+    def _make_naphacogyl_item() -> object:
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        return PurchaseItem(
+            id="item-1",
+            medicine_name="Naphacogyl",
+            unit=Unit(code="vien"),
+            quantity=Quantity(Decimal("5")),
+            unit_price=Money(Decimal("10000")),
+            medicine_id="med-naphacogyl",
+            retail_units_per_purchase_unit=1,
+        )
+
+    @staticmethod
+    def _make_vitamin_c_item() -> object:
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        return PurchaseItem(
+            id="item-2",
+            medicine_name="Vitamin C 500mg",
+            unit=Unit(code="vien"),
+            quantity=Quantity(Decimal("5")),
+            unit_price=Money(Decimal("10000")),
+            retail_units_per_purchase_unit=1,
+        )
+
+    def test_a_second_medicine_needing_almost_the_full_budget_still_succeeds_right_after_a_heavy_disambiguation(  # noqa: E501
+        self, page: Page, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """
+        Item 1 (Naphacogyl) goes through a REALISTIC heavy Part 2+3
+        disambiguation: a real 3-SECOND wait for the simulated human
+        pick (auto_select_medicine_after_ms=3000) plus the real
+        aria-expanded/chip-render gap (chip_render_delay_ms=400) --
+        several real seconds of DOM interaction + a real
+        website_catalog_code persist, immediately before item 2's own
+        search even starts. item 2 (Vitamin C 500mg) additionally needs
+        a settle delay of 7000ms -- close to, but with a real 1000ms
+        safety margin under, _SEARCH_RESULT_POLL_BUDGET_MS's own 8000ms
+        poll budget (2026-08, PO-decided generous ceiling -- see that
+        constant's own comment for the full reasoning; a much thinner
+        100ms margin was tried first and found flaky -- Playwright's own
+        wait_for_timeout scheduling has enough real jitter across ~30
+        poll iterations that a thin margin is not reliable) -- to show a
+        real, substantial settle delay right after that heavy prior work
+        still succeeds.
+
+        The settle-delay gate is installed dynamically via
+        _INSTALL_SETTLE_DELAY_JS, AFTER item 1 already finished, not via
+        the fixture's own page-load-only medicine_search_settle_delay_ms
+        param: that param would ALSO gate item 1's own initial
+        "Naphacogyl" search (both items share the same results
+        table/inputs) -- a first attempt using it at 7000ms raced against
+        auto_select_medicine_after_ms's fixed 3000ms timer (item 1's own
+        rows were still hidden, waiting on the SAME 7000ms delay, when
+        the auto-select tried to click TH6 at the 3000ms mark -- the
+        target did not exist in the DOM yet, so the click silently
+        no-opped and Part 3 timed out). Installing the gate only after
+        item 1 completes avoids that entirely.
+
+        This does NOT prove the REAL site's actual post-disambiguation
+        delay is under 8000ms (this fixture cannot model true
+        server/network latency) -- it proves the poll mechanism ITSELF
+        is not starved/shortened by the preceding heavy operation, i.e.
+        item 2 gets its own full, fresh budget regardless of what item 1
+        just went through.
+        """
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=8_000
+        )
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=3000"
+            "&chip_render_delay_ms=400"
+        )
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_naphacogyl_item(), 0
+        )
+        assert page.evaluate("window.medicineResultClickLog") == ["TH6"]
+
+        page.evaluate(self._INSTALL_SETTLE_DELAY_JS, 7000)
+
+        with caplog.at_level(logging.INFO, logger="test"):
+            provider._search_and_select_medicine_for_line(  # noqa: SLF001
+                self._make_vitamin_c_item(), 1
+            )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH6", "TH3"]
+
+        # The elapsed-time DIAG instrumentation itself: item 2's own poll
+        # genuinely ran close to (not instantly under) the 7000ms delay,
+        # proving this was a real, non-trivial wait actually consumed by
+        # THIS item's own call, not a leftover/cached signal from item 1.
+        vitamin_c_diag = [
+            record.getMessage()
+            for record in caplog.records
+            if "candidate 'Vitamin C 500mg'" in record.getMessage()
+            and record.getMessage().startswith("DIAG poll")
+        ]
+        assert len(vitamin_c_diag) == 1
+        assert "matched=True" in vitamin_c_diag[0]
+
+    # Reused JS installs the exact same reveal-after-a-real-delay gate
+    # webnhathuoc_fixture.html's own medicine_search_settle_delay_ms URL
+    # param installs -- but at an arbitrary later moment via
+    # page.evaluate, not only at page-load. Needed so item 2's search
+    # can be gated WITHOUT also gating item 1's own initial "Naphacogyl"
+    # search (both share the same results table/inputs, so a page-load
+    # URL param would delay item 1's own disambiguation-triggering
+    # search too, breaking the "item 1 heavy op already finished, THEN
+    # item 2 hits the delay" scenario this test needs).
+    _INSTALL_SETTLE_DELAY_JS = """
+        (delayMs) => {
+          const resultsTable = document.getElementById("medicine-search-results-table");
+          const allRows = [...resultsTable.children];
+          allRows.forEach((row) => row.remove());
+          let timer = null;
+          ["first-line-search", "subsequent-line-search"].forEach((inputId) => {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            el.addEventListener("keyup", () => {
+              if (timer) clearTimeout(timer);
+              timer = setTimeout(() => {
+                allRows.forEach((row) => resultsTable.appendChild(row));
+              }, delayMs);
+            });
+          });
+        }
+        """
+
+    def test_the_same_over_budget_delay_fails_identically_with_or_without_a_preceding_heavy_op(
+        self, page: Page
+    ) -> None:
+        """
+        Baseline/control: 20000ms -- well OVER _SEARCH_RESULT_POLL_BUDGET_MS's
+        8000ms budget, with a large (12s) safety margin, not a thin one
+        -- fails for Vitamin C 500mg whether or not a heavy Naphacogyl
+        disambiguation ran immediately before it. Same threshold, same
+        outcome, either way -- further evidence (on top of the code-
+        review finding in this class's own docstring) that there is no
+        "budget gets consumed by prior work" bug: the poll's budget is
+        strictly a fixed, fresh-per-call constant, not something a
+        preceding heavy operation can shrink or inflate.
+        """
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider_alone = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        page.evaluate(self._INSTALL_SETTLE_DELAY_JS, 20_000)
+
+        alone_result = provider_alone.search_medicine("Vitamin C 500mg")
+
+        assert alone_result is False
+
+        # Fresh page: the SAME heavy Naphacogyl disambiguation as the
+        # test above, run to completion FIRST with no delay gate active
+        # (so item 1's own search behaves normally) -- only THEN is the
+        # identical 20000ms settle-delay gate installed, isolating it to
+        # item 2's own search, on the very same page/box right after.
+        real_registry_2 = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config_2 = PlaywrightAutomationConfig(
+            username="u", password="p", human_disambiguation_timeout_ms=8_000
+        )
+        provider_after_heavy_op = PlaywrightBrowserAutomationProvider(
+            page, real_registry_2, config_2, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?auto_select_medicine_code=TH6&auto_select_medicine_after_ms=3000"
+            "&chip_render_delay_ms=400"
+        )
+
+        provider_after_heavy_op._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_naphacogyl_item(), 0
+        )
+        assert page.evaluate("window.medicineResultClickLog") == ["TH6"]
+
+        page.evaluate(self._INSTALL_SETTLE_DELAY_JS, 20_000)
+        found = provider_after_heavy_op.search_medicine("Vitamin C 500mg")
+
+        assert found is False
 
 
 class TestUpdateRetailPricesAfterSave:
@@ -2104,20 +3365,25 @@ class TestUpdateRetailPricesAfterSave:
         from pharmacy_invoice_automation.domain.value_objects.unit import Unit
 
         page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        # Row 1 is pre-seeded; row 2 needs a real #add-row-button click
+        # (row-scoping fix, 2026-08 -- _update_retail_prices_after_save
+        # now resolves each row's own "Chỉnh sửa thuốc" trigger via
+        # _line_item_rows(), so a 2nd real <tbody> row must actually
+        # exist, not just a 2nd flat, page-wide button).
+        page.click("#add-row-button")
         page.click("#save-invoice")  # reveals #edit-invoice-link, as after a real first save
 
         def _make_item(unit_price: str) -> PurchaseItem:
-            # Purchase unit is "hop" (10 Vien/hop), unit_price is the
-            # PURCHASE price -- _update_retail_prices_after_save must
-            # convert to a per-Vien price (Part 3) before calling
-            # PricePolicy, not use unit_price directly.
+            # STRATEGY CHANGE (2026-08): Vien conversion is gone --
+            # _update_retail_prices_after_save now feeds this invoice's
+            # own original unit_price directly into PricePolicy, no
+            # per-Vien conversion beforehand.
             return PurchaseItem(
                 id=str(uuid.uuid4()),
                 medicine_name="Some Medicine",
                 unit=Unit(code="hop"),
                 quantity=Quantity(Decimal("1")),
                 unit_price=Money(Decimal(unit_price)),
-                retail_units_per_purchase_unit=10,
             )
 
         invoice = PurchaseInvoice(
@@ -2126,18 +3392,17 @@ class TestUpdateRetailPricesAfterSave:
             invoice_number="INV-001",
             invoice_date=date.today(),
         )
-        # Per-Vien price 10000 -> 12000.0 (exact); 12084 -> 14500.8 ->
-        # rounds up to 15000 -- same two boundary cases as
+        # 100000 -> 120000.0 (exact); 120840 -> 145008.0 -> rounds to
+        # 145000 -- same two boundary-rounding cases as
         # tests/unit/domain/services/test_price_policy.py, proving this
         # call path uses the real PricePolicy, not a reimplementation.
-        # Purchase-side unit_price is 10x the per-Vien price (10 Vien/hop).
         invoice.add_item(_make_item("100000"))
         invoice.add_item(_make_item("120840"))
 
         provider._update_retail_prices_after_save(invoice)  # noqa: SLF001
 
         log_entries = page.locator("#retail-price-log li").all_text_contents()
-        assert log_entries == ["0:12000", "1:15000"]
+        assert log_entries == ["1|120000", "2|145000"]
 
     def test_clicks_edit_link_exactly_once_not_once_per_item(
         self, provider: PlaywrightBrowserAutomationProvider, page: Page
@@ -2153,6 +3418,7 @@ class TestUpdateRetailPricesAfterSave:
         from pharmacy_invoice_automation.domain.value_objects.unit import Unit
 
         page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        page.click("#add-row-button")  # row 2's own <tbody> (row 1 is pre-seeded)
         page.click("#save-invoice")
         page.evaluate(
             "document.getElementById('edit-invoice-link')"
@@ -2163,7 +3429,7 @@ class TestUpdateRetailPricesAfterSave:
         invoice = PurchaseInvoice(
             id="inv-1", project_id="proj-1", invoice_number="INV-001", invoice_date=date.today()
         )
-        for _ in range(2):  # fixture provides exactly 2 "Chỉnh sửa thuốc" buttons
+        for _ in range(2):  # 2 real rows: row 1 (pre-seeded) + row 2 (#add-row-button above)
             invoice.add_item(
                 PurchaseItem(
                     id=str(uuid.uuid4()),
@@ -2181,20 +3447,39 @@ class TestUpdateRetailPricesAfterSave:
         assert page.locator("#retail-price-log li").count() == 2
 
 
-class TestConvertToRetailUnits:
+class TestEditMedicineButtonRowScoping:
     """
-    Part 3 (Vien unit conversion, PO-confirmed 2026-08): pure
-    quantity/price conversion math, exercised directly (same pattern as
-    TestUpdateRetailPricesAfterSave calling a private method) since the
-    per-line fill loop's own DOM fields are not yet in the fixture --
-    that gap is the still-deferred row-scoping question (Decision 2,
-    see invoice_line.unit_price_field's notes), intentionally untouched
-    by this Part.
+    Bug fix (2026-08, PO-confirmed via a real DOM snapshot of row 2's
+    own "Chỉnh sửa thuốc" button -- CRITICAL, matched a real production
+    symptom exactly: row 1's own retail price always came out correct,
+    row 2+ always missing/wrong): the button has no id and no per-row
+    suffix of its own -- "cấu trúc giống hệt nhau cho mọi dòng" --  so
+    the prior page-wide nth(index) lookup (_click_at_index, now
+    removed) had no guarantee of landing on the right row.
+    _click_edit_medicine_button_for_row now resolves it the exact same
+    _line_item_rows().nth() way invoice_line.select_row_for_batch_button
+    already does.
+
+    Exercises a real 3-item fill_and_save_invoice() end to end (the
+    same real Phase 1 search+select+fill path
+    TestTwoPhaseFillAndSaveInvoice already proves), then confirms each
+    row's own "Chỉnh sửa thuốc" click opened the dialog for the SAME
+    medicine actually selected for THAT row -- checked via the
+    medicine's own name/code text the fixture's dialog displayed
+    (#retail-price-dialog-medicine-name, logged per entry), never just
+    "some dialog opened" -- and that #edit-medicine-decoy-button (a
+    real button sharing the exact same title, deliberately placed
+    OUTSIDE the real line-items table) was never reached.
     """
 
-    def test_converts_quantity_and_price_by_the_resolved_factor(
-        self, provider: PlaywrightBrowserAutomationProvider
-    ) -> None:
+    @staticmethod
+    def _remove_supplier_dialog_tbody(page: Page) -> None:
+        # See TestTwoPhaseFillAndSaveInvoice's identical helper.
+        page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
+
+    @staticmethod
+    def _make_item(medicine_name: str, unit_price: str):
+        import uuid
         from decimal import Decimal
 
         from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
@@ -2202,68 +3487,76 @@ class TestConvertToRetailUnits:
         from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
         from pharmacy_invoice_automation.domain.value_objects.unit import Unit
 
-        item = PurchaseItem(
-            id="item-1",
-            medicine_name="Some Medicine",
-            unit=Unit(code="hop"),
-            quantity=Quantity(Decimal("5")),
-            unit_price=Money(Decimal("100000")),
-            retail_units_per_purchase_unit=10,
-        )
-
-        retail_quantity, retail_unit_price = provider._convert_to_retail_units(item)  # noqa: SLF001
-
-        assert retail_quantity == Decimal("50")
-        assert retail_unit_price.amount == Decimal("10000")
-        assert retail_unit_price.currency == "VND"
-
-    def test_an_already_vien_item_resolved_to_factor_1_is_unchanged(
-        self, provider: PlaywrightBrowserAutomationProvider
-    ) -> None:
-        from decimal import Decimal
-
-        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
-        from pharmacy_invoice_automation.domain.value_objects.money import Money
-        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
-        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
-
-        item = PurchaseItem(
-            id="item-1",
-            medicine_name="Some Medicine",
+        return PurchaseItem(
+            id=str(uuid.uuid4()),
+            medicine_name=medicine_name,
             unit=Unit(code="vien"),
             quantity=Quantity(Decimal("5")),
-            unit_price=Money(Decimal("10000")),
+            unit_price=Money(Decimal(unit_price)),
             retail_units_per_purchase_unit=1,
         )
 
-        retail_quantity, retail_unit_price = provider._convert_to_retail_units(item)  # noqa: SLF001
-
-        assert retail_quantity == Decimal("5")
-        assert retail_unit_price.amount == Decimal("10000")
-
-    def test_missing_resolved_factor_raises_automation_error_not_a_guess(
-        self, provider: PlaywrightBrowserAutomationProvider
+    def test_each_row_gets_its_own_medicines_dialog_never_a_decoy_or_a_different_row(
+        self, page: Page
     ) -> None:
-        from decimal import Decimal
+        from datetime import date
 
-        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
-        from pharmacy_invoice_automation.domain.value_objects.money import Money
-        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
-        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
-        from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
-            AutomationError,
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-001", invoice_date=date.today()
+        )
+        invoice.add_item(self._make_item("Paracetamol 500mg", "10000"))
+        invoice.add_item(self._make_item("Amoxicillin 500mg", "20000"))
+        invoice.add_item(self._make_item("Vitamin C 500mg", "30000"))
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome == AutomationOutcome(success=True)
+        log_items = page.locator("#retail-price-log li").all()
+        assert [entry.get_attribute("data-row") for entry in log_items] == ["1", "2", "3"]
+        assert [entry.get_attribute("data-medicine-name") for entry in log_items] == [
+            "TH1 - Paracetamol 500mg",
+            "TH2 - Amoxicillin 500mg",
+            "TH3 - Vitamin C 500mg",
+        ]
+        # The decoy (same title, OUTSIDE #real-line-items-table) must
+        # never be reached by a correctly row-scoped lookup.
+        assert page.locator("#edit-medicine-decoy-button").get_attribute("data-medicine-name") == (
+            "DECOY-WRONG-ROW"
+        )
+        medicine_names = [entry.get_attribute("data-medicine-name") for entry in log_items]
+        assert "DECOY-WRONG-ROW" not in medicine_names
+
+    def test_unknown_row_position_times_out_not_a_silent_wrong_click(
+        self, registry: SelectorRegistry, page: Page
+    ) -> None:
+        # Mirrors TestBatchEditButtonRowScoping's identical test for
+        # invoice_line.select_row_for_batch_button: an out-of-range
+        # position must fail to find a matching row, never silently
+        # resolve to some other element (e.g. the decoy, or Playwright's
+        # .nth() clamping/wrapping).
+        from pharmacy_invoice_automation.application.exceptions import (
+            TransientInfrastructureError,
         )
 
-        item = PurchaseItem(
-            id="item-1",
-            medicine_name="Some Medicine",
-            unit=Unit(code="hop"),
-            quantity=Quantity(Decimal("5")),
-            unit_price=Money(Decimal("100000")),
+        config = PlaywrightAutomationConfig(username="u", password="p", default_timeout_ms=500)
+        short_timeout_provider = PlaywrightBrowserAutomationProvider(
+            page, registry, config, logging.getLogger("test")
         )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
 
-        with pytest.raises(AutomationError):
-            provider._convert_to_retail_units(item)  # noqa: SLF001
+        with pytest.raises(TransientInfrastructureError):
+            short_timeout_provider._click_edit_medicine_button_for_row(5)  # noqa: SLF001
 
 
 class TestRowIdSuffixFormula:

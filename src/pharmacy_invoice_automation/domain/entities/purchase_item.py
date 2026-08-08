@@ -14,6 +14,7 @@ root (Stage 04).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from pharmacy_invoice_automation.domain.enums.tax_type import TaxType
 from pharmacy_invoice_automation.domain.exceptions.invalid_invoice_error import (
@@ -51,6 +52,24 @@ class PurchaseItem:
     "no conversion needed" -- an item whose own unit is already Vien is
     resolved to 1, not left None (see PartyMatchingStep).
     """
+    confirmed_website_unit_ratio: Decimal | None = None
+    """
+    A reviewer's confirmed ratio between this invoice line's own unit
+    (``unit``) and whatever unit the real webnhathuoc.com site actually
+    displays for this medicine's row at automation time (PO decision,
+    2026-08 -- "Coldi-B DNH": 1 Hop trên hóa đơn = 1 Lọ trên web,
+    confirmed a genuine, correct site-vs-invoice naming difference, not
+    a bug). Distinct from ``retail_units_per_purchase_unit``, which
+    converts to Vien for retail pricing -- this instead unblocks
+    infrastructure.automation.playwright_adapter's own
+    ``_verify_unit_matches_invoice`` unit-name check, which cannot be
+    resolved at OCR/review time (the site's real displayed unit is only
+    knowable once automation actually reads that row). ``ratio`` means
+    "1 invoice unit = ``ratio`` website units" -- e.g. ``Decimal("1")``
+    for Coldi-B DNH's 1 Hop = 1 Lọ. Still None until a reviewer supplies
+    it (via "item.<id>.confirmed_website_unit_ratio" in review, see
+    SubmitInvoiceReviewUseCase) -- never guessed by automation itself.
+    """
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -65,6 +84,11 @@ class PurchaseItem:
             raise InvalidInvoiceError(
                 f"retail_units_per_purchase_unit must be a positive integer, got "
                 f"{self.retail_units_per_purchase_unit}."
+            )
+        if self.confirmed_website_unit_ratio is not None and self.confirmed_website_unit_ratio <= 0:
+            raise InvalidInvoiceError(
+                f"confirmed_website_unit_ratio must be a positive number, got "
+                f"{self.confirmed_website_unit_ratio}."
             )
 
     def assign_medicine(self, medicine_id: str) -> None:
@@ -81,6 +105,15 @@ class PurchaseItem:
                 f"{retail_units_per_purchase_unit}."
             )
         self.retail_units_per_purchase_unit = retail_units_per_purchase_unit
+
+    def assign_confirmed_website_unit_ratio(self, confirmed_website_unit_ratio: Decimal) -> None:
+        """Record a reviewer-confirmed invoice-unit-to-website-unit ratio for this line."""
+        if confirmed_website_unit_ratio <= 0:
+            raise InvalidInvoiceError(
+                f"confirmed_website_unit_ratio must be a positive number, got "
+                f"{confirmed_website_unit_ratio}."
+            )
+        self.confirmed_website_unit_ratio = confirmed_website_unit_ratio
 
     def assign_batch(self, batch_id: str) -> None:
         """Record which Batch this item's stock was received as."""

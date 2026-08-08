@@ -472,6 +472,13 @@
       "source": "05_full_flow...py:71-73,103-106,133-135; reinforced by 06_multi_line_items.py:47-49,58-60,69-71,82-84,93-96 (always unsuffixed, all 5 medicines)",
       "notes": "RESOLVED for active fill, same as invoice_line.unit_price_field/quantity_field: a shared, unsuffixed field during Phase 1, confirmed as a plain text input filled with a percentage number (e.g. '5'), not a dropdown/select. Once committed, also has its own per-row persistent copy at '#tbxVATId' + row_id_suffix -- see invoice_line.unit_price_field's/quantity_field's notes for the full formula (table_structure.html, 2026-08)."
     },
+    "invoice_line.unit_display": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "select[ng-model=\"gridItem.SelectedUnitId\"]",
+      "source": "PO direct DOM inspection (2026-08), real snapshot of the Naphacogyl line's own 'Đơn vị' dropdown on invoice 00001567: '<select ng-model=\"gridItem.SelectedUnitId\" ng-options=\"item.UnitId as item.UnitName for item in gridItem.Units\" ng-change=\"onUnitChanged(gridItem)\">' with 2 real <option> elements ('Vỉ' value=\"number:1111712\", 'Hộp' value=\"number:1111713\" selected=\"selected\") -- 'Hộp' matches that line's own real purchase unit exactly.",
+      "notes": "A standard native <select>, NO id/distinguishing class of its own -- PO-confirmed NOT page-wide-unique (one per row, same ng-repeat=\"gridItem in viewModel.NoteItems\" pattern already established for invoice_line.select_row_for_batch_button's own calendar-icon trigger). Must be scoped by row position via _line_item_rows().nth(index) (invoice_line.table_root) before locating this selector within it -- the exact same row-scoping mechanism _click_batch_edit_button_for_row already uses, never located page-wide. Read via the currently-selected <option>'s own text ('option:checked', then .inner_text()) -- deliberately NOT Locator.input_value(), which for a <select> returns the raw internal '<option value>' (e.g. 'number:1111713'), not the display label ('Hộp') value_mappings.unit_display_label needs to compare against."
+    },
     "invoice_line.discount_field": {
       "strategy": "css",
       "status": "confirmed",
@@ -544,10 +551,10 @@
     },
     "invoice_line.edit_medicine_button": {
       "strategy": "title",
-      "status": "derived",
+      "status": "confirmed",
       "value": "Chỉnh sửa thuốc",
-      "source": "05_full_flow...py:147",
-      "notes": "The locator pattern itself (title='Chỉnh sửa thuốc') is directly evidenced, but only at index 0 (recorded as .first, for an invoice with 3 line items already saved). No fixed 'nth' is set here on purpose -- PlaywrightBrowserAutomationProvider._update_retail_prices_after_save() supplies a runtime index per line item, assuming index N corresponds to the Nth saved line in order. This positional correspondence is a REASONABLE but NOT independently confirmed extrapolation from the single recorded case -- flagged 'derived' rather than 'confirmed' for exactly that reason. Opens a medicine edit dialog exposing Đơn vị xuất lẻ / Giá nhập lẻ / Giá bán lẻ for that line's medicine again."
+      "source": "05_full_flow...py:147 (index 0, .first); PO direct DOM inspection 2026-08 of row 2's own button, real snapshot: '<a ng-click=\"getDetailDrugAddV2(gridItem)\" title=\"Chỉnh sửa thuốc\" ng-if=\"...gridItem.DrugId > 0 && gridItem.StoreCode != 'DQG'...\"><i class=\"fa-regular fa-pen\"></i></a>' -- no id, no per-row suffix, structurally IDENTICAL to row 1's own button.",
+      "notes": "BUG FIX (2026-08, PO-confirmed via the row-2 snapshot above -- CRITICAL, matched a real production symptom exactly: row 1's retail price always correct, row 2+ always missing/wrong): upgraded from 'derived' to 'confirmed' -- the title='Chỉnh sửa thuốc' pattern itself is now evidenced on 2 real rows, but the PRIOR assumption that a page-wide nth(index) corresponds to the Nth saved line was WRONG (this element has no id/suffix distinguishing it from any other row's own button, so nothing guarantees page-order == invoice-item-order). PlaywrightBrowserAutomationProvider._click_edit_medicine_button_for_row() now resolves it the same way invoice_line.select_row_for_batch_button already does -- scoped via _line_item_rows().nth(position - 1), never a page-wide nth. Opens a medicine edit dialog exposing Đơn vị xuất lẻ / Giá nhập lẻ / Giá bán lẻ for that line's medicine again."
     },
     "invoice_line.edit_dialog_close_button": {
       "strategy": "role",
@@ -579,10 +586,10 @@
       "over_the_counter": {"status": "needs_verification", "suggested_label": null}
     },
     "unit_display_label": {
-      "description": "Domain Unit.code -> exact display text for select_option(label=...) on medicine.unit_dropdown. NONE of these are confirmed: every recording (04_create_medicine.py and 05_full_flow...py, 4 occurrences total) selected this dropdown by raw internal option value ('1111732', '1111712' x2, '1111720'), never by visible label text, so no label string was ever captured. 'suggested_label' below is an unverified best-guess placeholder for a human to confirm against the live dropdown -- it must not be relied on by the Provider until its status is changed to 'confirmed'. Domain.Unit (src/pharmacy_invoice_automation/domain/value_objects/unit.py) currently defines only 6 real codes plus 'other'.",
+      "description": "Domain Unit.code -> exact Vietnamese display text, assumed site-wide/context-independent. Two consumers: (1) select_option(label=...) on medicine.unit_dropdown (the create-medicine dialog's own 'Đơn vị xuất lẻ' dropdown) -- every recording there (04_create_medicine.py and 05_full_flow...py, 4 occurrences) selected by raw internal option value, never by visible label text, so no label was ever captured from THAT selector specifically. (2) PlaywrightBrowserAutomationProvider._verify_unit_matches_invoice's read-and-compare against invoice_line.unit_display (the invoice line's own 'Đơn vị' <select>, a DIFFERENT element). 'hop' below is confirmed from consumer (2)'s own real DOM evidence (invoice_line.unit_display's source) -- extending that confirmation to also cover consumer (1) rests on the reasonable but not independently re-verified assumption that this label is the same site-wide vocabulary in both dropdowns; a genuine difference there would still fail loudly (option not found), never silently guess wrong. Every other 'suggested_label' below remains an unverified best-guess placeholder -- must not be relied on until independently confirmed. Domain.Unit (src/pharmacy_invoice_automation/domain/value_objects/unit.py) currently defines only 6 real codes plus 'other'.",
       "vien": {"status": "needs_verification", "suggested_label": "Viên"},
       "tuyp": {"status": "needs_verification", "suggested_label": "Tuýp"},
-      "hop": {"status": "needs_verification", "suggested_label": "Hộp"},
+      "hop": {"status": "confirmed", "label": "Hộp", "source": "PO direct DOM inspection (2026-08) of invoice_line.unit_display's own real snapshot (invoice 00001567, Naphacogyl line) -- see that selector's own registry notes."},
       "chai": {"status": "needs_verification", "suggested_label": "Chai"},
       "goi": {"status": "needs_verification", "suggested_label": "Gói"},
       "ong": {"status": "needs_verification", "suggested_label": "Ống"},

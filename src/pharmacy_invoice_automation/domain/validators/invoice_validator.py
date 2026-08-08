@@ -37,6 +37,26 @@ class InvoiceValidator:
         Check ``invoice`` for every completeness requirement FR-05
         implies before review can hand it off for import: at least one
         item, a resolved supplier, and no duplicate item ids.
+
+        STRATEGY CHANGE (2026-08, PO decision, explicit Domain change --
+        approved despite Domain otherwise being frozen/under audit):
+        this used to also require every item's
+        ``retail_units_per_purchase_unit`` to be resolved, since
+        automation (infrastructure.automation.playwright_adapter)
+        converted quantity/price through that ratio before filling
+        anything on-site. Automation no longer does that at all -- it
+        now verifies the site's own displayed unit against the
+        invoice's own ``item.unit`` directly, for real, right before
+        filling (see PlaywrightBrowserAutomationProvider.
+        _verify_unit_matches_invoice's own docstring). That gate
+        existed ONLY to protect the now-abandoned conversion design;
+        keeping it would incorrectly block real invoices on data
+        automation no longer needs, so it is removed here rather than
+        left stale. ``retail_units_per_purchase_unit`` itself is left
+        alone everywhere else (Medicine/PurchaseItem fields, learn-once
+        pipeline in pipeline.party_matching_step.PartyMatchingStep) --
+        this is the removal of a now-incorrect BLOCKING requirement,
+        not a removal of the underlying data/feature.
         """
         issues: list[str] = []
 
@@ -59,12 +79,6 @@ class InvoiceValidator:
                 issues.append(
                     f"Purchase item '{item.medicine_name}' has an unrecognized unit "
                     f"and needs manual confirmation."
-                )
-            if item.retail_units_per_purchase_unit is None:
-                issues.append(
-                    f"Purchase item '{item.medicine_name}' has no confirmed Vien-per-"
-                    f"purchase-unit packaging ratio and needs manual confirmation "
-                    f"before it can be imported."
                 )
 
         return Result.success(InvoiceValidationReport(issues=tuple(issues)))

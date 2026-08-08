@@ -1,10 +1,19 @@
 """
-Unit tests for domain.validators.invoice_validator.InvoiceValidator,
-focused on Part 3's additive per-item packaging-ratio check -- the gate
-that keeps an invoice out of ReadyForImport until every item's
-retail_units_per_purchase_unit is resolved (by
-pipeline.party_matching_step.PartyMatchingStep or a reviewer via
-use_cases.submit_invoice_review_use_case.SubmitInvoiceReviewUseCase).
+Unit tests for domain.validators.invoice_validator.InvoiceValidator.
+
+STRATEGY CHANGE (2026-08, PO decision, explicit Domain change): this
+file used to focus on Part 3's additive per-item packaging-ratio check
+-- a gate that kept an invoice out of ReadyForImport until every
+item's retail_units_per_purchase_unit was resolved. That gate existed
+only to protect the Vien retail-unit-conversion design automation used
+to rely on; automation no longer converts through this ratio at all
+(it verifies the site's own displayed unit against the invoice's own
+item.unit directly instead -- see
+infrastructure.automation.playwright_adapter.PlaywrightBrowserAutomationProvider.
+_verify_unit_matches_invoice's own docstring), so keeping the gate
+would incorrectly block real invoices on data automation no longer
+needs. The check itself was removed from InvoiceValidator.validate();
+TestPackagingRatioCheckRemoved below proves it no longer blocks.
 Pre-existing checks are covered lightly, for context, not exhaustively.
 """
 
@@ -58,7 +67,13 @@ def validator() -> InvoiceValidator:
     return InvoiceValidator()
 
 
-class TestPackagingRatioCheck:
+class TestPackagingRatioCheckRemoved:
+    """
+    STRATEGY CHANGE (2026-08): a resolved packaging ratio is no longer
+    required for an invoice to validate -- these tests replace the old
+    TestPackagingRatioCheck class, which asserted the opposite.
+    """
+
     def test_fully_resolved_item_has_no_issue(self, validator: InvoiceValidator) -> None:
         invoice = _make_invoice(_make_item())
 
@@ -66,18 +81,20 @@ class TestPackagingRatioCheck:
 
         assert report.is_valid
 
-    def test_unresolved_packaging_ratio_is_an_issue(self, validator: InvoiceValidator) -> None:
+    def test_unresolved_packaging_ratio_is_no_longer_an_issue(
+        self, validator: InvoiceValidator
+    ) -> None:
         invoice = _make_invoice(_make_item(retail_units_per_purchase_unit=None))
 
         report = validator.validate(invoice).unwrap()
 
-        assert not report.is_valid
-        assert any("packaging ratio" in issue.lower() for issue in report.issues)
+        assert report.is_valid
+        assert not any("packaging ratio" in issue.lower() for issue in report.issues)
 
     def test_vien_item_resolved_to_one_has_no_issue(self, validator: InvoiceValidator) -> None:
-        # PartyMatchingStep resolves an already-Vien item's ratio to 1
-        # (no conversion needed) -- the validator must accept that, not
-        # treat 1 as somehow suspicious.
+        # PartyMatchingStep still resolves an already-Vien item's ratio
+        # to 1 (no conversion needed, unrelated to this strategy
+        # change) -- the validator must still accept that.
         invoice = _make_invoice(
             _make_item(unit=Unit(code="vien"), retail_units_per_purchase_unit=1)
         )

@@ -1,0 +1,181 @@
+2026-08-04 12:57:30 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 12:57:30 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 12:57:48 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 12:57:49 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 12:57:50 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 12:57:53 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 12:57:53 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 12:57:59 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Part 3: search box's 'aria-expanded' flipped to 'false' but the expected '.ui-select-match-item' chip is not visible -- cannot read back which row was actually selected. Refusing to guess.
+2026-08-04 13:16:19 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 13:16:19 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 13:16:30 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 13:16:31 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 13:16:32 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 13:16:35 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 13:16:35 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 13:16:42 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Part 3: search box's 'aria-expanded' flipped to 'false' but the expected '.ui-select-match-item' chip is not visible -- cannot read back which row was actually selected. Refusing to guess.
+2026-08-04 13:27:56 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 13:27:56 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 13:28:02 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 13:28:04 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 13:28:07 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 13:28:10 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 13:28:10 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 13:31:10 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Part 3: timed out waiting 180000ms for a human to manually resolve an ambiguous medicine search result -- the search box's own 'aria-expanded'='false' and the selected-match chip becoming visible were never observed together. Refusing to guess a row -- resolve the selection directly on the live site, or re-run once it is done.
+2026-08-04 13:46:32 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 13:46:32 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 13:46:37 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 13:46:38 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 13:46:40 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 13:46:43 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 13:46:43 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 13:46:43 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:46:45 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:46:47 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:46:50 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:46:52 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:46:54 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:46:56 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:46:58 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:00 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:02 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:04 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:06 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:08 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:11 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:13 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:15 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:17 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:19 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:21 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:23 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:25 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:28 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:30 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:32 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:34 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:36 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:38 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:40 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:42 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:45 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:47 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:49 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:51 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:53 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:55 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:57 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:47:59 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:02 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:04 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:06 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:08 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:10 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:12 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:14 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:16 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:19 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:21 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:23 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:25 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:27 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:29 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:31 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:33 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:35 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:38 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:48:40 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', chip_locator matched 0 element(s), chip_visible=False
+2026-08-04 13:49:33 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 13:49:33 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 16:46:08 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 16:46:08 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 16:48:02 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 16:48:04 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 16:48:06 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 16:48:09 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 16:48:09 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 16:48:09 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 16:48:11 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 16:48:13 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 16:48:15 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-04 16:48:25 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Row 2 did not settle within 5000ms after clicking invoice_line.add_row_button -- expected 2 settled <tbody> row(s), found 1. Refusing to continue to the next line: filling its fields into the still-shared active-row fields before this row finishes settling would silently overwrite it instead of adding a new one.
+2026-08-04 17:34:11 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 17:34:11 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 17:35:18 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 17:35:20 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 17:35:24 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 17:35:27 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 17:35:27 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 17:35:27 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 17:35:29 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 17:35:31 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 17:35:33 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-04 17:35:39 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: Row 1 did not settle within 5000ms after clicking invoice_line.add_row_button -- expected 1 settled <tbody> row(s), found 2. Refusing to continue to the next line: filling its fields into the still-shared active-row fields before this row finishes settling would silently overwrite it instead of adding a new one.
+2026-08-04 18:39:59 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 18:39:59 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 18:40:31 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 18:40:33 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 18:40:34 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 18:40:37 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 18:40:37 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 18:40:37 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 18:40:39 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 18:40:41 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-04 19:44:58 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 19:44:58 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 19:45:08 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 19:45:10 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 19:45:11 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 19:45:14 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 19:45:14 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 19:45:14 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 19:45:15 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-04 19:49:12 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 19:49:12 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 19:49:24 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 19:49:25 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 19:49:26 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 19:49:29 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 19:49:29 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 19:49:29 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 19:49:31 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 19:49:32 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-04 23:40:17 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 23:40:17 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 23:40:49 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 23:40:50 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 23:40:52 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 23:40:55 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 23:40:55 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 23:40:55 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:40:57 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:40:59 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:41:01 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', drug_search_box elements containing a chip=0
+2026-08-04 23:41:02 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-04 23:46:06 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 23:46:06 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-04 23:46:18 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-04 23:46:19 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-04 23:46:20 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-04 23:46:21 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Naphacogyl (Thùng x 300 hộp x 2 vỉ x 10 viên), website_catalog_code hien co (neu co): None
+2026-08-04 23:46:23 | INFO | pharmacy_automation.automation | Ambiguous medicine match 1/2: '893115102724 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 23:46:23 | INFO | pharmacy_automation.automation | Ambiguous medicine match 2/2: 'VD-10908-10 - Naphacogyl' -- manufacturer 'Công ty cổ phần dược phẩm Nam Hà' MATCHES invoice supplier 'CHI NHÁNH CÔNG TY CỔ PHẦN DƯỢC PHẨM NAM HÀ'. Suggested, not auto-selected -- waiting for a human to confirm the correct row in the browser.
+2026-08-04 23:46:23 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:26 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:28 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:30 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:32 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:34 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:36 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:38 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:40 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:42 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:44 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:46 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='true', drug_search_box elements containing a chip=0
+2026-08-04 23:46:48 | INFO | pharmacy_automation.automation | Part 3 DIAGNOSTIC: aria-expanded='false', drug_search_box elements containing a chip=0
+2026-08-04 23:46:49 | INFO | pharmacy_automation.automation | Part 3: persisted website_catalog_code='TH1' onto Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' -- future invoices for this medicine will skip disambiguation.
+2026-08-04 23:46:49 | INFO | pharmacy_automation.automation | DIAG: persist xong cho Medicine '2856947d-88c5-4032-a2ef-8504dcc4e308' (code='TH1') -- dong log tiep theo se cho biet dang resolve dong hang nao.
+2026-08-04 23:46:49 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-04 23:46:55 | INFO | pharmacy_automation.automation | DIAG: Bat dau resolve dong hang: Coldi-B DNH (Thùng x 160 hộp x 1 lọ x 15ml), website_catalog_code hien co (neu co): None
+2026-08-04 23:58:35 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-04 23:58:35 | INFO | pharmacy_automation.automation | login succeeded.

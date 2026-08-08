@@ -78,3 +78,47 @@ class TestAssignRetailUnitsPerPurchaseUnit:
         item = _make_item()
         with pytest.raises(InvalidInvoiceError):
             item.assign_retail_units_per_purchase_unit(-1)
+
+
+class TestConfirmedWebsiteUnitRatioConstruction:
+    def test_defaults_to_none(self) -> None:
+        item = _make_item()
+        assert item.confirmed_website_unit_ratio is None
+
+    def test_accepts_a_positive_decimal(self) -> None:
+        item = _make_item(confirmed_website_unit_ratio=Decimal("1"))
+        assert item.confirmed_website_unit_ratio == Decimal("1")
+
+    def test_rejects_zero(self) -> None:
+        with pytest.raises(InvalidInvoiceError):
+            _make_item(confirmed_website_unit_ratio=Decimal("0"))
+
+    def test_rejects_negative(self) -> None:
+        with pytest.raises(InvalidInvoiceError):
+            _make_item(confirmed_website_unit_ratio=Decimal("-1"))
+
+
+class TestAssignConfirmedWebsiteUnitRatio:
+    def test_sets_the_value(self) -> None:
+        item = _make_item()
+
+        item.assign_confirmed_website_unit_ratio(Decimal("1"))
+
+        assert item.confirmed_website_unit_ratio == Decimal("1")
+
+    def test_overwrites_an_existing_value(self) -> None:
+        item = _make_item(confirmed_website_unit_ratio=Decimal("1"))
+
+        item.assign_confirmed_website_unit_ratio(Decimal("10"))
+
+        assert item.confirmed_website_unit_ratio == Decimal("10")
+
+    def test_rejects_zero(self) -> None:
+        item = _make_item()
+        with pytest.raises(InvalidInvoiceError):
+            item.assign_confirmed_website_unit_ratio(Decimal("0"))
+
+    def test_rejects_negative(self) -> None:
+        item = _make_item()
+        with pytest.raises(InvalidInvoiceError):
+            item.assign_confirmed_website_unit_ratio(Decimal("-1"))

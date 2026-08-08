@@ -1,0 +1,21 @@
+2026-08-03 12:27:14 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-03 12:27:14 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-03 12:27:39 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-03 12:27:39 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-03 12:28:04 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-03 12:28:04 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-03 12:28:12 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-03 12:28:13 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-03 12:28:13 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-03 20:17:37 | INFO | pharmacy_automation.automation | login.close_notification_popup: clicked (popup was present)
+2026-08-03 20:17:37 | INFO | pharmacy_automation.automation | login succeeded.
+2026-08-03 20:18:13 | INFO | pharmacy_automation.automation | open_import_invoice_form succeeded.
+2026-08-03 20:18:14 | INFO | pharmacy_automation.automation | remove_default_supplier_tag succeeded.
+2026-08-03 20:18:16 | INFO | pharmacy_automation.automation | create_supplier succeeded.
+2026-08-03 20:18:19 | ERROR | pharmacy_automation.automation | fill_and_save_invoice failed: click:medicine.search_result_option: Locator.click: Error: strict mode violation: locator("b").filter(has_text=re.compile(r"Naphacogyl$", re.IGNORECASE)) resolved to 2 elements:
+    1) <b>…</b> aka get_by_text("893115102724 - Naphacogyl")
+    2) <b>…</b> aka get_by_text("VD-10908-10 - Naphacogyl")
+
+Call log:
+  - waiting for locator("b").filter(has_text=re.compile(r"Naphacogyl$", re.IGNORECASE))
+
