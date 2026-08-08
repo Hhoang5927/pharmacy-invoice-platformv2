@@ -549,6 +549,13 @@
       "source": "05_full_flow...py:146",
       "notes": "Same locator as invoice.save_success_indicator, but registered separately since this entry's actual recorded purpose IS clicking it (to enter the post-save edit flow used by medicine.retail_price_field's update-after-save step) -- directly evidenced, unlike save_success_indicator's inferred use. Clicked exactly once per save cycle, not once per line item -- reveals the per-line 'Chỉnh sửa thuốc' controls (see invoice_line.edit_medicine_button)."
     },
+    "invoice.continue_button": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#btnContinue",
+      "source": "PO direct DOM inspection (2026-08): '<a ng-if=\"model.NoteTypeId == 1\" id=\"btnContinue\" class=\"btn btn-primary\" href=\"/ReceiptNote/ReceiptNoteScreen?taskMode=1&partnerId=780230&noteDate=2026-08-08\">Tiếp tục</a>' -- a real, unique id, not inferred.",
+      "notes": "NOT YET WIRED into any Provider method (2026-08) -- captured for the record ahead of multi-invoice-in-one-session automation, deliberately deferred while Excel export/import review work is in progress. After a successful invoice.save_button ('Ghi Phiếu') click, the site does NOT return to a blank entry form on its own -- it navigates to a read-back/summary view of the just-saved invoice instead. This button (labelled 'Tiếp tục') must be clicked to return to a blank ReceiptNoteScreen form, ready for the next invoice. The href itself is a real navigation link (not just a JS handler) carrying real query params (taskMode/partnerId/noteDate) tied to that specific save -- a fresh navigation for the NEXT invoice should still go through clicking this element (not by reconstructing/reusing this href directly), since partnerId/noteDate will differ per invoice. #btnContinue has its own real, page-unique id -- no row-scoping or nth needed, unlike most other selectors in this registry."
+    },
     "invoice_line.edit_medicine_button": {
       "strategy": "title",
       "status": "confirmed",

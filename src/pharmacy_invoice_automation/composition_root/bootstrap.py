@@ -84,6 +84,34 @@ def main() -> None:
         help="Interactively review every invoice currently UNDER_REVIEW.",
     )
 
+    export_review_parser = subparsers.add_parser(
+        "export-review",
+        help=(
+            "Export every invoice currently UNDER_REVIEW (one row per line "
+            "item) to a single .xlsx for offline batch review in Excel."
+        ),
+    )
+    export_review_parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help=(
+            "Destination .xlsx path (default: data/review_exports/"
+            "review_<YYYYMMDD>_<HHMM>.xlsx, never overwritten)."
+        ),
+    )
+
+    import_review_parser = subparsers.add_parser(
+        "import-review",
+        help=(
+            "Read a filled-in review .xlsx (from export-review) back and apply every "
+            "decided invoice's corrections through the real SubmitInvoiceReviewUseCase."
+        ),
+    )
+    import_review_parser.add_argument(
+        "excel_path", type=Path, help="Path to the filled-in .xlsx produced by export-review."
+    )
+
     automate_parser = subparsers.add_parser(
         "automate",
         help=(
@@ -124,6 +152,16 @@ def main() -> None:
     elif args.command == "review":
         container = bootstrap()
         cli.run_review(container)
+    elif args.command == "export-review":
+        container = bootstrap()
+        cli.run_export_review(container, output_path=args.output)
+    elif args.command == "import-review":
+        excel_path: Path = args.excel_path
+        if not excel_path.is_file():
+            print(f"'{excel_path}' is not a file.", file=sys.stderr)
+            raise SystemExit(1)
+        container = bootstrap()
+        cli.run_import_review(container, excel_path)
     elif args.command == "automate":
         container = bootstrap()
         cli.run_automate(container, dry_run=args.dry_run, headless=args.headless)

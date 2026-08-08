@@ -20,7 +20,7 @@ import sys
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
@@ -57,6 +57,7 @@ from pharmacy_invoice_automation.application.use_cases.process_invoice_use_case 
 from pharmacy_invoice_automation.application.use_cases.submit_invoice_review_use_case import (
     SubmitInvoiceReviewUseCase,
 )
+from pharmacy_invoice_automation.composition_root import review_excel
 from pharmacy_invoice_automation.domain.entities.project import Project
 from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
 from pharmacy_invoice_automation.domain.enums.invoice_status import InvoiceStatus
@@ -96,6 +97,9 @@ from pharmacy_invoice_automation.infrastructure.automation.automation_errors imp
     UnitMismatchError,
 )
 from pharmacy_invoice_automation.infrastructure.di.service_container import ServiceContainer
+from pharmacy_invoice_automation.infrastructure.file_storage.workspace_manager import (
+    WorkspaceManager,
+)
 
 _INVOICE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".pdf")
 
@@ -437,6 +441,155 @@ def _review_one_invoice(
         for error in result.errors:
             _print(f"     - {error}")
     return result
+
+
+# --- Stage C2: Excel-based batch review (PO decision 2026-08, see --------
+# composition_root.review_excel's own docstring and CLAUDE.md Deviation D7)
+# --- replaces the one-invoice-at-a-time interactive flow above for day-to-
+# day use, without removing it: run_review() above is still exactly as
+# useful for a single ad-hoc invoice, this pair is for batching many.
+
+_REVIEW_EXPORTS_SUBDIRECTORY = "review_exports"
+
+
+def _next_available_review_export_path(
+    workspace_manager: WorkspaceManager, file_storage: FileStorageProvider
+) -> Path:
+    """
+    PO-specified naming (2026-08): ``review_<YYYYMMDD>_<HHMM>.xlsx`` under
+    ``data/review_exports/`` -- never overwrites an existing file; on a
+    same-minute collision (two exports within the same clock-minute),
+    appends ``_2``, ``_3``, ... until an unused name is found.
+    """
+    folder = workspace_manager.data_directory / _REVIEW_EXPORTS_SUBDIRECTORY
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    candidate = folder / f"review_{timestamp}.xlsx"
+    suffix = 2
+    while file_storage.exists(str(candidate)):
+        candidate = folder / f"review_{timestamp}_{suffix}.xlsx"
+        suffix += 1
+    return candidate
+
+
+def run_export_review(
+    container: ServiceContainer, output_path: Path | None = None
+) -> Path | None:
+    """
+    Exports every PurchaseInvoice currently UNDER_REVIEW to a single
+    .xlsx file (one row per PurchaseItem) via review_excel.build_export_rows/
+    write_workbook -- see that module's own docstring for the full column
+    design. ``output_path`` overrides the default PO-specified naming
+    convention (_next_available_review_export_path) -- an explicitly
+    chosen path IS allowed to overwrite (matches ``--output`` flags
+    elsewhere behaving as an explicit, deliberate destination), only the
+    default auto-generated name is guaranteed never to collide.
+
+    Returns the path written to, or None if there was nothing to export
+    (matches run_review()'s own "nothing to do" printed message).
+    """
+    purchase_invoice_repository = container.resolve(PurchaseInvoiceRepository)
+    invoices = purchase_invoice_repository.list_by_status(InvoiceStatus.UNDER_REVIEW)
+    if not invoices:
+        _print("Không có hóa đơn nào đang chờ xem lại (UNDER_REVIEW).")
+        return None
+
+    invoice_validator = InvoiceValidator()
+    issues_by_invoice_id = {
+        invoice.id: list(invoice_validator.validate(invoice).unwrap().issues)
+        for invoice in invoices
+    }
+    supplier_name_by_invoice_id = {
+        invoice.id: _resolve_supplier_name(invoice.supplier_id, container) for invoice in invoices
+    }
+
+    rows = review_excel.build_export_rows(
+        invoices, issues_by_invoice_id, supplier_name_by_invoice_id
+    )
+    workbook_bytes = review_excel.write_workbook(rows)
+
+    file_storage = container.resolve(FileStorageProvider)
+    target = output_path or _next_available_review_export_path(
+        container.resolve(WorkspaceManager), file_storage
+    )
+    file_storage.write_file(str(target), workbook_bytes)
+
+    _print(
+        f"Đã xuất {len(invoices)} hóa đơn ({len(rows)} dòng hàng) đang chờ xem lại ra: {target}"
+    )
+    return target
+
+
+def run_import_review(
+    container: ServiceContainer, excel_path: Path
+) -> list[UseCaseResult[PurchaseInvoiceDTO]]:
+    """
+    Reads a filled-in review .xlsx back (review_excel.read_workbook) and
+    applies every valid, decided invoice's corrections through the real
+    SubmitInvoiceReviewUseCase -- exactly the same use case run_review()
+    uses, never reimplemented here. Fully batch, no per-invoice prompt
+    (PO-specified 2026-08): every invoice with a valid 'duyet'/'tu_choi'
+    decision and no invalid cells is applied immediately; an invoice with
+    any invalid/conflicting cell is skipped entirely this pass and
+    reported in a final itemized error list instead (never partially
+    applied); an invoice left fully undecided (blank 'Quyết định' on
+    every row) is silently left alone, same as Enter-to-skip in the
+    interactive flow.
+    """
+    file_storage = container.resolve(FileStorageProvider)
+    read_result = review_excel.read_workbook(file_storage.read_file(str(excel_path)))
+
+    if not read_result.reviews and not read_result.errors:
+        _print("Không có hóa đơn nào được áp dụng (mọi hóa đơn đều để trống 'Quyết định').")
+        return []
+
+    purchase_invoice_repository = container.resolve(PurchaseInvoiceRepository)
+    submit_review_use_case = SubmitInvoiceReviewUseCase(
+        purchase_invoice_repository=purchase_invoice_repository,
+        medicine_repository=container.resolve(MedicineRepository),
+        invoice_validator=InvoiceValidator(),
+        transaction_coordinator=container.resolve(TransactionCoordinator),
+        party_matching_step=_build_party_matching_step(container),
+    )
+
+    results: list[UseCaseResult[PurchaseInvoiceDTO]] = []
+    if read_result.reviews:
+        _print(f"Đang áp dụng {len(read_result.reviews)} hóa đơn từ file Excel...\n")
+    for review in read_result.reviews:
+        command = SubmitInvoiceReviewCommand(
+            invoice_id=review.invoice_id,
+            corrected_fields=review.corrected_fields,
+            reviewer_approved=review.reviewer_approved,
+        )
+        result = submit_review_use_case.execute(command)
+        results.append(result)
+        if result.is_success:
+            assert result.value is not None
+            status_label = _STATUS_LABELS_VI.get(result.value.status, result.value.status)
+            _print(f"  [OK] Hóa đơn {review.invoice_number}: {status_label}")
+            for warning in result.warnings:
+                _print(f"       * {warning}")
+        else:
+            _print(f"  [LỖI] Hóa đơn {review.invoice_number}: vẫn ở trạng thái chờ xem lại:")
+            for error in result.errors:
+                _print(f"       - {error}")
+
+    if read_result.skipped_invoice_ids:
+        _print(
+            f"\nBỏ qua {len(read_result.skipped_invoice_ids)} hóa đơn chưa điền 'Quyết định'."
+        )
+
+    if read_result.errors:
+        _print(
+            "\nCác lỗi cần sửa lại (mở lại file Excel, sửa đúng dòng rồi import lại -- "
+            "những hóa đơn này CHƯA được áp dụng gì cả):"
+        )
+        for row_error in read_result.errors:
+            _print(
+                f"  - Hóa đơn {row_error.invoice_number} / {row_error.medicine_name}: "
+                f"[{row_error.field_label}] '{row_error.raw_value}' -- {row_error.reason}"
+            )
+
+    return results
 
 
 # --- Stage D: browser automation against the real website -------------------
