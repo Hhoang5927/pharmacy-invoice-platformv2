@@ -1747,7 +1747,30 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 f"Medicine '{item.medicine_id}' referenced by '{item.medicine_name}' was not "
                 "found in the local database."
             )
-        outcome = self.create_medicine(medicine)
+        # Bug fix (2026-08, PO-confirmed, real "Coldi" incident): D11's
+        # per-line safety net only ever caught AutomationError here, but
+        # wrap_playwright_error classifies EVERY Playwright timeout --
+        # including create_medicine()'s own medicine.add_new_trigger click
+        # not becoming clickable in time -- as TransientInfrastructureError
+        # regardless of which action timed out, and create_medicine()'s own
+        # _run_outcome deliberately re-raises that type (so a genuinely
+        # transient failure elsewhere still reaches Application's
+        # RetryPolicy). With no retry actually wired up around
+        # fill_and_save_invoice at the call site (composition_root.cli.
+        # run_automate), that exception was escaping this method uncaught
+        # and _search_and_select_medicine_for_line's own
+        # "except AutomationError" below, hard-aborting the whole invoice
+        # instead of skipping just this one line -- exactly the gap this
+        # incident exposed. Converting it to AutomationError here reuses
+        # the exact same "create_medicine failed" path as an
+        # outcome.success=False failure below, so both failure modes reach
+        # MedicineUnresolvableError identically.
+        try:
+            outcome = self.create_medicine(medicine)
+        except TransientInfrastructureError as exc:
+            raise AutomationError(
+                f"create_medicine failed for '{item.medicine_name}': {exc}"
+            ) from exc
         if not outcome.success:
             raise AutomationError(
                 f"create_medicine failed for '{item.medicine_name}': {outcome.failure_reason}"

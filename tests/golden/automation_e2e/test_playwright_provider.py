@@ -4040,6 +4040,114 @@ class TestFillAndSaveInvoiceSkipsUnresolvableLine:
             entry.get_attribute("data-medicine-name") for entry in retail_log_items
         ] == ["TH1 - Paracetamol 500mg", "TH2 - Amoxicillin 500mg"]
 
+    def test_middle_line_skipped_when_create_medicine_click_times_out(self, page: Page) -> None:
+        """
+        Real "Coldi" incident (2026-08, PO-reported): a genuine Playwright
+        TIMEOUT on create_medicine()'s own medicine.add_new_trigger click
+        (not a plain AutomationError) used to escape this per-line safety
+        net entirely. wrap_playwright_error
+        (infrastructure.automation.automation_errors) classifies EVERY
+        Playwright timeout as TransientInfrastructureError regardless of
+        which action timed out, and create_medicine()'s own _run_outcome
+        deliberately re-raises that type (so a genuinely transient
+        failure elsewhere still reaches Application's RetryPolicy). With
+        nothing actually retrying fill_and_save_invoice at its real call
+        site (composition_root.cli.run_automate has no retry loop around
+        it), that TransientInfrastructureError propagated straight past
+        _search_and_select_medicine_for_line's own "except AutomationError"
+        catch and hard-aborted the WHOLE invoice -- exactly the symptom
+        PO reported (invoice stopped cold on add_new_trigger's own
+        timeout instead of skipping just that one line, the way a plain
+        create_medicine() failure already does).
+        _create_medicine_for_line now converts that specific
+        TransientInfrastructureError into AutomationError so it reaches
+        MedicineUnresolvableError identically to any other create_medicine()
+        failure -- proven here end to end via fill_and_save_invoice itself
+        (unlike TestMedicineResolutionMergedIntoPerLineLoop's own lower-
+        level _search_and_select_medicine_for_line unit tests), with a
+        real Playwright timeout (#tblMain deliberately left with no
+        matching trigger element -- not a mocked/simulated exception) and
+        the surrounding lines still saved.
+        """
+        from datetime import date
+
+        from pharmacy_invoice_automation.domain.entities.medicine import Medicine
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+        from pharmacy_invoice_automation.domain.enums.medicine_type import MedicineType
+        from pharmacy_invoice_automation.domain.ports.services.browser_automation_provider import (
+            ManualFollowUpLineItem,
+        )
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        class _StubMedicineRepository:
+            def __init__(self, medicine: Medicine) -> None:
+                self._medicine = medicine
+
+            def get_by_id(self, medicine_id: str) -> Medicine | None:
+                return self._medicine if medicine_id == self._medicine.id else None
+
+        # The real incident's medicine ("Coldi") is PO-confirmed to
+        # genuinely exist on the live site already -- its own search
+        # returning zero results is a SEPARATE, still-open root cause
+        # (not re-investigated or worked around here; see this task's own
+        # report). This test only proves the safety net's failure-
+        # classification fix, so any name with no fixture search match
+        # reaches the identical create_medicine() fallback path.
+        medicine = Medicine(
+            id="med-coldi",
+            medicine_code="TH-COLDI",
+            name="Coldi Unmatched Name",
+            medicine_type=MedicineType.OVER_THE_COUNTER,
+            unit=Unit(code="vien"),
+        )
+        real_registry = _registry_with_confirmed_vien_label()
+        # Short default_timeout_ms (same pattern as
+        # TestEditMedicineButtonRowScoping's own
+        # test_unknown_row_position_times_out_not_a_silent_wrong_click):
+        # #tblMain is deliberately left EMPTY -- never populated the way
+        # TestMedicineResolutionMergedIntoPerLineLoop's own success-path
+        # test does via page.evaluate -- so medicine.add_new_trigger's
+        # click finds no real match and times out for real, a genuine
+        # Playwright TimeoutError, not a simulated one.
+        config = PlaywrightAutomationConfig(username="u", password="p", default_timeout_ms=500)
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page,
+            real_registry,
+            config,
+            logging.getLogger("test"),
+            medicine_repository=_StubMedicineRepository(medicine),  # type: ignore[arg-type]
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-003", invoice_date=date.today()
+        )
+        invoice.add_item(self._make_item("Paracetamol 500mg", "10000"))
+        unresolvable_item = self._make_item(
+            "Coldi Unmatched Name", "15000", medicine_id="med-coldi"
+        )
+        invoice.add_item(unresolvable_item)
+        invoice.add_item(self._make_item("Amoxicillin 500mg", "20000"))
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome.success is True
+        assert outcome.manual_followup_items == (
+            ManualFollowUpLineItem(
+                line_position=2,
+                medicine_name="Coldi Unmatched Name",
+                quantity=unresolvable_item.quantity,
+                unit_price=unresolvable_item.unit_price,
+            ),
+        )
+
+        # Lines 1 and 3 were actually filled/committed -- line 2's own
+        # add_new_trigger timeout never reached the shared quantity/
+        # price/VAT fields at all (only 2 log entries, not 3).
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["5|10000|", "5|20000|"]
+
     def test_every_line_unresolvable_still_hard_aborts_nothing_saved(self, page: Page) -> None:
         from datetime import date
 
