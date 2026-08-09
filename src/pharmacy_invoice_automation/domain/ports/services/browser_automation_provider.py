@@ -15,10 +15,29 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from decimal import Decimal
 
 from pharmacy_invoice_automation.domain.entities.medicine import Medicine
 from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
 from pharmacy_invoice_automation.domain.entities.supplier import Supplier
+
+
+@dataclass(frozen=True)
+class ManualFollowUpLineItem:
+    """
+    One PurchaseItem that fill_and_save_invoice could not resolve on-site
+    by any automated means (Deviation D11, PO-confirmed 2026-08): every
+    shortened-name search candidate was tried and create_medicine() either
+    failed outright or still left the medicine unfindable. The invoice was
+    still saved without this line -- ``line_position`` (1-based) matches
+    where it would have been in the invoice's own item order, for the
+    operator to locate and fill in by hand directly on the site.
+    """
+
+    line_position: int
+    medicine_name: str
+    quantity: Decimal
+    unit_price: Decimal
 
 
 @dataclass(frozen=True)
@@ -27,6 +46,11 @@ class AutomationOutcome:
 
     success: bool
     failure_reason: str | None = None
+    # Deviation D11 (PO-confirmed 2026-08): non-empty only for a
+    # fill_and_save_invoice call that saved the invoice with 1+ line(s)
+    # skipped -- see ManualFollowUpLineItem. Defaults to empty so every
+    # other existing AutomationOutcome(...) call site is unaffected.
+    manual_followup_items: tuple[ManualFollowUpLineItem, ...] = ()
 
 
 class BrowserAutomationProvider(ABC):

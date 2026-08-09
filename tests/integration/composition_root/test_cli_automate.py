@@ -48,6 +48,7 @@ from pharmacy_invoice_automation.domain.ports.repositories.supplier_repository i
 from pharmacy_invoice_automation.domain.ports.services.browser_automation_provider import (
     AutomationOutcome,
     BrowserAutomationProvider,
+    ManualFollowUpLineItem,
 )
 from pharmacy_invoice_automation.domain.value_objects.money import Money
 from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
@@ -516,3 +517,49 @@ class TestFinishAutomationAttempt:
         reloaded = repository.get_by_id("inv-1")
         assert reloaded is not None
         assert reloaded.status is InvoiceStatus.READY_FOR_IMPORT
+
+    def test_success_with_manual_followups_transitions_to_imported_needs_manual_line(
+        self, container: ServiceContainer
+    ) -> None:
+        # Deviation D11 (PO-confirmed 2026-08): a successful save that
+        # still skipped 1+ line(s) lands on the new status, not IMPORTED,
+        # so it stays discoverable and is never auto-reprocessed.
+        invoice = _seed_ready_invoice(container)
+        invoice.transition_to(InvoiceStatus.IMPORT_IN_PROGRESS)
+        repository = container.resolve(PurchaseInvoiceRepository)
+        repository.update(invoice)
+        outcome = AutomationOutcome(
+            success=True,
+            manual_followup_items=(
+                ManualFollowUpLineItem(
+                    line_position=2,
+                    medicine_name="Coldi-B DNH",
+                    quantity=Decimal("160"),
+                    unit_price=Decimal("45000"),
+                ),
+            ),
+        )
+
+        result = cli._finish_automation_attempt(invoice, repository, outcome, dry_run=False)
+
+        assert result.final_status == InvoiceStatus.IMPORTED_NEEDS_MANUAL_LINE.value
+        reloaded = repository.get_by_id("inv-1")
+        assert reloaded is not None
+        assert reloaded.status is InvoiceStatus.IMPORTED_NEEDS_MANUAL_LINE
+
+    def test_success_with_no_manual_followups_still_transitions_to_imported(
+        self, container: ServiceContainer
+    ) -> None:
+        # Regression check: AutomationOutcome's new manual_followup_items
+        # field defaults to empty, so the ordinary all-lines-succeeded path
+        # must still land on plain IMPORTED, unchanged.
+        invoice = _seed_ready_invoice(container)
+        invoice.transition_to(InvoiceStatus.IMPORT_IN_PROGRESS)
+        repository = container.resolve(PurchaseInvoiceRepository)
+        repository.update(invoice)
+
+        result = cli._finish_automation_attempt(
+            invoice, repository, AutomationOutcome(success=True), dry_run=False
+        )
+
+        assert result.final_status == InvoiceStatus.IMPORTED.value

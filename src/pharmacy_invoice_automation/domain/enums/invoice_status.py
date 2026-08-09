@@ -26,8 +26,14 @@ class InvoiceStatus(str, Enum):
     IMPORT_IN_PROGRESS = "import_in_progress"
     IMPORTED = "imported"
     IMPORT_FAILED = "import_failed"
+    # Deviation D11 (PO-confirmed 2026-08): invoice was genuinely saved on
+    # the real site, but with 1+ line(s) skipped because their medicine
+    # could not be resolved by any automated means -- terminal, same as
+    # IMPORTED, since re-running automation would create a duplicate
+    # invoice on-site rather than complete the missing line.
+    IMPORTED_NEEDS_MANUAL_LINE = "imported_needs_manual_line"
 
     @property
     def is_terminal(self) -> bool:
-        """True only for the one status that should never be re-entered (FR-15)."""
-        return self is InvoiceStatus.IMPORTED
+        """True for statuses that should never be re-entered (FR-15)."""
+        return self in (InvoiceStatus.IMPORTED, InvoiceStatus.IMPORTED_NEEDS_MANUAL_LINE)

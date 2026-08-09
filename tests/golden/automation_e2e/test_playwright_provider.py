@@ -1805,6 +1805,108 @@ class TestMedicineSearchResultDisambiguation:
         assert provider.search_medicine("Coldi-B DNH") is True
 
 
+class TestMedicineResultSelectionIsOrderIndependent:
+    """
+    PO's own real observation (2026-08): typing "Coldi" during a live
+    run showed the dropdown's row order had changed since a prior run
+    (the "Coldi" row moved from position 3-4 to position 1), and PO
+    suspected this reordering might explain a click failure -- asked
+    for REAL confirmation, not an assumption from reading the code.
+
+    _locate_parameterized's 'text_ends_with' strategy (see its own
+    docstring/registry notes) is a pure CONTENT filter --
+    ``Locator.filter(has_text=pattern)`` over every element matching
+    the CSS tag -- never indexed by position, so by design a row's DOM
+    order should not affect which element gets clicked. This test
+    proves that empirically: it physically reorders the fixture's own
+    TH4/TH5 rows (swapping "Coldi" from its normal 4th position to
+    AFTER "Coldi-B DNH") via a real DOM mutation, through the exact
+    same real Playwright Locator/filter/click machinery
+    _search_and_select_medicine_for_line always uses -- not asserted
+    from code-reading alone.
+    """
+
+    @staticmethod
+    def _make_item(medicine_name: str, medicine_id: str = "med-1"):
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        return PurchaseItem(
+            id="item-1",
+            medicine_name=medicine_name,
+            unit=Unit(code="vien"),
+            quantity=Quantity(Decimal("5")),
+            unit_price=Money(Decimal("10000")),
+            medicine_id=medicine_id,
+            retail_units_per_purchase_unit=1,
+        )
+
+    @staticmethod
+    def _reverse_coldi_rows(page: Page) -> None:
+        """Moves TH5's <div role="row"> to right before TH4's, in the live DOM."""
+        page.evaluate(
+            """
+            () => {
+                const table = document.getElementById("medicine-search-results-table");
+                const rows = Array.from(table.querySelectorAll('[role="row"]'));
+                const th4Row = rows.find((r) => r.querySelector('[data-medicine-result="TH4"]'));
+                const th5Row = rows.find((r) => r.querySelector('[data-medicine-result="TH5"]'));
+                table.insertBefore(th5Row, th4Row);
+            }
+            """
+        )
+
+    def test_selects_coldi_not_coldi_b_dnh_even_after_the_dropdown_order_is_reversed(
+        self, provider: PlaywrightBrowserAutomationProvider, page: Page
+    ) -> None:
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._reverse_coldi_rows(page)
+        # Real confirmation the reorder actually happened, not a no-op.
+        reordered_texts = page.locator("#medicine-search-results-table b").all_inner_texts()
+        assert reordered_texts.index("TH5 - Coldi-B DNH") < reordered_texts.index("TH4 - Coldi")
+
+        provider._search_and_select_medicine_for_line(self._make_item("Coldi"), 0)  # noqa: SLF001
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH4"]
+
+    def test_selects_coldi_b_dnh_not_coldi_even_after_the_dropdown_order_is_reversed(
+        self, provider: PlaywrightBrowserAutomationProvider, page: Page
+    ) -> None:
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._reverse_coldi_rows(page)
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Coldi-B DNH"), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
+
+    def test_position_diag_log_reflects_the_real_reordered_index_not_a_stale_assumption(
+        self,
+        provider: PlaywrightBrowserAutomationProvider,
+        page: Page,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        # Confirms the new DIAG position log (added alongside this test,
+        # PO's own request to log this from every real run going
+        # forward) reports the row's genuine, current DOM index -- not
+        # a hardcoded/cached one -- so a future real run's log can
+        # actually be trusted to answer "was position the cause?".
+        caplog.set_level(logging.INFO)
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._reverse_coldi_rows(page)
+
+        provider._search_and_select_medicine_for_line(self._make_item("Coldi"), 0)  # noqa: SLF001
+
+        # TH1, TH2, TH3, TH5("Coldi-B DNH"), TH4("Coldi"), TH6, TH7 --
+        # "Coldi" is now the 5th <b> element, index 4 (0-based).
+        assert "DIAG vi tri ket qua thuoc 'Coldi': index (0-based)=[4]" in caplog.text
+
+
 class TestMedicineSearchStripsPackagingDescription:
     """
     Bug fix (2026-08, PO-confirmed via 3 real screenshots, root-caused
@@ -3399,7 +3501,7 @@ class TestUpdateRetailPricesAfterSave:
         invoice.add_item(_make_item("100000"))
         invoice.add_item(_make_item("120840"))
 
-        provider._update_retail_prices_after_save(invoice)  # noqa: SLF001
+        provider._update_retail_prices_after_save(invoice, {0: 1, 1: 2})  # noqa: SLF001
 
         log_entries = page.locator("#retail-price-log li").all_text_contents()
         assert log_entries == ["1|120000", "2|145000"]
@@ -3441,7 +3543,7 @@ class TestUpdateRetailPricesAfterSave:
                 )
             )
 
-        provider._update_retail_prices_after_save(invoice)  # noqa: SLF001
+        provider._update_retail_prices_after_save(invoice, {0: 1, 1: 2})  # noqa: SLF001
 
         assert page.evaluate("window.editLinkClicks") == 1
         assert page.locator("#retail-price-log li").count() == 2
@@ -3710,3 +3812,210 @@ class TestBatchEditButtonRowScoping:
 
         with pytest.raises(TransientInfrastructureError):
             short_timeout_provider._click_batch_edit_button_for_row(5)  # noqa: SLF001
+
+
+class TestFillAndSaveInvoiceSkipsUnresolvableLine:
+    """
+    Deviation D11 (PO-approved 2026-08): when exactly one line's medicine
+    search has genuinely exhausted every automated resolution option --
+    every shortened-name search candidate tried, AND create_medicine()
+    itself fails (here: no MedicineRepository was injected, so
+    _create_medicine_for_line raises AutomationError immediately -- the
+    same "create_medicine's own click fails" case
+    TestMedicineResolutionMergedIntoPerLineLoop's own
+    test_medicine_still_missing_after_create_raises_instead_of_selecting_the_wrong_row
+    already exercises directly against
+    _search_and_select_medicine_for_line in isolation) --
+    fill_and_save_invoice now SKIPS just that one line (no site row is
+    ever created for it) and still saves the invoice with every other
+    line, instead of aborting the whole invoice the way every other
+    AutomationError still does.
+
+    Deliberately uses a short (4-character), single-word, nonsense
+    medicine name for the unresolvable line: per
+    _medicine_search_fill_candidates's own docstring, a single word at
+    or below _MEDICINE_SEARCH_MIN_CHAR_TRUNCATION_LENGTH (4 chars)
+    produces exactly ONE search candidate (no word-level truncation --
+    only one word exists to drop -- and no char-level truncation either,
+    since the word is already at the floor length) -- bounding this
+    class's own real _SEARCH_RESULT_POLL_BUDGET_MS wait to a single ~8s
+    poll per unresolvable line, instead of the 6+ candidates (48s+) a
+    longer, more realistic-looking name like
+    TestMedicineResolutionMergedIntoPerLineLoop's own "Totally Unknown
+    Drug" costs there.
+    """
+
+    @staticmethod
+    def _remove_supplier_dialog_tbody(page: Page) -> None:
+        # See TestTwoPhaseFillAndSaveInvoice's identical helper.
+        page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
+
+    @staticmethod
+    def _make_item(medicine_name: str, unit_price: str, **overrides: object):
+        import uuid
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        defaults: dict[str, object] = {
+            "id": str(uuid.uuid4()),
+            "medicine_name": medicine_name,
+            "unit": Unit(code="vien"),
+            "quantity": Quantity(Decimal("5")),
+            "unit_price": Money(Decimal(unit_price)),
+            "retail_units_per_purchase_unit": 1,
+        }
+        defaults.update(overrides)
+        return PurchaseItem(**defaults)  # type: ignore[arg-type]
+
+    def test_middle_line_skipped_invoice_still_saved_with_correct_site_row_bookkeeping(
+        self, page: Page
+    ) -> None:
+        from datetime import date
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.batch import Batch
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+        from pharmacy_invoice_automation.domain.ports.services.browser_automation_provider import (
+            ManualFollowUpLineItem,
+        )
+        from pharmacy_invoice_automation.domain.value_objects.expiry_date import ExpiryDate
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+
+        batch = Batch(
+            id="batch-1",
+            medicine_id="med-3",
+            batch_number="B111",
+            expiry_date=ExpiryDate(date(2027, 1, 1)),
+            quantity_received=Quantity(Decimal("5")),
+        )
+
+        class _StubBatchRepository:
+            def get_by_id(self, batch_id: str) -> Batch:
+                assert batch_id == "batch-1"
+                return batch
+
+        # Deliberately NO medicine_repository -- forces
+        # _create_medicine_for_line to raise AutomationError immediately
+        # for the unresolvable line's own create_medicine() fallback.
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page,
+            real_registry,
+            config,
+            logging.getLogger("test"),
+            batch_repository=_StubBatchRepository(),  # type: ignore[arg-type]
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-001", invoice_date=date.today()
+        )
+        invoice.add_item(self._make_item("Paracetamol 500mg", "10000"))
+        unresolvable_item = self._make_item("Zqxv", "15000")
+        invoice.add_item(unresolvable_item)
+        # Real gap found while writing this test (2026-08) and FIXED in the
+        # same change (this file, ~line 665-691): Phase 1's own
+        # _verify_unit_matches_invoice/_search_and_select_medicine_for_line
+        # calls used to index the active row by the item's raw Python-list
+        # `index`, never adjusted for a skip earlier in the same invoice --
+        # unlike site_positions, which Phase 2/the post-save retail-price
+        # update already used correctly. Both call sites now pass
+        # site_row_count (the real, already-committed row count) instead.
+        # confirmed_website_unit_ratio is kept here anyway -- not needed
+        # for correctness any more, but keeps this test focused on its own
+        # actual target (Phase 2's batch attach + the post-save
+        # retail-price update's site_positions-based indexing) rather than
+        # also re-verifying Phase 1's unit-match indexing, which is a
+        # separate concern.
+        invoice.add_item(
+            self._make_item(
+                "Amoxicillin 500mg",
+                "20000",
+                batch_id="batch-1",
+                confirmed_website_unit_ratio=Decimal("1"),
+            )
+        )
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome.success is True
+        # Deviation D11: ManualFollowUpLineItem.quantity/unit_price
+        # actually carry the real Quantity/Money value objects (see
+        # fill_and_save_invoice's own manual_followups.append call),
+        # never a bare Decimal -- despite the port dataclass's own field
+        # annotations reading "Decimal" -- so this compares against
+        # unresolvable_item's own VOs directly, matching real runtime
+        # behavior rather than the (currently inaccurate) annotation.
+        assert outcome.manual_followup_items == (
+            ManualFollowUpLineItem(
+                line_position=2,
+                medicine_name="Zqxv",
+                quantity=unresolvable_item.quantity,
+                unit_price=unresolvable_item.unit_price,
+            ),
+        )
+
+        # Lines 1 and 3 were actually filled/committed -- line 2 never
+        # reached the shared quantity/price/VAT fields at all (only 2
+        # log entries, not 3).
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["5|10000|", "5|20000|"]
+
+        # Critical regression check (Deviation D11): line 3's batch must
+        # attach to SITE row 2 (its real, actually-created row after
+        # line 2 was skipped), never row 3 (line 3's own Python-list
+        # position + 1 -- the old, un-adjusted formula -- which would
+        # silently hit the still-empty TRAILING row instead of erroring).
+        batch_log_entries = page.locator("#batch-fill-log li").all_text_contents()
+        assert batch_log_entries == ["2|B111|2027-01-01"]
+
+        # Same regression, via the separate post-save retail-price-update
+        # path (_update_retail_prices_after_save) -- must also target
+        # SITE row 2 for line 3, not row 3.
+        retail_log_items = page.locator("#retail-price-log li").all()
+        assert [entry.get_attribute("data-row") for entry in retail_log_items] == ["1", "2"]
+        assert [
+            entry.get_attribute("data-medicine-name") for entry in retail_log_items
+        ] == ["TH1 - Paracetamol 500mg", "TH2 - Amoxicillin 500mg"]
+
+    def test_every_line_unresolvable_still_hard_aborts_nothing_saved(self, page: Page) -> None:
+        from datetime import date
+
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+
+        # Deliberately no medicine_repository -- both lines' medicines
+        # are genuinely unresolvable. Preserves the OLD all-or-nothing
+        # safety net for the fully-degenerate case: site_positions ends
+        # up empty, so fill_and_save_invoice must still hard-abort
+        # instead of "saving" an invoice with zero real lines on it.
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        self._remove_supplier_dialog_tbody(page)
+
+        invoice = PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-002", invoice_date=date.today()
+        )
+        invoice.add_item(self._make_item("Zqxv", "15000"))
+        invoice.add_item(self._make_item("Wbjk", "25000"))
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome.success is False
+        assert "every line item failed medicine resolution" in (outcome.failure_reason or "")
+        # A hard-aborted invoice reports no manual follow-ups -- there is
+        # nothing to "follow up on" for an invoice that was never saved.
+        assert outcome.manual_followup_items == ()
+
+        # Nothing was ever committed or saved.
+        assert page.locator("#line-fill-log li").count() == 0
+        assert page.locator("#edit-invoice-link").is_hidden()

@@ -19,8 +19,8 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
@@ -46,10 +46,12 @@ from pharmacy_invoice_automation.domain.ports.repositories.supplier_repository i
 from pharmacy_invoice_automation.domain.ports.services.browser_automation_provider import (
     AutomationOutcome,
     BrowserAutomationProvider,
+    ManualFollowUpLineItem,
 )
 from pharmacy_invoice_automation.domain.services.price_policy import PricePolicy
 from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
     AutomationError,
+    MedicineUnresolvableError,
     SelectorNotUsableError,
     UnitMismatchError,
     VerificationFailedError,
@@ -635,26 +637,78 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         never does.
         """
 
+        # Deviation D11 (PO-confirmed 2026-08): populated by _do() below when
+        # one or more lines are skipped -- read back after _run_outcome
+        # returns, since _run_outcome's own Callable[[], None] contract
+        # (shared by every other method in this file) has no return value
+        # to carry this through.
+        manual_followups: list[ManualFollowUpLineItem] = []
+
         def _do() -> None:
             self._fill("invoice.number_field", invoice.invoice_number)
             self._fill_invoice_date_and_verify(invoice.invoice_date)
             supplier = self._resolve_invoice_supplier(invoice)
 
+            # Deviation D11 (PO-confirmed 2026-08): site rows are no longer
+            # guaranteed 1:1 with invoice.items position -- a line whose
+            # medicine is genuinely unresolvable is skipped (no row ever
+            # created for it) rather than aborting the whole invoice.
+            # site_positions maps invoice.items index -> 1-based site row
+            # position, tracking only rows that actually got created, so
+            # every downstream row-indexed step (Phase 2 batch fill, the
+            # post-save retail-price edit) addresses the real site row
+            # instead of the Python-list position.
+            site_positions: dict[int, int] = {}
+            site_row_count = 0
             for index, item in enumerate(invoice.items):
-                self._search_and_select_medicine_for_line(item, index, supplier)
-                self._verify_unit_matches_invoice(item, index)
+                # Deviation D11: both _search_and_select_medicine_for_line's
+                # own "is this the very first row on a fresh form" check and
+                # _verify_unit_matches_invoice's row lookup need the site's
+                # own actually-committed row count (site_row_count, before
+                # this item's own increment below) -- NOT the raw
+                # invoice.items list position, which can now run ahead of
+                # the real site once an earlier line has been skipped.
+                try:
+                    self._search_and_select_medicine_for_line(item, site_row_count, supplier)
+                except MedicineUnresolvableError as exc:
+                    self._logger.error(
+                        "fill_and_save_invoice: line %d (%s) could not be resolved on-site "
+                        "by any automated means (%s) -- skipping this line, invoice will "
+                        "still be saved without it.",
+                        index + 1,
+                        item.medicine_name,
+                        exc,
+                    )
+                    manual_followups.append(
+                        ManualFollowUpLineItem(
+                            line_position=index + 1,
+                            medicine_name=item.medicine_name,
+                            quantity=item.quantity,
+                            unit_price=item.unit_price,
+                        )
+                    )
+                    continue
+                self._verify_unit_matches_invoice(item, site_row_count)
                 quantity_to_fill, unit_price_to_fill = self._quantity_and_price_for_fill(item)
                 self._fill("invoice_line.quantity_field", str(quantity_to_fill))
                 self._fill("invoice_line.unit_price_field", str(unit_price_to_fill))
                 if item.tax_type is not None:
                     self._fill("invoice_line.vat_field", self._format_tax_percentage(item.tax_type))
                 self._click("invoice_line.add_row_button")
-                self._wait_for_row_settled(index + 2)
+                site_row_count += 1
+                self._wait_for_row_settled(site_row_count + 1)
+                site_positions[index] = site_row_count
+
+            if invoice.items and not site_positions:
+                raise AutomationError(
+                    "fill_and_save_invoice: every line item failed medicine resolution -- "
+                    "nothing to save."
+                )
 
             for index, item in enumerate(invoice.items):
-                if item.batch_id is None:
+                if index not in site_positions or item.batch_id is None:
                     continue
-                self._click_batch_edit_button_for_row(index + 1)
+                self._click_batch_edit_button_for_row(site_positions[index])
                 batch = self._resolve_batch(item.batch_id)
                 self._fill("invoice_line.batch_number_field", batch.batch_number)
                 self._fill("invoice_line.expiry_date_field", str(batch.expiry_date))
@@ -678,14 +732,20 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
             # "Gia ban le" is a Medicine-level price, not a per-line one --
             # confirmed (05_full_flow...py:146-151) only reachable via an
-            # edit flow AFTER the first save. Nothing to update on an
-            # empty invoice.
-            if invoice.items:
-                self._update_retail_prices_after_save(invoice)
+            # edit flow AFTER the first save. Nothing to update on a
+            # genuinely empty invoice or one where every line was skipped
+            # (the latter already raised above, but an empty invoice.items
+            # reaches here with site_positions also empty and is not itself
+            # an error).
+            if site_positions:
+                self._update_retail_prices_after_save(invoice, site_positions)
                 self._click("invoice.save_button")
                 self._verify_saved()
 
-        return self._run_outcome("fill_and_save_invoice", _do)
+        outcome = self._run_outcome("fill_and_save_invoice", _do)
+        if outcome.success and manual_followups:
+            return replace(outcome, manual_followup_items=tuple(manual_followups))
+        return outcome
 
     @staticmethod
     def _format_tax_percentage(tax_type: TaxType) -> str:
@@ -832,15 +892,30 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
             return
 
         if not self._fill_and_check_medicine_result(search_key, search_name):
-            self._create_medicine_for_line(item)
+            # Deviation D11 (PO-confirmed 2026-08): both failure modes below
+            # mean this line's medicine has genuinely exhausted every
+            # automated resolution option -- raised as MedicineUnresolvableError
+            # (not a plain AutomationError) so fill_and_save_invoice's
+            # per-line loop can skip only this one line and keep going,
+            # instead of aborting the whole invoice. Deliberately scoped to
+            # just this block -- the ambiguous-match human-selection path
+            # below (_disambiguate_via_human_selection) still raises a plain
+            # VerificationFailedError and still hard-aborts, unchanged.
+            try:
+                self._create_medicine_for_line(item)
+            except AutomationError as exc:
+                raise MedicineUnresolvableError(
+                    f"Medicine '{item.medicine_name}' could not be created on-site: {exc}"
+                ) from exc
             if not self._fill_and_check_medicine_result(search_key, search_name):
-                raise AutomationError(
+                raise MedicineUnresolvableError(
                     f"Medicine '{item.medicine_name}' (searched as '{search_name}') still has "
                     "no matching search result immediately after create_medicine() -- cannot "
                     "select it for this invoice line."
                 )
 
         result_entry = self._registry.require_usable("medicine.search_result_option")
+        self._log_medicine_result_position(result_entry, search_name)
         matches = self._locate_parameterized(result_entry, search_name)
         if matches.count() > 1:
             self._disambiguate_via_human_selection(search_key, matches, item, supplier)
@@ -848,6 +923,41 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
         self._click_parameterized("medicine.search_result_option", search_name)
         self._page.wait_for_timeout(self._MEDICINE_SELECTION_SETTLE_MS)
+
+    def _log_medicine_result_position(self, entry: SelectorEntry, runtime_text: str) -> None:
+        """
+        DIAG (2026-08, PO's own real observation during a live run:
+        typing "Coldi" showed the dropdown in a different row order than
+        prior runs -- "Coldi" moved from row 3-4 to row 1 -- and PO
+        suspected this reordering might explain a click failure).
+
+        By design, _locate_parameterized's 'text_ends_with' strategy is
+        a pure CONTENT filter (Locator.filter(has_text=...)) applied to
+        every currently-matching element -- it is never indexed by
+        position, so a row's on-screen/DOM order should have no effect
+        on which element gets clicked. This method exists only to make
+        that verifiable from a real run's own log rather than asserted
+        from code-reading alone: it records the 0-based index (current
+        DOM order) of whichever result(s) end with ``runtime_text``
+        among ALL results present at this exact moment, purely for
+        later correlation against any selection failure. Read-only --
+        never used to decide what gets clicked; the real click a few
+        lines below still goes through the exact same content-filtered
+        Locator it always has.
+        """
+        if entry.value is None:
+            return
+        root = self._resolve_scope(entry)
+        all_texts = root.locator(entry.value).all_inner_texts()
+        pattern = re.compile(re.escape(runtime_text) + r"$", re.IGNORECASE)
+        matched_indexes = [i for i, text in enumerate(all_texts) if pattern.search(text)]
+        self._logger.info(
+            "DIAG vi tri ket qua thuoc '%s': index (0-based)=%s trong tong %d ket qua "
+            "hien co.",
+            runtime_text,
+            matched_indexes,
+            len(all_texts),
+        )
 
     def _verify_unit_matches_invoice(self, item: PurchaseItem, index: int) -> None:
         """
@@ -1613,8 +1723,16 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
 
     # --- internal: suggested retail price (post-save edit flow) ---------------
 
-    def _update_retail_prices_after_save(self, invoice: PurchaseInvoice) -> None:
+    def _update_retail_prices_after_save(
+        self, invoice: PurchaseInvoice, site_positions: Mapping[int, int]
+    ) -> None:
         """
+        ``site_positions`` (Deviation D11, PO-confirmed 2026-08): maps
+        invoice.items index -> 1-based site row position, as built by
+        fill_and_save_invoice's own Phase 1 loop. Only items present in
+        this mapping actually have a row on-site to edit -- a line skipped
+        for genuine medicine-resolution failure has none, so it is skipped
+        here too rather than indexing into a row that was never created.
         PO amendment (2026-08): medicine.retail_price_field ("Gia ban
         le") is confirmed to belong to the medicine edit dialog, reached
         via Sua -> Chinh sua thuoc, only AFTER the invoice has been saved
@@ -1655,7 +1773,9 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         """
         self._click("invoice.edit_link")
         for index, item in enumerate(invoice.items):
-            self._click_edit_medicine_button_for_row(index + 1)
+            if index not in site_positions:
+                continue
+            self._click_edit_medicine_button_for_row(site_positions[index])
             suggested_retail_price = self._price_policy.calculate_suggested_retail_price(
                 item.unit_price
             )

@@ -865,7 +865,7 @@ def _resolve_supplier_on_site(
 ) -> AutomationOutcome:
     if invoice.supplier_id is None:
         return AutomationOutcome(
-            success=False, failure_reason="Invoice has no resolved supplier_id."
+            success=False, failure_reason="Hóa đơn chưa xác định được nhà cung cấp."
         )
 
     # Bug fix (PO-confirmed 2026-08, a "forgot to wire it up" gap, not a
@@ -880,7 +880,9 @@ def _resolve_supplier_on_site(
     try:
         found = provider.search_supplier(supplier_name)
     except Exception as exc:  # noqa: BLE001
-        return AutomationOutcome(success=False, failure_reason=f"search_supplier raised: {exc}")
+        return AutomationOutcome(
+            success=False, failure_reason=f"Lỗi khi tìm nhà cung cấp trên web: {exc}"
+        )
 
     if found:
         return provider.select_supplier(supplier_name)
@@ -889,10 +891,27 @@ def _resolve_supplier_on_site(
     if supplier is None:
         return AutomationOutcome(
             success=False,
-            failure_reason=f"Supplier '{invoice.supplier_id}' referenced by this invoice was "
-            "not found in the local database.",
+            failure_reason=f"Không tìm thấy nhà cung cấp '{invoice.supplier_id}' (được hóa "
+            "đơn này tham chiếu) trong cơ sở dữ liệu.",
         )
     return provider.create_supplier(supplier)
+
+
+def _print_manual_followup_report(invoice: PurchaseInvoice, outcome: AutomationOutcome) -> None:
+    """
+    Deviation D11 (PO-confirmed 2026-08): list every line
+    fill_and_save_invoice could not resolve on-site by any automated
+    means, so the operator knows exactly what to finish by hand directly
+    on the site -- never silently buried in a log line only.
+    """
+    if not outcome.manual_followup_items:
+        return
+    _print(f"  Còn {len(outcome.manual_followup_items)} dòng CẦN BẠN TỰ ĐIỀN TAY trên web:")
+    for item in outcome.manual_followup_items:
+        _print(
+            f"    - Dòng {item.line_position}: {item.medicine_name} -- "
+            f"SL={item.quantity} Đơn giá={item.unit_price}"
+        )
 
 
 def _finish_automation_attempt(
@@ -914,6 +933,7 @@ def _finish_automation_attempt(
                 "  [DRY-RUN] Đã điền xong nhà cung cấp + dòng hàng, KHÔNG bấm 'Ghi Phiếu'. "
                 "Xem lại trên trình duyệt thật để kiểm tra trước khi chạy thật."
             )
+            _print_manual_followup_report(invoice, outcome)
         else:
             _print(f"  [DRY-RUN] Dừng do lỗi: {outcome.failure_reason}")
         return AutomationRunOutcome(
@@ -926,9 +946,21 @@ def _finish_automation_attempt(
         )
 
     if outcome.success:
-        invoice.transition_to(InvoiceStatus.IMPORTED)
-        purchase_invoice_repository.update(invoice)
-        _print("  -> ĐÃ NHẬP THÀNH CÔNG lên website.")
+        # Deviation D11 (PO-confirmed 2026-08): the invoice was genuinely
+        # saved on-site, but with 1+ line(s) skipped for a genuine
+        # medicine-resolution failure -- IMPORTED_NEEDS_MANUAL_LINE
+        # instead of IMPORTED, so it stays discoverable later (not just a
+        # log line someone might miss) and is never auto-reprocessed
+        # (which would create a duplicate invoice on-site).
+        if outcome.manual_followup_items:
+            invoice.transition_to(InvoiceStatus.IMPORTED_NEEDS_MANUAL_LINE)
+            purchase_invoice_repository.update(invoice)
+            _print("  -> ĐÃ LƯU MỘT PHẦN lên website.")
+            _print_manual_followup_report(invoice, outcome)
+        else:
+            invoice.transition_to(InvoiceStatus.IMPORTED)
+            purchase_invoice_repository.update(invoice)
+            _print("  -> ĐÃ NHẬP THÀNH CÔNG lên website.")
     else:
         invoice.transition_to(InvoiceStatus.IMPORT_FAILED)
         invoice.transition_to(InvoiceStatus.READY_FOR_IMPORT)

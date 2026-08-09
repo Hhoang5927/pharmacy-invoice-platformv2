@@ -47,6 +47,25 @@ class SelectorNotUsableError(AutomationError):
     """
 
 
+class MedicineUnresolvableError(AutomationError):
+    """
+    Raised by
+    infrastructure.automation.playwright_adapter.PlaywrightBrowserAutomationProvider._search_and_select_medicine_for_line
+    when a line's medicine has genuinely exhausted every automated
+    resolution option -- every shortened-name search candidate tried, and
+    either create_medicine() itself failed (e.g. an add_new_trigger click
+    that resolves to more than one element) or the medicine is still not
+    findable immediately afterward (Deviation D11, PO-confirmed 2026-08).
+
+    Deliberately NOT a VerificationFailedError subclass: this line was
+    never entered in the first place, so it is not "an entered value that
+    failed verification" -- fill_and_save_invoice catches this specific
+    type to skip only this one line and keep filling the rest of the
+    invoice, instead of aborting the whole invoice the way every other
+    AutomationError still does.
+    """
+
+
 class VerificationFailedError(AutomationError):
     """
     Raised when a value read back from the page after entry does not

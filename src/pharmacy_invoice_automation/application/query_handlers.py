@@ -28,6 +28,10 @@ from pharmacy_invoice_automation.domain.ports.repositories.purchase_invoice_repo
 from pharmacy_invoice_automation.domain.validators.invoice_validator import InvoiceValidator
 
 _TERMINAL_FAILED_STATUSES = (InvoiceStatus.OCR_FAILED, InvoiceStatus.IMPORT_FAILED)
+# Deviation D11 (PO-confirmed 2026-08): a genuinely saved-on-site invoice
+# missing only a manually-completed line still counts as completed here,
+# not "remaining" -- the automation pipeline has nothing left to do with it.
+_TERMINAL_COMPLETED_STATUSES = (InvoiceStatus.IMPORTED, InvoiceStatus.IMPORTED_NEEDS_MANUAL_LINE)
 
 
 class GetInvoiceStatusQueryHandler:
@@ -69,7 +73,7 @@ class GetBatchProgressQueryHandler:
 
     def _reconstruct_from_repository(self, project_id: str) -> BatchProgressDTO:
         invoices = self._purchase_invoice_repository.list_by_project(project_id)
-        completed = sum(1 for invoice in invoices if invoice.status is InvoiceStatus.IMPORTED)
+        completed = sum(1 for invoice in invoices if invoice.status in _TERMINAL_COMPLETED_STATUSES)
         failed = sum(1 for invoice in invoices if invoice.status in _TERMINAL_FAILED_STATUSES)
         needs_review = sum(
             1 for invoice in invoices if invoice.status is InvoiceStatus.UNDER_REVIEW

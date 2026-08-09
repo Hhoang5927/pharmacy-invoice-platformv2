@@ -47,10 +47,15 @@ VALID_STATUS_TRANSITIONS: dict[InvoiceStatus, frozenset[InvoiceStatus]] = {
     InvoiceStatus.UNDER_REVIEW: frozenset({InvoiceStatus.READY_FOR_IMPORT}),
     InvoiceStatus.READY_FOR_IMPORT: frozenset({InvoiceStatus.IMPORT_IN_PROGRESS}),
     InvoiceStatus.IMPORT_IN_PROGRESS: frozenset(
-        {InvoiceStatus.IMPORTED, InvoiceStatus.IMPORT_FAILED}
+        {
+            InvoiceStatus.IMPORTED,
+            InvoiceStatus.IMPORT_FAILED,
+            InvoiceStatus.IMPORTED_NEEDS_MANUAL_LINE,  # Deviation D11 (PO-confirmed 2026-08)
+        }
     ),
     InvoiceStatus.IMPORT_FAILED: frozenset({InvoiceStatus.READY_FOR_IMPORT}),
     InvoiceStatus.IMPORTED: frozenset(),  # terminal -- never re-entered (FR-15)
+    InvoiceStatus.IMPORTED_NEEDS_MANUAL_LINE: frozenset(),  # terminal, see D11
 }
 
 # --- Default currency (value_objects.money.Money) ---
