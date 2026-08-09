@@ -96,6 +96,7 @@ from pharmacy_invoice_automation.domain.validators.invoice_validator import Invo
 from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
     UnitMismatchError,
 )
+from pharmacy_invoice_automation.infrastructure.config.settings_manager import SettingsManager
 from pharmacy_invoice_automation.infrastructure.di.service_container import ServiceContainer
 from pharmacy_invoice_automation.infrastructure.file_storage.workspace_manager import (
     WorkspaceManager,
@@ -148,6 +149,9 @@ def _build_party_matching_step(container: ServiceContainer) -> PartyMatchingStep
         medicine_repository=container.resolve(MedicineRepository),
         ai_provider=None,
         allow_ai_fallback_classification=False,
+        medicine_code_prefix=container.resolve(SettingsManager).get_setting(
+            "medicine_code_prefix"
+        ),
     )
 
 

@@ -3,8 +3,8 @@ SqliteMedicineRepository: implements
 domain.ports.repositories.MedicineRepository against SQLite.
 
 get_highest_code_sequence_number parses the numeric suffix off every
-existing "TH<N>" medicine_code in SQL-returned rows (Python-side, not
-in SQL, since SQLite has no reliable way to extract-and-cast an
+existing "<prefix><N>" medicine_code in SQL-returned rows (Python-side,
+not in SQL, since SQLite has no reliable way to extract-and-cast an
 arbitrary numeric substring safely) -- used by
 services.medicine_validation_service.MedicineValidationService to
 generate the next unique code.
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from pharmacy_invoice_automation.domain.constants import MEDICINE_CODE_PREFIX
 from pharmacy_invoice_automation.domain.entities.medicine import Medicine
 from pharmacy_invoice_automation.domain.enums.medicine_type import MedicineType
 from pharmacy_invoice_automation.domain.ports.repositories.medicine_repository import (
@@ -33,8 +34,20 @@ _COLUMNS = (
 class SqliteMedicineRepository(MedicineRepository):
     """SQLite-backed persistence for Medicine."""
 
-    def __init__(self, connection_manager: SqliteConnectionManager) -> None:
+    def __init__(
+        self,
+        connection_manager: SqliteConnectionManager,
+        medicine_code_prefix: str = MEDICINE_CODE_PREFIX,
+    ) -> None:
         self._connection_manager = connection_manager
+        # PO decision (2026-08): each pharmacy this system processes
+        # invoices for is a separate, independent operation, so the code
+        # prefix must be changeable between runs (AppSettings
+        # .medicine_code_prefix, config/app_settings.default.toml)
+        # without a code change -- defaults to the same domain-level
+        # MEDICINE_CODE_PREFIX ("TH") every existing caller/test already
+        # relies on.
+        self._medicine_code_prefix = medicine_code_prefix
 
     @property
     def _connection(self) -> sqlite3.Connection:
@@ -69,14 +82,18 @@ class SqliteMedicineRepository(MedicineRepository):
         return self._to_entity(row) if row is not None else None
 
     def get_highest_code_sequence_number(self) -> int:
-        """Return the highest numeric suffix across every 'TH<N>' medicine_code (0 if none)."""
+        """
+        Return the highest numeric suffix across every
+        '<medicine_code_prefix><N>' medicine_code (0 if none).
+        """
         rows = self._connection.execute("SELECT medicine_code FROM medicines;").fetchall()
         highest = 0
+        prefix_len = len(self._medicine_code_prefix)
         for row in rows:
             code = row["medicine_code"]
-            if code.startswith("TH"):
+            if code.startswith(self._medicine_code_prefix):
                 try:
-                    highest = max(highest, int(code[2:]))
+                    highest = max(highest, int(code[prefix_len:]))
                 except ValueError:
                     continue
         return highest

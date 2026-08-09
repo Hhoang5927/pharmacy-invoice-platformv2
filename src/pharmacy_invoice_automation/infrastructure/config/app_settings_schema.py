@@ -50,6 +50,19 @@ class AppSettings:
     # minutes) before failing cleanly instead of hanging forever.
     automation_human_disambiguation_timeout_seconds: float = 180.0
 
+    # --- Medicine catalog ---
+    # PO decision (2026-08): each pharmacy this system processes invoices
+    # for is a separate, independent operation with its own catalog
+    # (Business Rules: "Ma thuoc: TH1, TH2, TH3..."), so this must be
+    # changeable per run (e.g. "DTN") without a code change -- "TH"
+    # remains the default when left unconfigured. Consumed by
+    # infrastructure.persistence.sqlite_repositories.medicine_repository
+    # .SqliteMedicineRepository and threaded through
+    # application.pipeline.party_matching_step.PartyMatchingStep into
+    # domain.services.medicine_validation_service.MedicineValidationService
+    # .generate_next_medicine_code.
+    medicine_code_prefix: str = "TH"
+
     # --- Price lookup ---
     price_cache_ttl_hours: float = 24.0
 
@@ -78,6 +91,8 @@ class AppSettings:
             raise ValueError("automation_navigation_timeout_seconds must be positive.")
         if self.automation_human_disambiguation_timeout_seconds <= 0:
             raise ValueError("automation_human_disambiguation_timeout_seconds must be positive.")
+        if not self.medicine_code_prefix.strip():
+            raise ValueError("medicine_code_prefix cannot be empty.")
         if self.price_cache_ttl_hours < 0:
             raise ValueError("price_cache_ttl_hours cannot be negative.")
         if self.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):

@@ -69,7 +69,9 @@ class MedicineValidationService:
             f"not stated on the invoice and no prior classification on file."
         )
 
-    def generate_next_medicine_code(self, highest_existing_sequence_number: int) -> Result[str]:
+    def generate_next_medicine_code(
+        self, highest_existing_sequence_number: int, prefix: str | None = None
+    ) -> Result[str]:
         """
         Given the highest sequence number already in use across the
         catalog (0 if none), return the next unique medicine code, e.g.
@@ -79,6 +81,14 @@ class MedicineValidationService:
         ``highest_existing_sequence_number`` via
         MedicineRepository.get_highest_code_sequence_number() before
         calling this method.
+
+        ``prefix`` (PO decision, 2026-08): each pharmacy this system
+        processes invoices for is a separate, independent operation, so
+        the code prefix must be changeable between runs without a code
+        change -- defaults to the domain-level MEDICINE_CODE_PREFIX
+        ("TH") when not given, so every existing caller is unaffected.
+        See infrastructure.config.app_settings_schema.AppSettings
+        .medicine_code_prefix for where a real run supplies this.
         """
         if highest_existing_sequence_number < 0:
             return Result.failure(
@@ -88,7 +98,7 @@ class MedicineValidationService:
         next_number = max(
             highest_existing_sequence_number + 1, MEDICINE_CODE_FIRST_SEQUENCE_NUMBER
         )
-        return Result.success(f"{MEDICINE_CODE_PREFIX}{next_number}")
+        return Result.success(f"{prefix or MEDICINE_CODE_PREFIX}{next_number}")
 
     def is_duplicate(
         self, candidate_name: str, existing_medicine_normalized_names: set[str]

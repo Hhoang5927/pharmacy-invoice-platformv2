@@ -151,7 +151,10 @@ def register_infrastructure_services(
         SupplierRepository, sqlite_repositories.SqliteSupplierRepository(connection_manager)
     )
     container.register_instance(
-        MedicineRepository, sqlite_repositories.SqliteMedicineRepository(connection_manager)
+        MedicineRepository,
+        sqlite_repositories.SqliteMedicineRepository(
+            connection_manager, medicine_code_prefix=settings.medicine_code_prefix
+        ),
     )
     container.register_instance(
         BatchRepository, sqlite_repositories.SqliteBatchRepository(connection_manager)

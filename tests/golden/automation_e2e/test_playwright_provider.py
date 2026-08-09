@@ -2850,6 +2850,125 @@ class TestMedicineResolutionMergedIntoPerLineLoop:
             provider._search_and_select_medicine_for_line(item, 0)  # noqa: SLF001
 
 
+class TestMedicineSearchTechnicalFailureToleratedAsNotFound:
+    """
+    PO decision (2026-08, real "Coldi" incident, explicit speed-over-
+    caution tradeoff): a genuine Playwright TECHNICAL failure while
+    searching for a line's medicine (TransientInfrastructureError) must
+    be tolerated exactly like a normal zero-result search -- both fall
+    straight through to the create_medicine() fallback with no pause to
+    ask, per _fill_and_check_medicine_result_tolerant
+    (infrastructure.automation.playwright_adapter). PO explicitly
+    accepted the resulting real duplicate-catalog-entry risk in
+    exchange for speed.
+    """
+
+    def test_tolerant_wrapper_swallows_a_real_playwright_timeout_as_not_found(
+        self, page: Page
+    ) -> None:
+        """
+        Real Playwright timeout, not simulated: medicine.search_input's
+        own element (#first-line-search in the fixture, matching the
+        real registry's role=combobox/scope_role=cell/filter_has_text
+        entry) is removed from the DOM entirely before the search is
+        attempted, so _type_into_search_box's own .click() can never
+        find it and genuinely times out.
+        """
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p", default_timeout_ms=500)
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        page.evaluate("document.getElementById('first-line-search').remove()")
+
+        found = provider._fill_and_check_medicine_result_tolerant(  # noqa: SLF001
+            "medicine.search_input", "Coldi"
+        )
+
+        assert found is False
+
+    def test_second_line_skipped_when_its_search_itself_times_out(self, page: Page) -> None:
+        """
+        End-to-end via fill_and_save_invoice itself, composing with
+        TestFillAndSaveInvoiceSkipsUnresolvableLine's own pattern: line
+        1 resolves normally (its own medicine.search_input element is
+        untouched), then line 2's own
+        invoice_line.subsequent_row_medicine_search_input element
+        (#subsequent-line-search in the fixture) is permanently removed
+        -- a real timeout, not a 0-result poll -- and no
+        medicine_repository is injected, so create_medicine()'s own
+        fallback cannot help either. Proves a technical search failure,
+        when nothing can resolve it, still reaches the SAME D11 safety
+        net (skip this line, keep the invoice) rather than
+        hard-aborting. The separate "technical failure resolves via
+        create_medicine() and the line is saved normally" half of Việc 1
+        is proven by TestMedicineResolutionMergedIntoPerLineLoop's own
+        test_medicine_not_found_is_created_then_immediately_selected_for_its_own_line
+        (identical downstream code path -- _fill_and_check_medicine_result_tolerant
+        returning False is indistinguishable there whether caused by a
+        genuine zero-result poll or a caught technical error).
+        """
+        from datetime import date
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.ports.services.browser_automation_provider import (
+            ManualFollowUpLineItem,
+        )
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        def _make_item(medicine_name: str, unit_price: str, **overrides: object) -> PurchaseItem:
+            import uuid
+
+            defaults: dict[str, object] = {
+                "id": str(uuid.uuid4()),
+                "medicine_name": medicine_name,
+                "unit": Unit(code="vien"),
+                "quantity": Quantity(Decimal("5")),
+                "unit_price": Money(Decimal(unit_price)),
+                "retail_units_per_purchase_unit": 1,
+            }
+            defaults.update(overrides)
+            return PurchaseItem(**defaults)  # type: ignore[arg-type]
+
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p", default_timeout_ms=500)
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        page.evaluate(
+            "document.querySelector('#create-supplyer-dialog tbody').remove();"
+            "document.getElementById('subsequent-line-search').remove()"
+        )
+
+        invoice = PurchaseInvoice(
+            id="inv-1", project_id="proj-1", invoice_number="INV-004", invoice_date=date.today()
+        )
+        invoice.add_item(_make_item("Amoxicillin 500mg", "20000"))
+        unresolvable_item = _make_item("Coldi Unmatched Name", "15000")
+        invoice.add_item(unresolvable_item)
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome.success is True
+        assert outcome.manual_followup_items == (
+            ManualFollowUpLineItem(
+                line_position=2,
+                medicine_name="Coldi Unmatched Name",
+                quantity=unresolvable_item.quantity,
+                unit_price=unresolvable_item.unit_price,
+            ),
+        )
+        # Line 1 (the only real site row) was still filled/committed.
+        log_entries = page.locator("#line-fill-log li").all_text_contents()
+        assert log_entries == ["5|20000|"]
+
+
 class TestMedicineSelectionByKnownWebsiteCatalogCode:
     """
     Part 1 of the multi-result-disambiguation feature (2026-08, PO-

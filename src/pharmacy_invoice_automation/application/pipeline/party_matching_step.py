@@ -189,6 +189,7 @@ class PartyMatchingStep:
         ai_provider: AIProvider | None,
         allow_ai_fallback_classification: bool,
         tax_calculation_service: TaxCalculationService | None = None,
+        medicine_code_prefix: str | None = None,
     ) -> None:
         self._purchase_policy = purchase_policy
         self._medicine_validation_service = medicine_validation_service
@@ -201,6 +202,13 @@ class PartyMatchingStep:
         # here is not hiding a real dependency, matching the same pattern
         # already used for PricePolicy in PlaywrightBrowserAutomationProvider.
         self._tax_calculation_service = tax_calculation_service or TaxCalculationService()
+        # PO decision (2026-08): each pharmacy this system processes
+        # invoices for is a separate, independent operation -- None here
+        # means "use MedicineValidationService's own MEDICINE_CODE_PREFIX
+        # default ('TH')", so every existing caller/test is unaffected.
+        # See infrastructure.config.app_settings_schema.AppSettings
+        # .medicine_code_prefix for where a real run supplies this.
+        self._medicine_code_prefix = medicine_code_prefix
 
     def execute(self, invoice: PurchaseInvoice, ocr_result: OCRResult) -> PartyMatchingOutcome:
         """Resolve the invoice's supplier and every item's medicine, creating as needed."""
@@ -399,7 +407,7 @@ class PartyMatchingStep:
             self._medicine_repository.get_highest_code_sequence_number() + sequence_offset
         )
         code_result = self._medicine_validation_service.generate_next_medicine_code(
-            highest_sequence
+            highest_sequence, prefix=self._medicine_code_prefix
         )
         return Medicine(
             id=str(uuid.uuid4()),

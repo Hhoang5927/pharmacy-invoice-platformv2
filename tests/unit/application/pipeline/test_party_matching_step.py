@@ -398,6 +398,34 @@ class TestOrdinaryMedicineStillWorksAfterTheChange:
         codes = {medicine.medicine_code for medicine in outcome.new_medicines}
         assert len(codes) == 2
 
+    def test_new_medicine_uses_the_configured_code_prefix(
+        self, step: tuple[PartyMatchingStep, _FakeSupplierRepository, _FakeMedicineRepository]
+    ) -> None:
+        """
+        PO decision (2026-08): each pharmacy this system processes
+        invoices for is a separate, independent operation, so the "TH"
+        code prefix must be changeable per run (AppSettings
+        .medicine_code_prefix) without a code change.
+        """
+        _, supplier_repository, medicine_repository = step
+        party_matching_step = PartyMatchingStep(
+            purchase_policy=PurchasePolicy(),
+            medicine_validation_service=MedicineValidationService(),
+            supplement_classification_service=SupplementClassificationService(),
+            supplier_repository=supplier_repository,
+            medicine_repository=medicine_repository,
+            ai_provider=None,
+            allow_ai_fallback_classification=False,
+            medicine_code_prefix="DTN",
+        )
+        item = _make_item("Amoxicillin 500mg")
+        invoice = _make_invoice(item)
+
+        outcome = party_matching_step.execute(invoice, _make_ocr_result())
+
+        assert len(outcome.new_medicines) == 1
+        assert outcome.new_medicines[0].medicine_code == "DTN1"
+
 
 class TestPackagingRatioResolution:
     """

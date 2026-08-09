@@ -40,6 +40,7 @@ _TOML_KEY_TO_FIELD: dict[str, str] = {
     "automation.human_disambiguation_timeout_seconds": (
         "automation_human_disambiguation_timeout_seconds"
     ),
+    "medicine.code_prefix": "medicine_code_prefix",
     "price_lookup.cache_ttl_hours": "price_cache_ttl_hours",
     "logging.level": "log_level",
     "logging.retention_days": "log_retention_days",

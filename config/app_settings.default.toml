@@ -20,6 +20,9 @@ retry_count = 3
 navigation_timeout_seconds = 30
 human_disambiguation_timeout_seconds = 180  # a few minutes for a human to resolve an ambiguous medicine match
 
+[medicine]
+code_prefix = "TH"                        # per-pharmacy: change this (e.g. "DTN") when switching to a different pharmacy's dataset
+
 [price_lookup]
 cache_ttl_hours = 24
 

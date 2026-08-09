@@ -891,7 +891,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
             )
             return
 
-        if not self._fill_and_check_medicine_result(search_key, search_name):
+        if not self._fill_and_check_medicine_result_tolerant(search_key, search_name):
             # Deviation D11 (PO-confirmed 2026-08): both failure modes below
             # mean this line's medicine has genuinely exhausted every
             # automated resolution option -- raised as MedicineUnresolvableError
@@ -907,7 +907,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 raise MedicineUnresolvableError(
                     f"Medicine '{item.medicine_name}' could not be created on-site: {exc}"
                 ) from exc
-            if not self._fill_and_check_medicine_result(search_key, search_name):
+            if not self._fill_and_check_medicine_result_tolerant(search_key, search_name):
                 raise MedicineUnresolvableError(
                     f"Medicine '{item.medicine_name}' (searched as '{search_name}') still has "
                     "no matching search result immediately after create_medicine() -- cannot "
@@ -1703,6 +1703,28 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         result_entry = self._registry.require_usable("medicine.search_result_option")
         match_locator = self._locate_parameterized(result_entry, search_name)
         return self._fill_medicine_search_until_matched(search_key, search_name, match_locator)
+
+    def _fill_and_check_medicine_result_tolerant(self, search_key: str, search_name: str) -> bool:
+        """
+        PO decision (2026-08, real "Coldi" incident, explicit speed-over-
+        caution tradeoff): a genuine Playwright TECHNICAL failure while
+        searching (TransientInfrastructureError -- e.g. a real timeout
+        somewhere in the search box's own type/poll sequence, distinct
+        from a normal zero-result poll which _fill_and_check_medicine_result
+        already reports as a plain `False`) is now treated identically to
+        a zero-result search: both fall straight through to
+        _search_and_select_medicine_for_line's own create_medicine()
+        fallback immediately, no pause to ask. PO has explicitly accepted
+        the resulting real duplicate-catalog-entry risk (periodic manual
+        catalog audit instead of blocking automation on it) -- see this
+        task's own report. Distinct from _create_medicine_for_line's own
+        failure handling, which is unchanged: only create_medicine()
+        itself failing still reaches MedicineUnresolvableError.
+        """
+        try:
+            return self._fill_and_check_medicine_result(search_key, search_name)
+        except TransientInfrastructureError:
+            return False
 
     def _fill_and_check_medicine_result_by_code(
         self, search_key: str, search_name: str, website_catalog_code: str

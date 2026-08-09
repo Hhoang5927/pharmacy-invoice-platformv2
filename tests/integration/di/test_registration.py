@@ -253,3 +253,61 @@ class TestBrowserAutomationProviderFactory:
             assert isinstance(provider, PlaywrightBrowserAutomationProvider)
 
             browser.close()
+
+
+class TestMedicineCodePrefixConfiguration:
+    """
+    PO decision (2026-08): each pharmacy this system processes invoices
+    for is a separate, independent operation, so the "TH" medicine-code
+    prefix must be changeable per run via config/app_settings.default.toml
+    (never a code change) -- real end-to-end proof that a configured
+    [medicine].code_prefix value actually reaches the registered
+    MedicineRepository, not just that AppSettings parses it.
+    """
+
+    def test_configured_prefix_reaches_the_registered_medicine_repository(
+        self, tmp_path: Path
+    ) -> None:
+        from pharmacy_invoice_automation.domain.entities.medicine import Medicine
+        from pharmacy_invoice_automation.domain.enums.medicine_type import MedicineType
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        config_path = tmp_path / "app_settings.toml"
+        config_path.write_text('[medicine]\ncode_prefix = "DTN"\n', encoding="utf-8")
+
+        container = ServiceContainer()
+        register_infrastructure_services(container, tmp_path, config_file_path=config_path)
+
+        medicine_repository = container.resolve(MedicineRepository)
+        medicine_repository.add(
+            Medicine(
+                id="med-1",
+                medicine_code="DTN4",
+                name="Paracetamol 500mg",
+                medicine_type=MedicineType.OVER_THE_COUNTER,
+                unit=Unit(code="vien"),
+            )
+        )
+
+        assert medicine_repository.get_highest_code_sequence_number() == 4
+
+    def test_no_config_file_defaults_the_repository_to_th(
+        self, container_and_workspace: tuple[ServiceContainer, WorkspaceManager]
+    ) -> None:
+        from pharmacy_invoice_automation.domain.entities.medicine import Medicine
+        from pharmacy_invoice_automation.domain.enums.medicine_type import MedicineType
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        container, _ = container_and_workspace
+        medicine_repository = container.resolve(MedicineRepository)
+        medicine_repository.add(
+            Medicine(
+                id="med-1",
+                medicine_code="TH9",
+                name="Paracetamol 500mg",
+                medicine_type=MedicineType.OVER_THE_COUNTER,
+                unit=Unit(code="vien"),
+            )
+        )
+
+        assert medicine_repository.get_highest_code_sequence_number() == 9
