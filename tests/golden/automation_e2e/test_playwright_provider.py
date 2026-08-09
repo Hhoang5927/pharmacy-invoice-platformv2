@@ -2159,6 +2159,52 @@ class TestMedicineSearchLengthFallback:
         # independent of how short the triggering candidate got.
         assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
 
+    def test_waits_through_a_real_settle_delay_before_the_fallback_dropdown_appears(
+        self, page: Page
+    ) -> None:
+        """
+        BUG FIX (2026-08, PO-confirmed via real hands-on testing --
+        CRITICAL, race condition): PO directly observed the automation
+        correctly retyping the shorter fallback candidate ("Coldi-B"),
+        but no dropdown ever appeared -- even though PO's own SLOWER,
+        manual typing of the exact same text did produce one.
+
+        Merged in (2026-08) from feature/medicine-disambiguation-parts-2-3,
+        ported onto mechanisms that superseded that branch's own (see
+        _fill_medicine_search_until_matched's own merge note): uses this
+        file's later, more realistic medicine_search_settle_delay_ms
+        (delays the dropdown until this many ms after the LAST real
+        keyup, a genuine per-keystroke debounce reset) instead of that
+        branch's simpler, now-removed search_dropdown_delay_ms (a flat
+        delay with no debounce semantics), and relies on
+        _poll_until_matched's own shared _SEARCH_RESULT_POLL_BUDGET_MS
+        (8s) instead of that branch's own, now-removed
+        _MEDICINE_SEARCH_CANDIDATE_TIMEOUT_MS (5s). settle_delay=3500ms
+        is deliberately LONGER than the old, superseded fixed
+        _MEDICINE_SELECTION_SETTLE_MS wait (2500ms) that would have
+        failed here, but well within the 8s poll budget -- proving
+        _fill_medicine_search_until_matched genuinely polls for the
+        FALLBACK candidate specifically (not just the first, full-name
+        search already covered by TestMedicineSelectionSettleWait)
+        through a real settle delay, instead of checking once after a
+        fixed wait.
+        """
+        real_registry = load_selector_registry(WEBNHATHUOC_REGISTRY_PATH)
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(
+            f"{FIXTURE_HTML_PATH.resolve().as_uri()}"
+            "?search_length_limit=9&medicine_search_settle_delay_ms=3500"
+        )
+
+        provider._search_and_select_medicine_for_line(  # noqa: SLF001
+            self._make_item("Coldi-B DNH"), 0
+        )
+
+        assert page.evaluate("window.medicineResultClickLog") == ["TH5"]
+
     def test_character_truncation_never_goes_below_the_configured_minimum(self) -> None:
         # Direct unit check on the candidate generator itself (no live
         # page needed): for a name whose first word is long enough to
@@ -3137,8 +3183,18 @@ class TestMedicineDisambiguationByHumanSelection:
         ever finds MORE than one drug_search_box simultaneously containing
         a chip (an unexpected state -- not the normal "still waiting"
         one), it must raise a clear error instead of arbitrarily picking
-        one. Simulated by injecting a second, decoy chip into the OTHER
-        (normally empty) drug_search_box right as the real one appears.
+        one. inject_decoy_chip_on_selection (see that fixture script
+        block's own comment) ties the decoy's own appearance DIRECTLY to
+        the real chip's insertion event, not an independently-timed
+        setTimeout -- BUG FIX (2026-08): an earlier version of this test
+        used a fixed 400ms decoy delay, timed against how long the
+        overall search+settle pipeline used to take before
+        _fill_medicine_search_until_matched's own poll-based bug fix
+        made it meaningfully faster -- the decoy then arrived AFTER
+        _wait_for_human_medicine_selection had already observed the
+        real chip alone and returned successfully, making this test
+        flaky-by-design against any future timing change. Tying the two
+        together removes that dependency entirely.
         """
         from pharmacy_invoice_automation.infrastructure.automation.automation_errors import (
             VerificationFailedError,
