@@ -412,6 +412,20 @@
       "source": "05_full_flow...py:46 / 06_multi_line_items.py:23,26 (get_by_role(\"cell\", name=...) -- a <td> inside a table gets an implicit ARIA role=cell, the same real elements this CSS selector targets), reinforced by the real DOM snapshot (2026-08) explicitly confirming the '.old'/'.new' classes bootstrap-datepicker uses for greyed-out adjacent-month overflow days.",
       "notes": "Parameterized, strategy='text_exact' -- PO's own explicit instruction: EXCLUDE '.old'/'.new' cells (previous/next month's overflow days, visually greyed out but still real, clickable <td> elements that could otherwise collide with the target day's own number) via the ':not()' CSS pseudo-classes baked directly into this entry's own 'value', not a separate runtime filter. The 05_full_flow/06_multi_line_items recordings' own get_by_role(\"cell\", name=\"11\")/get_by_role(\"cell\", name=\"8\") calls did NOT exclude old/new -- an earlier, less rigorous version of essentially this same real widget; PO's own fresh DOM inspection is what confirmed the exclusion classes exist and must be used."
     },
+    "invoice.note_date_trigger": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "div.daterange-picker:has(#note-date-id)",
+      "source": "Real DOM snapshot (2026-08, PO-copied outerHTML directly from the live site): '<div class=\"clickable-text daterange-picker text-link font-weight-bold\"><input id=\"note-date-id\" name=\"noteDate\" ng-model=\"noteDate\" type=\"text\" ...><span class=\"ng-binding\">09/08/2026</span></div>'.",
+      "notes": "\"Ngày:\" -- the separate, PO-confirmed-distinct field invoice.date_calendar_trigger's own notes already flagged (\"the function name 'onInvoiceDateClick' is PO-confirmed distinct from whatever handler backs the separate 'Ngày:' field\") before this snapshot existed. id=\"note-date-id\" is unique -- no collision risk, unlike the earlier itemSearchUISelectID false-anchor incident. The ELEMENT itself (id) is real, PO-supplied DOM evidence -- 'confirmed' on that basis. What is NOT independently reconfirmed against the live site: (1) that clicking this element (as opposed to the bare #note-date-id input) actually opens invoice.date_calendar_dropdown's SAME shared bootstrap-datepicker widget -- inferred from the \"daterange-picker\" class name matching the already-confirmed shared-widget pattern (invoice.date_calendar_dropdown's own notes), a reasonable but not independently-proven inference; (2) the click TARGET is the wrapper div (class=\"clickable-text\", read literally as the intended click surface), not the <input> itself -- chosen because the 2 real, independently-recorded click sequences for this exact field (05_full_flow_existing_supplier_medicine.py:41, 06_multi_line_items.py:21) both clicked the field's own RENDERED TEXT (get_by_text(\"31/07/\").click(), i.e. the <span>, inside this wrapper), never an <input> directly -- consistent with invoice.date_field's own history of an input that looks fillable but is actually display-only, bound to a separate trigger. Flag both points for PO confirmation on the next real --dry-run run; do not treat as re-verified beyond this reasoning."
+    },
+    "invoice.note_date_field": {
+      "strategy": "css",
+      "status": "confirmed",
+      "value": "#note-date-id",
+      "source": "Real DOM snapshot (2026-08, PO-copied outerHTML directly from the live site) -- same snapshot as invoice.note_date_trigger.",
+      "notes": "Used ONLY to read back the final value after calendar navigation (input_value()), mirroring invoice.date_field's own post-BUG-FIX-#3 role -- never filled directly, matching the same display-only reasoning."
+    },
     "medicine.purchase_price_field": {
       "strategy": "role",
       "status": "confirmed",

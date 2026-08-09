@@ -589,7 +589,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         triggered by invoice.date_calendar_trigger (a real, confirmed
         calendar-icon button). _fill_invoice_date_and_verify (see its
         own docstring) now navigates that calendar (year -> month ->
-        day, see _select_invoice_date_via_calendar) instead of filling
+        day, see _select_date_via_calendar) instead of filling
         the textbox directly, and still reads the field back afterward,
         raising VerificationFailedError -- refusing to continue -- if
         it does not show exactly the expected date, so a wrong date can
@@ -647,6 +647,13 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         def _do() -> None:
             self._fill("invoice.number_field", invoice.invoice_number)
             self._fill_invoice_date_and_verify(invoice.invoice_date)
+            # "Ngày:" (2026-08, PO decision, real DOM snapshot): filled
+            # with the SAME real invoice date as "Ngày hóa đơn" above --
+            # see _fill_note_date_and_verify's own docstring for why
+            # (never left at the site's own today-by-default value,
+            # which would corrupt bookkeeping for the old, backdated
+            # invoices this system processes).
+            self._fill_note_date_and_verify(invoice.invoice_date)
             supplier = self._resolve_invoice_supplier(invoice)
 
             # Deviation D11 (PO-confirmed 2026-08): site rows are no longer
@@ -2111,13 +2118,13 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 "not be open at all."
             ) from exc
 
-    def _select_invoice_date_via_calendar(self, target_date: date) -> None:
+    def _select_date_via_calendar(self, trigger_key: str, target_date: date) -> None:
         """
         Bug fix (2026-08, PO-confirmed via real hands-on testing --
         CRITICAL, WRONG DATE on a real invoice, RESOLVED). PO personally
         verified clicking directly into the "Ngày hóa đơn" textbox does
         NOT open its calendar -- a plain fill() was never going to work
-        on this field; it is display-only, bound to a separate
+        on that field; it is display-only, bound to a separate
         bootstrap-datepicker widget triggered by
         invoice.date_calendar_trigger (a dedicated calendar-icon
         button, real ng-click="onInvoiceDateClick" confirmed distinct
@@ -2132,8 +2139,17 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         needed to know in advance how many months to step back).
         Selecting a year/month auto-returns bootstrap-datepicker to the
         next-finer view, per real, observed widget behavior.
+
+        ``trigger_key`` (2026-08, real DOM snapshot, PO-confirmed):
+        generalized from a hardcoded "invoice.date_calendar_trigger" so
+        this same navigation is reusable for invoice.note_date_trigger
+        ("Ngày:") too -- both fields bind to the SAME single, page-
+        shared invoice.date_calendar_dropdown instance (its own notes:
+        "repositions itself ... to whichever bound field/trigger was
+        last activated"), so only the trigger differs; the year/month/
+        day navigation entries below are page-shared and never change.
         """
-        self._click("invoice.date_calendar_trigger")
+        self._click(trigger_key)
         self._verify_exactly_one_calendar_visible()
         self._click("invoice.date_calendar_switch")
         self._click("invoice.date_calendar_switch")
@@ -2153,8 +2169,8 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         textbox itself does not even open its calendar. The correct
         mechanism -- click invoice.date_calendar_trigger, verify
         exactly one calendar is visible, then navigate year -> month ->
-        day (see _select_invoice_date_via_calendar) -- is now used
-        instead of fill().
+        day (see _select_date_via_calendar) -- is now used instead of
+        fill().
 
         Still reads invoice.date_field back immediately afterward and
         raises VerificationFailedError if it does not show exactly the
@@ -2165,7 +2181,7 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
         not this verification.
         """
         formatted_date = invoice_date.strftime("%d/%m/%Y")
-        self._select_invoice_date_via_calendar(invoice_date)
+        self._select_date_via_calendar("invoice.date_calendar_trigger", invoice_date)
         entry = self._registry.require_usable("invoice.date_field")
         actual = self._locate(entry).input_value()
         if actual != formatted_date:
@@ -2175,6 +2191,40 @@ class PlaywrightBrowserAutomationProvider(BrowserAutomationProvider):
                 "Refusing to continue with a possibly-wrong invoice date -- re-verify the "
                 "calendar navigation (year/month/day matching, or bootstrap-datepicker's "
                 "own auto-advance-to-next-view behavior) against the live site."
+            )
+
+    def _fill_note_date_and_verify(self, note_date: date) -> None:
+        """
+        "Ngày:" (2026-08, real DOM snapshot, PO-confirmed): a SEPARATE
+        field from "Ngày hóa đơn" (ng-model="noteDate" vs. the invoice's
+        own date), already confirmed distinct by
+        invoice.date_calendar_trigger's own registry notes before this
+        snapshot existed. PO decision: fill it with the invoice's real
+        date too (never the automation run date) -- previously left at
+        whatever the site defaults to (today), which would make every
+        old, backdated invoice this system processes look like it was
+        entered on the day automation ran, corrupting bookkeeping across
+        the ~3-year dossiers this project's own scale target describes.
+
+        Reuses _select_date_via_calendar exactly like
+        _fill_invoice_date_and_verify, just with
+        invoice.note_date_trigger instead of
+        invoice.date_calendar_trigger -- see invoice.note_date_trigger's
+        own registry notes for what is/isn't independently reconfirmed
+        about this field's click-to-open behavior. Same roundtrip
+        verification via invoice.note_date_field, same reasoning as
+        invoice.date_field's own.
+        """
+        formatted_date = note_date.strftime("%d/%m/%Y")
+        self._select_date_via_calendar("invoice.note_date_trigger", note_date)
+        entry = self._registry.require_usable("invoice.note_date_field")
+        actual = self._locate(entry).input_value()
+        if actual != formatted_date:
+            raise VerificationFailedError(
+                f"invoice.note_date_field shows '{actual}' after selecting '{formatted_date}' "
+                "via the calendar -- the site did not register this date correctly. "
+                "Refusing to continue with a possibly-wrong note date -- re-verify the "
+                "calendar navigation against the live site."
             )
 
     _OPTIONAL_CLICK_TIMEOUT_MS = 2_000

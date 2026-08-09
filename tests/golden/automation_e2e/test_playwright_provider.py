@@ -901,6 +901,115 @@ class TestTwoPhaseFillAndSaveInvoice:
         ]
 
 
+class TestNoteDateFilledWithRealInvoiceDate:
+    """
+    "Ngày:" (PO decision, 2026-08, real DOM snapshot -- REVERSES an
+    earlier decision to leave this field at the site's own today-by-
+    default value): PO is processing OLD invoices spanning ~3 years, so
+    leaving "Ngày:" at the automation run date would make every
+    backdated invoice look like it was entered on the same day,
+    corrupting bookkeeping. invoice.note_date_trigger/note_date_field
+    reuse the exact same shared-calendar navigation
+    (_select_date_via_calendar) already confirmed for "Ngày hóa đơn"
+    (invoice.date_calendar_trigger) -- id="note-date-id" is real,
+    PO-supplied DOM evidence; the click TARGET (wrapper div, not the
+    input) and the shared-widget assumption are inferred, not
+    independently re-confirmed against the live site (see
+    invoice.note_date_trigger's own registry notes).
+    """
+
+    def _make_item(self, medicine_name: str, unit_price: str, **overrides: object):
+        import uuid
+        from decimal import Decimal
+
+        from pharmacy_invoice_automation.domain.entities.purchase_item import PurchaseItem
+        from pharmacy_invoice_automation.domain.value_objects.money import Money
+        from pharmacy_invoice_automation.domain.value_objects.quantity import Quantity
+        from pharmacy_invoice_automation.domain.value_objects.unit import Unit
+
+        defaults: dict[str, object] = {
+            "id": str(uuid.uuid4()),
+            "medicine_name": medicine_name,
+            "unit": Unit(code="vien"),
+            "quantity": Quantity(Decimal("5")),
+            "unit_price": Money(Decimal(unit_price)),
+            "retail_units_per_purchase_unit": 1,
+        }
+        defaults.update(overrides)
+        return PurchaseItem(**defaults)  # type: ignore[arg-type]
+
+    def test_filled_with_the_real_invoice_date_several_years_in_the_past(
+        self, page: Page
+    ) -> None:
+        # Multi-year-back case (PO's own explicit request): the fixture's
+        # "current" calendar state defaults to August 2026 -- 2021/03/05
+        # requires real year-grid navigation (not just a same-year day
+        # pick), proving _select_date_via_calendar's year->month->day
+        # jump handles a real multi-year gap, not merely nearby dates.
+        from datetime import date
+
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
+
+        invoice = PurchaseInvoice(
+            id="inv-1",
+            project_id="proj-1",
+            invoice_number="00001567",
+            invoice_date=date(2021, 3, 5),
+        )
+        invoice.add_item(self._make_item("Paracetamol 500mg", "10000"))
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome == AutomationOutcome(success=True)
+        # Never left at the site's own today-by-default value (the
+        # fixture's initial "09/08/2026" span text) -- both the real
+        # invoice date AND, separately, NOT today's date.
+        assert page.locator("#note-date-id").input_value() == "05/03/2021"
+        assert page.locator("#note-date-display").text_content() == "05/03/2021"
+        # "Ngày hóa đơn" is unaffected by this second field's own
+        # calendar use -- both fields end up independently correct from
+        # the SAME shared #shared-datepicker instance, proving
+        # activeDateInputId-style trigger tracking (not just "whichever
+        # field was filled first wins").
+        assert page.locator("#invoice-date-input").input_value() == "05/03/2021"
+
+    def test_a_recent_date_is_also_filled_correctly_not_left_at_todays_default(
+        self, page: Page
+    ) -> None:
+        from datetime import date
+
+        from pharmacy_invoice_automation.domain.entities.purchase_invoice import PurchaseInvoice
+
+        real_registry = _registry_with_confirmed_vien_label()
+        config = PlaywrightAutomationConfig(username="u", password="p")
+        real_provider = PlaywrightBrowserAutomationProvider(
+            page, real_registry, config, logging.getLogger("test")
+        )
+        page.goto(FIXTURE_HTML_PATH.resolve().as_uri())
+        page.evaluate("document.querySelector('#create-supplyer-dialog tbody').remove()")
+
+        invoice = PurchaseInvoice(
+            id="inv-1",
+            project_id="proj-1",
+            invoice_number="00001568",
+            invoice_date=date(2026, 8, 3),
+        )
+        invoice.add_item(self._make_item("Paracetamol 500mg", "10000"))
+
+        outcome = real_provider.fill_and_save_invoice(invoice)
+
+        assert outcome == AutomationOutcome(success=True)
+        assert page.locator("#note-date-id").input_value() == "03/08/2026"
+
+
 class TestUnitVerificationBeforeFill:
     """
     STRATEGY CHANGE (2026-08, PO decision -- REPLACES Vien retail-unit

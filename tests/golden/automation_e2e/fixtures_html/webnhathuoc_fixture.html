@@ -389,6 +389,33 @@
   </div>
 
   <!--
+    invoice.note_date_trigger/invoice.note_date_field ("Ngày:", PO-
+    confirmed 2026-08 via a real DOM snapshot, ng-model="noteDate" --
+    a SEPARATE field from "Ngày hóa đơn" above, confirmed distinct
+    already by invoice.date_calendar_trigger's own registry notes
+    before this snapshot existed). Real snapshot: '<div class="
+    clickable-text daterange-picker text-link font-weight-bold">
+    <input id="note-date-id" name="noteDate" ng-model="noteDate"
+    type="text" ...><span class="ng-binding">09/08/2026</span></div>'.
+    Modeled here bound to the SAME #shared-datepicker widget as "Ngày
+    hóa đơn" (PO's own hypothesis, from the shared "daterange-picker"
+    styling/class-name pattern -- inferred, not independently
+    reconfirmed against the live site for THIS specific field; see
+    invoice.note_date_trigger's own registry notes) -- the click
+    target is the WRAPPER div (class="clickable-text", read literally)
+    rather than the <input> itself, since the input is display-only
+    here too (readonly, matching invoice-date-input's own already-
+    confirmed pattern) and the 2 independently-recorded real click
+    sequences for this exact field (05_full_flow...py:41,
+    06_multi_line_items.py:21) both clicked the rendered TEXT
+    (get_by_text), never the input directly.
+  -->
+  <div class="clickable-text daterange-picker text-link font-weight-bold" id="note-date-wrapper">
+    <input type="text" id="note-date-id" name="noteDate" readonly />
+    <span class="ng-binding" id="note-date-display">09/08/2026</span>
+  </div>
+
+  <!--
     role="table"/"row"/"cell" divs, NOT literal <table>/<tbody>/<td> --
     deliberately, so this section contributes no real <tbody> element
     to the page. role=cell/role=row still work identically for
@@ -657,6 +684,15 @@
       const corruptInvoiceDate = loginPopupParams.has("corrupt_invoice_date");
       let selectedYear = 2026;
       let selectedMonth = 8;
+      // invoice.note_date_trigger (2026-08, real DOM snapshot): the
+      // SAME #shared-datepicker instance now serves TWO fields --
+      // activeDateInputId tracks which trigger opened it most
+      // recently, matching invoice.date_calendar_dropdown's own real,
+      // PO-confirmed "single, page-shared instance that repositions
+      // itself to whichever bound field/trigger was last activated"
+      // behavior, so the final day-click writes into the correct
+      // field instead of always "invoice-date-input".
+      let activeDateInputId = "invoice-date-input";
       const dropdown = document.getElementById("shared-datepicker");
       const daysView = dropdown.querySelector(".datepicker-days");
       const monthsView = dropdown.querySelector(".datepicker-months");
@@ -668,23 +704,29 @@
         yearsView.hidden = view !== "years";
       };
 
+      const openSharedCalendarFor = (inputId) => {
+        activeDateInputId = inputId;
+        dropdown.hidden = false;
+        showView("days");
+        // PO's own explicit safety request: simulates a second,
+        // stray visible calendar (e.g. a real widget bug, or two
+        // fields somehow both open at once) to prove
+        // _verify_exactly_one_calendar_visible fails cleanly instead
+        // of navigating an ambiguous calendar.
+        if (loginPopupParams.has("duplicate_calendar")) {
+          const stray = document.createElement("div");
+          stray.className = "datepicker datepicker-dropdown";
+          stray.textContent = "stray duplicate calendar";
+          document.body.appendChild(stray);
+        }
+      };
+
       document
         .getElementById("invoice-date-calendar-trigger")
-        .addEventListener("click", () => {
-          dropdown.hidden = false;
-          showView("days");
-          // PO's own explicit safety request: simulates a second,
-          // stray visible calendar (e.g. a real widget bug, or two
-          // fields somehow both open at once) to prove
-          // _verify_exactly_one_calendar_visible fails cleanly instead
-          // of navigating an ambiguous calendar.
-          if (loginPopupParams.has("duplicate_calendar")) {
-            const stray = document.createElement("div");
-            stray.className = "datepicker datepicker-dropdown";
-            stray.textContent = "stray duplicate calendar";
-            document.body.appendChild(stray);
-          }
-        });
+        .addEventListener("click", () => openSharedCalendarFor("invoice-date-input"));
+      document
+        .getElementById("note-date-wrapper")
+        .addEventListener("click", () => openSharedCalendarFor("note-date-id"));
 
       // Real bootstrap-datepicker: one switch header per view --
       // clicking whichever is currently visible advances days -> months
@@ -723,9 +765,19 @@
         el.addEventListener("click", () => {
           const day = String(Number(el.textContent)).padStart(2, "0");
           const month = String(selectedMonth).padStart(2, "0");
-          document.getElementById("invoice-date-input").value = corruptInvoiceDate
-            ? "19/01/2024"
-            : `${day}/${month}/${selectedYear}`;
+          // ?corrupt_invoice_date only ever modeled "Ngày hóa đơn"'s own
+          // real reported misbehavior -- scoped to that field so it
+          // does not also corrupt "Ngày:" for tests that never asked
+          // for it.
+          const formatted =
+            corruptInvoiceDate && activeDateInputId === "invoice-date-input"
+              ? "19/01/2024"
+              : `${day}/${month}/${selectedYear}`;
+          const targetInput = document.getElementById(activeDateInputId);
+          targetInput.value = formatted;
+          if (targetInput.id === "note-date-id") {
+            document.getElementById("note-date-display").textContent = formatted;
+          }
           dropdown.hidden = true;
         });
       });
